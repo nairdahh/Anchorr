@@ -5,8 +5,6 @@
 **Jellycorrd** — a small Discord bot that lets you request movies/TV via Jellyseerr and receives Jellyfin/Jellyseerr "item added" notifications in Discord.  
 Use slash commands to search/request (TMDB-backed) and get pretty embeds when content shows up on your server.
 
-> Short description: Discord bot for requesting movies/TV and receiving notifications when items are added to your media server.
-
 ## Features
 
 - `/search <title>` — search TMDB and show details in an embed; from the embed you can Request.
