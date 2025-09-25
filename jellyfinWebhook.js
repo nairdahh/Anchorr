@@ -8,12 +8,12 @@ import {
 } from "discord.js";
 import dotenv from "dotenv";
 import axios from "axios";
+import { config } from "./config/config.js";
 
 dotenv.config();
 
 const debounceMap = new Map();
 const sentNotifications = new Map();
-const DEBOUNCE_DELAY = 15000;
 
 function getItemLevel(itemType) {
   switch (itemType) {
@@ -243,7 +243,7 @@ export function initJellyfinWebhook(client) {
           });
 
           debounceMap.delete(seriesId);
-        }, DEBOUNCE_DELAY);
+        }, config.webhook.debounce_delay);
 
         debounceMap.set(SeriesId, {
           timer: timer,

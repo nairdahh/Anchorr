@@ -14,6 +14,19 @@ Use slash commands to search/request (TMDB and OMDB-backed) and get pretty embed
 - Receives Jellyfin-style webhooks and posts Add notifications into a configured Discord channel (embed with director, short summary, runtime, rating, and quick buttons).
 - Optional OMDb lookup for IMDb rating / director / actors.
 
+## Prerequisites
+
+Before you begin, ensure you have the following:
+
+- A running **Jellyfin** server.
+- A running **Jellyseerr** instance.
+- A **Discord account** and a server where you have administrative privileges.
+- API keys from:
+  - **The Movie Database (TMDB)**
+  - **OMDb API** (Optional, but recommended for richer data)
+- **Node.js** (version 18.x or later).
+- **Docker** and **Docker Compose** (if you choose the Docker installation method).
+
 ## Quickstart — self-host (recommended for most users)
 
 This project is intended to be self-hosted by each user (so everyone keeps their own API keys).  
@@ -55,6 +68,28 @@ The bot will also available as a hosted Discord bot (maintainer-hosted) soon.
    Create a Discord Application, create a Bot, copy the DISCORD_TOKEN to .env
    Generate an invite link with scopes bot and applications.commands. Give minimal permissions (Send Messages, Embed Links).
 
+## Configuration
+
+Jellycorrd is configured using a `.env` file. Copy the `.env.example` to `.env` and fill in the values:
+
+- `DISCORD_TOKEN`: Your bot's unique token. Think of it as the bot's password. You can get this from the "Bot" section of your application in the Discord Developer Portal.
+- `BOT_ID`: The Client ID of your bot. Find this on the "General Information" page of your Discord application.
+- `GUILD_ID`: The ID of the Discord server where you will use the bot. Enable Developer Mode in Discord, then right-click your server icon and "Copy Server ID".
+
+- `JELLYSEERR_URL`: The full URL to your Jellyseerr API. This is typically `http://<your-ip>:5055/api/v1`.
+- `JELLYSEERR_API_KEY`: Your API key from Jellyseerr. Find it in your Jellyseerr settings under `Settings` -> `API Keys`.
+
+- `TMDB_API_KEY`: Your API key from The Movie Database (TMDB). You can get one by creating an account on their website.
+- `OMDB_API_KEY`: (Optional) Your API key from OMDb API for fetching IMDb ratings, director, and actor information.
+
+- `JELLYFIN_BASE_URL`: The publicly accessible URL of your Jellyfin server. **This must be reachable from the internet** for the "Watch Now" links in Discord to work for other users.
+  - **Correct examples:** `http://jellyfin.yourdomain.com` or `http://88.99.100.101:8096` (if using a public IP).
+  - **Note:** Using `localhost` or a local network IP (e.g., `192.168.1.100`) will only work for users on the same local network as the server.
+- `JELLYFIN_SERVER_ID`: The unique ID of your Jellyfin server. You can find this by navigating to any item in your library; it's the `serverId` parameter in the URL.
+- `JELLYFIN_CHANNEL_ID`: The ID of the Discord text channel where you want to receive notifications about new media. Enable Developer Mode, right-click the channel, and "Copy Channel ID".
+
+- `WEBHOOK_PORT`: The network port the bot will listen on for incoming webhooks from Jellyfin. The default is `8282`.
+
 ## Commands & usage
 
 `/search <title>` — opens interactive embed; use the Request button to send to Jellyseerr.  
@@ -70,16 +105,18 @@ Keep secrets out of the repo (use .env only).
 
 GitHub Actions can be set up to build/push images to GHCR or Docker Hub.
 
+## Screenshots
+
+![App screenshot autocomplete](./assets/screenshot-autocomplete.png)  
+![App screenshot search](./assets/screenshot-search.png)  
+![App screenshot request](./assets/screenshot-request.png)
+
 ## Contributing
 
-Contributions welcome. Keep PRs small and focused. Please open an issue or PR for:
+Contributions are always welcome!
 
-- bugfixes
-- packaging improvements (Docker Compose)
-- adding per-guild settings (DB-backed)
-- building a web dashboard for settings
+See `contributing.md` for ways to get started.
 
 ## License
 
 This repo is released under the Unlicense — public domain. Do anything with the code.
-(If you want a LICENSE file, create one and paste the Unlicense text.)

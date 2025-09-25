@@ -129,64 +129,42 @@ async function tmdbGetExternalImdb(id, mediaType) {
 }
 
 // ----------------- JELLYSEERR -----------------
-async function sendRequestToJellyseerr(tmdbId, mediaType) {
-  const attempts = [
-    {
-      desc: "body { mediaId, mediaType } to /request",
-      fn: async () =>
-        axios.post(
-          `${JELLYSEERR_URL}/request`,
-          { mediaId: tmdbId, mediaType },
-          { headers: { "X-Api-Key": JELLYSEERR_API_KEY }, timeout: 10000 }
-        ),
-    },
-    {
-      desc: "body { mediaId } to /request",
-      fn: async () =>
-        axios.post(
-          `${JELLYSEERR_URL}/request`,
-          { mediaId: tmdbId },
-          { headers: { "X-Api-Key": JELLYSEERR_API_KEY }, timeout: 10000 }
-        ),
-    },
-    {
-      desc: "fallback /request/movie",
-      fn: async () =>
-        axios.post(
-          `${JELLYSEERR_URL}/request/movie`,
-          { mediaId: tmdbId },
-          { headers: { "X-Api-Key": JELLYSEERR_API_KEY }, timeout: 10000 }
-        ),
-    },
-    {
-      desc: "fallback /request/tv",
-      fn: async () =>
-        axios.post(
-          `${JELLYSEERR_URL}/request/tv`,
-          { mediaId: tmdbId },
-          { headers: { "X-Api-Key": JELLYSEERR_API_KEY }, timeout: 10000 }
-        ),
-    },
-  ];
+async function sendRequestToJellyseerr(tmdbId, mediaType, details) {
+  const payload = {
+    mediaId: tmdbId,
+    mediaType: mediaType,
+  };
 
-  let lastErr = null;
-  for (const a of attempts) {
-    try {
-      console.log(`Trying Jellyseerr: ${a.desc}`);
-      const r = await a.fn();
-      console.log(`Jellyseerr succeeded with: ${a.desc}`);
-      return r.data;
-    } catch (err) {
-      lastErr = err;
-      console.warn(
-        `Attempt failed (${a.desc}):`,
-        err?.response?.data || err?.message || err
+  if (mediaType === "tv") {
+    if (
+      details &&
+      Array.isArray(details.seasons) &&
+      details.seasons.length > 0
+    ) {
+      const firstSeason = details.seasons.find(
+        (s) => typeof s.season_number === "number" && s.season_number > 0
       );
+      payload.seasons = firstSeason ? [firstSeason.season_number] : [1];
+    } else {
+      payload.seasons = [1];
     }
   }
-  const e = new Error("All Jellyseerr attempts failed");
-  e.original = lastErr;
-  throw e;
+
+  try {
+    console.log("Trying Jellyseerr request with payload:", payload);
+    const response = await axios.post(`${JELLYSEERR_URL}/request`, payload, {
+      headers: { "X-Api-Key": JELLYSEERR_API_KEY },
+      timeout: 10000,
+    });
+    console.log("Jellyseerr request successful!");
+    return response.data;
+  } catch (err) {
+    console.error(
+      "Jellyseerr request failed:",
+      err?.response?.data || err?.message || err
+    );
+    throw err;
+  }
 }
 
 // ----------------- EMBED BUILDER -----------------
@@ -358,17 +336,18 @@ async function handleSearchOrRequest(interaction, raw, mode = "search") {
     });
   }
 
+  // ...
   await interaction.deferReply();
 
   try {
+    const details = await tmdbGetDetails(tmdbId, mediaType);
+
     if (mode === "request") {
-      await sendRequestToJellyseerr(tmdbId, mediaType);
+      await sendRequestToJellyseerr(tmdbId, mediaType, details);
     }
 
-    const details = await tmdbGetDetails(tmdbId, mediaType);
     const imdbId = await tmdbGetExternalImdb(tmdbId, mediaType);
 
-    // fetch OMDb for director/actors/plot etc.
     const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
 
     const embed = buildNotificationEmbed(
@@ -484,10 +463,10 @@ client.on("interactionCreate", async (interaction) => {
       await interaction.deferUpdate();
 
       try {
-        await sendRequestToJellyseerr(tmdbId, mediaType);
-
-        // fetch details and embed
         const details = await tmdbGetDetails(tmdbId, mediaType);
+
+        await sendRequestToJellyseerr(tmdbId, mediaType, details);
+
         const imdbId = await tmdbGetExternalImdb(tmdbId, mediaType);
         const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
 
