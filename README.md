@@ -1,9 +1,9 @@
+![Jellycorrd logo-text](./assets/logo-text.png)
+
 # Jellycorrd
 
-![Jellycorrd logo](./assets/logo.png)
-
-**Jellycorrd** — a small Discord bot that lets you request movies/TV via Jellyseerr and receives Jellyfin/Jellyseerr "item added" notifications in Discord.  
-Use slash commands to search/request (TMDB-backed) and get pretty embeds when content shows up on your server.
+**Jellycorrd** — a small Discord bot that lets you request movies/TV via Jellyseerr and receives Jellyfin "item added" notifications in Discord.  
+Use slash commands to search/request (TMDB and OMDB-backed) and get pretty embeds when content shows up on your server.
 
 ## Features
 

@@ -1,9 +1,8 @@
-version: "3.8"
 services:
-  jellybot:
+  jellycorrd:
     build: .
     container_name: jellycorrd
     restart: unless-stopped
     env_file: .env
     ports:
-      - "${WEBHOOK_PORT:-8282}:${WEBHOOK_PORT:-8282}" # webhook listener
+      - "${WEBHOOK_PORT:-8282}:8282" # webhook listener

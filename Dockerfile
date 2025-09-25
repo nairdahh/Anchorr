@@ -15,7 +15,7 @@ COPY . .
 RUN addgroup -S app && adduser -S -G app app
 USER app
 
-EXPOSE 3000 8282
+EXPOSE 8282
 
 # start (use NODE_ENV=production in container)
 CMD ["node", "app.js"]
