@@ -1,4 +1,6 @@
-![Jellycorrd logo-text](./assets/logo-text.png)
+<p align="center">
+  <img src="./assets/logo-text.png" alt="Jellycorrd logo-text"/>
+</p>
 
 # Jellycorrd
 
