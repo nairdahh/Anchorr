@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jellycorrd</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Jellycorrd</h1>
+      <p class="placeholder">
+        A full Web UI is planned for the near future. For now, this page
+        provides manual setup instructions.
+      </p>
+
+      <h2>Manual Configuration Guide</h2>
+      <p>
+        Jellycorrd is a self-hosted Discord bot that connects to Jellyfin and
+        Jellyseerr. Configuration is done via an <code>.env</code> file in the
+        project root.
+      </p>
+
+      <h4>Quick Setup Steps:</h4>
+      <ol>
+        <li>
+          Clone the repository from
+          <a
+            href="https://github.com/nairdahh/jellycorrd"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >.
+        </li>
+        <li>
+          Create a <code>.env</code> file by copying <code>.env.example</code>.
+        </li>
+        <li>
+          Fill in your API keys and IDs (Discord, Jellyseerr, TMDB, etc.).
+          <details>
+            <summary>Detailed .env configuration</summary>
+            <div class="details-content">
+              <ul>
+                <li>
+                  <code>DISCORD_TOKEN</code>: Your
+                  <strong>bot's unique token</strong>. You can get this from the
+                  "Bot" section in the Discord Developer Portal.
+                </li>
+                <li>
+                  <code>BOT_ID</code>: The
+                  <strong>Client ID of your bot</strong>. Find this on the
+                  "General Information" page of your Discord application.
+                </li>
+                <li>
+                  <code>GUILD_ID</code>: The
+                  <strong>ID of the Discord server</strong>. Enable Developer
+                  Mode in Discord, then right-click your server icon and "Copy
+                  Server ID".
+                </li>
+                <li>
+                  <code>JELLYSEERR_URL</code>: The full
+                  <strong>URL to your Jellyseerr API</strong>.
+                  <strong
+                    >Make sure to include <code>/api/v1</code> at the
+                    end.</strong
+                  >
+                  <ul>
+                    <li>
+                      <strong>Node.js (without Docker):</strong> Use
+                      <code>http://localhost:5055/api/v1</code> if Jellyseerr is
+                      on the same machine.
+                    </li>
+                    <li>
+                      <strong>Docker:</strong> If Jellyseerr is on the host
+                      machine, use
+                      <code>http://host.docker.internal:5055/api/v1</code>.
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <code>JELLYSEERR_API_KEY</code>: Your
+                  <strong>API key from Jellyseerr</strong>. Find it in
+                  <code>Settings</code> -> <code>API Keys</code>.
+                </li>
+                <li>
+                  <code>TMDB_API_KEY</code>: Your
+                  <strong>API key from The Movie Database</strong> (TMDB).
+                </li>
+                <li>
+                  <code>OMDB_API_KEY</code>: (Optional) Your
+                  <strong>API key from OMDb API</strong> for richer data.
+                </li>
+                <li>
+                  <code>JELLYFIN_BASE_URL</code>: The
+                  <strong
+                    >publicly accessible URL of your Jellyfin server</strong
+                  >. This must be reachable from the internet for "Watch Now"
+                  links to work.
+                </li>
+                <li>
+                  <code>JELLYFIN_SERVER_ID</code>: The unique
+                  <strong>ID of your Jellyfin server</strong>.
+                </li>
+                <li>
+                  <code>JELLYFIN_CHANNEL_ID</code>: The
+                  <strong>ID of the Discord channel</strong> for new media
+                  notifications.
+                </li>
+                <li>
+                  <code>WEBHOOK_PORT</code>: The
+                  <strong>network port</strong> the bot will listen on for
+                  Jellyfin webhooks (default is <code>8282</code>).
+                </li>
+              </ul>
+            </div>
+          </details>
+        </li>
+        <li>
+          Run the application using <code>docker compose up -d --build</code>.
+        </li>
+        <li>
+          In your Jellyfin settings, add the webhook URL: <br /><code
+            >http://&lt;your-host-ip&gt;:&lt;WEBHOOK_PORT&gt;/jellyfin-webhook</code
+          >
+        </li>
+      </ol>
+
+      <p>
+        For detailed instructions, troubleshooting, and configuration options,
+        please refer to the project's official documentation.
+      </p>
+
+      <div class="footer">
+        <a
+          href="https://github.com/nairdahh/jellycorrd"
+          target="_blank"
+          rel="noopener noreferrer"
+          >View on GitHub</a
+        >
+      </div>
+    </div>
+  </body>
+</html>

@@ -9,8 +9,13 @@ import {
 import dotenv from "dotenv";
 import axios from "axios";
 import { config } from "./config/config.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const debounceMap = new Map();
 const sentNotifications = new Map();
@@ -171,6 +176,8 @@ export function initJellyfinWebhook(client) {
   const app = express();
   app.use(bodyParser.json({ limit: "10mb" }));
 
+  app.use(express.static(path.join(__dirname)));
+
   app.post("/jellyfin-webhook", async (req, res) => {
     try {
       const data = req.body;
@@ -266,6 +273,10 @@ export function initJellyfinWebhook(client) {
       console.error("Error handling Jellyfin webhook:", err);
       res.status(500).send("Error");
     }
+  });
+
+  app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "index.html"));
   });
 
   const WEBHOOK_PORT = parseInt(process.env.WEBHOOK_PORT || "8282", 10);
