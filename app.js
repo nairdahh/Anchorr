@@ -205,7 +205,6 @@ function buildNotificationEmbed(
       ? `${details.vote_average.toFixed(1)}/10`
       : "N/A";
 
-  // overview fallback order: TMDB details.overview -> OMDb Plot -> fallback
   const overview =
     (details.overview && details.overview.trim() !== ""
       ? details.overview
@@ -214,27 +213,16 @@ function buildNotificationEmbed(
       ? omdb.Plot
       : "No description available.");
 
-  // director + top 3 actors from OMDb if available
   let director = "";
-  let actorsPreview = "";
-  if (omdb) {
+  if (omdb && mediaType === "movie") {
     director = omdb.Director && omdb.Director !== "N/A" ? omdb.Director : "";
-    if (omdb.Actors && omdb.Actors !== "N/A") {
-      actorsPreview = omdb.Actors.split(",")
-        .map((s) => s.trim())
-        .slice(0, 3)
-        .join(", ");
-    }
   }
 
-  let headerLine = "";
-  if (director || actorsPreview) {
-    const directorPart = director ? `Directed by ${director}` : "";
-    headerLine = directorPart || "";
+  let headerLine = "Summary";
+  if (director) {
+    headerLine = `Directed by ${director}`;
   }
-  if (!headerLine) headerLine = "Info";
 
-  // build embed
   const embed = new EmbedBuilder()
     .setAuthor({ name: authorName })
     .setTitle(titleWithYear)
@@ -256,7 +244,6 @@ function buildNotificationEmbed(
   if (backdrop) embed.setImage(backdrop);
   else if (poster) embed.setThumbnail(poster);
 
-  // fields
   embed.addFields(
     {
       name: headerLine,
@@ -271,11 +258,9 @@ function buildNotificationEmbed(
 }
 
 // ----------------- BUTTONS BUILDER -----------------
-// params: tmdbId, imdbId, requested: boolean (if true -> show disabled success button), mediaType optional
 function buildButtons(tmdbId, imdbId, requested = false, mediaType = "movie") {
   const buttons = [];
 
-  // Letterboxd + IMDb first (if imdbId)
   if (imdbId) {
     buttons.push(
       new ButtonBuilder()
@@ -289,7 +274,6 @@ function buildButtons(tmdbId, imdbId, requested = false, mediaType = "movie") {
     );
   }
 
-  // If requested already -> show disabled success button (green)
   if (requested) {
     buttons.push(
       new ButtonBuilder()
@@ -299,7 +283,6 @@ function buildButtons(tmdbId, imdbId, requested = false, mediaType = "movie") {
         .setDisabled(true)
     );
   } else {
-    // normal state -> interactive Request primary button
     buttons.push(
       new ButtonBuilder()
         .setCustomId(`request_btn|${tmdbId}|${mediaType}`)
@@ -336,7 +319,6 @@ async function handleSearchOrRequest(interaction, raw, mode = "search") {
     });
   }
 
-  // ...
   await interaction.deferReply();
 
   try {
@@ -358,7 +340,6 @@ async function handleSearchOrRequest(interaction, raw, mode = "search") {
       omdb
     );
 
-    // when mode === "request" - the disabled success button (requested=true)
     const components = buildButtons(
       tmdbId,
       imdbId,
@@ -477,10 +458,8 @@ client.on("interactionCreate", async (interaction) => {
           "success",
           omdb
         );
-        // now we show disabled success button (requested)
         const components = buildButtons(tmdbId, imdbId, true, mediaType);
 
-        // edit original message
         if (interaction.message && interaction.message.edit) {
           await interaction.message.edit({ embeds: [embed], components });
         } else {
@@ -501,12 +480,10 @@ client.on("interactionCreate", async (interaction) => {
       }
     }
 
-    // ignore requested|... presses (disabled) — but in case someone triggers it somehow:
     if (
       interaction.isButton() &&
       interaction.customId.startsWith("requested|")
     ) {
-      // do nothing (or acknowledge)
       try {
         await interaction.reply({
           content: "This item was already requested.",
@@ -522,7 +499,6 @@ client.on("interactionCreate", async (interaction) => {
 // ----------------- LOGIN -----------------
 client.once("ready", () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
-  // init webhook for jellyfin notifications (keeps separate functionality)
   initJellyfinWebhook(client);
 });
 

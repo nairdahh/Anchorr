@@ -88,8 +88,13 @@ async function processAndSendNotification(data, client) {
   const overviewText =
     Overview?.trim() || omdb?.Plot || "No description available.";
 
-  let director = omdb?.Director && omdb.Director !== "N/A" ? omdb.Director : "";
-  let headerLine = director ? `Directed by ${director}` : "Description";
+  const director =
+    omdb?.Director && omdb.Director !== "N/A" ? omdb.Director : "";
+  let headerLine = "Summary"; // Header default pentru seriale
+
+  if (ItemType === "Movie" && director) {
+    headerLine = `Directed by ${director}`;
+  }
 
   let embedTitle = "";
   let authorName = "";
@@ -127,8 +132,8 @@ async function processAndSendNotification(data, client) {
       `${ServerUrl}/web/index.html#!/details?id=${ItemId}&serverId=${ServerId}`
     )
     .setColor("#cba6f7")
-    .setDescription(overviewText)
     .addFields(
+      { name: headerLine, value: overviewText },
       { name: "Genre", value: genreList, inline: true },
       { name: "Runtime", value: runtime, inline: true },
       { name: "Rating", value: rating, inline: true }
