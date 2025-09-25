@@ -1,6 +1,6 @@
 services:
   jellycorrd:
-    build: .
+    image: nairdah/jellycorrd:1.0.0
     container_name: jellycorrd
     restart: unless-stopped
     env_file: .env
