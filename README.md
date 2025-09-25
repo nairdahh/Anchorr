@@ -110,6 +110,7 @@ GitHub Actions can be set up to build/push images to GHCR or Docker Hub.
 ![App screenshot autocomplete](./assets/screenshot-autocomplete.png)  
 ![App screenshot search](./assets/screenshot-search.png)  
 ![App screenshot request](./assets/screenshot-request.png)
+![App screenshot new media](./assets/screenshot-newmedia.png)
 
 ## Contributing
 
