@@ -4,6 +4,7 @@ import axios from "axios";
 import {
   Client,
   GatewayIntentBits,
+  Partials,
   REST,
   Routes,
   SlashCommandBuilder,
@@ -33,7 +34,10 @@ if (missing.length) {
 const JELLYFIN_BASE_URL = process.env.JELLYFIN_BASE_URL || null;
 const JELLYFIN_SERVER_ID = process.env.JELLYFIN_SERVER_ID || null;
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds],
+  partials: [Partials.Channel],
+});
 
 const BOT_ID = process.env.BOT_ID;
 const GUILD_ID = process.env.GUILD_ID;
