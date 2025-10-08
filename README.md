@@ -99,7 +99,7 @@ This is the recommended method for most users as it simplifies dependency manage
     docker compose up -d --build
     ```
 
-## Step 5: Connect Jellyfin to the Bot
+### Step 5: Connect Jellyfin to the Bot
 
 The final step is to configure Jellyfin to send events to your running bot.
 
@@ -109,7 +109,7 @@ The final step is to configure Jellyfin to send events to your running bot.
     `http://<your-host-ip>:<WEBHOOK_PORT>/jellyfin-webhook`
 4.  **Example**: If the bot is running on a machine with the local IP `192.168.1.100` and you left the port as `8282` in your `.env` file, the URL will be:
     ```
-    [http://192.168.1.100:8282/jellyfin-webhook](http://192.168.1.100:8282/jellyfin-webhook)
+    http://192.168.1.100:8282/jellyfin-webhook
     ```
 5.  Choose which notifications you want to receive, save, and you're all set! Your bot is now fully configured.
 
