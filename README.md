@@ -27,46 +27,91 @@ Before you begin, ensure you have the following:
 - **Node.js** (version 18.x or later).
 - **Docker** and **Docker Compose** (if you choose the Docker installation method).
 
-## Quickstart — self-host (recommended for most users)
+## Setup Guide
 
 This project is intended to be self-hosted by each user (so everyone keeps their own API keys).  
 The bot will also available as a hosted Discord bot (maintainer-hosted) soon.
 
-1. **Clone the repo**
+### Step 1: Create & Configure the Discord Bot
 
-   ```bash
-   git clone https://github.com/nairdahh/anchorr.git
-   cd anchorr
-   ```
+Before installing `anchorr`, you need to create an application and a bot user in the Discord Developer Portal.
 
-2. **Copy and fill .env**
+1.  **Go to the [Discord Developer Portal](https://discord.com/developers/applications)** and log in.
+2.  Click the **"New Application"** button in the top-right corner. Give it a name and accept the terms.
+3.  In the left-hand menu, navigate to the **"Bot"** section.
+4.  Click the **"Add Bot"** button and confirm the action.
+5.  Under the bot's username, click **"Reset Token"** to generate the bot's secret key. Copy this token. **Keep this token secure and do not share it with anyone!** You will need it shortly.
+6.  Now, let's generate the invite link. Go to **"OAuth2"** -> **"URL Generator"**.
+7.  In the **"SCOPES"** section, check the boxes for `bot` and `applications.commands`.
+8.  A new **"BOT PERMISSIONS"** section will appear below. Grant the following minimum permissions:
+    - **Send Messages**
+    - **Embed Links**
+9.  Copy the generated URL at the bottom of the page, open it in a new browser tab, and invite the bot to your Discord server.
 
-   ```bash
-   cp .env.example .env
-   ```
+### Step 2: Install the Jellyfin Webhook Plugin
 
-3. **Run with Node (dev)**
-   ```bash
-   npm install
-   node app.js
-   ```
-4. **Or run with Docker Compose**
-   ```bash
-   docker compose up -d --build
-   ```
-5. **Set up Jellyfin webhook**  
-   In Jellyfin (server settings → Webhooks) add your webhook URL:
+For Jellyfin to be able to send notifications to the bot, you need the official Webhooks plugin.
 
-   ```bash
-   http://<your-host-ip>:<WEBHOOK_PORT>/jellyfin-webhook
+1.  Log in to your Jellyfin interface with an administrator account.
+2.  Navigate to **Dashboard** -> **Plugins**.
+3.  Go to the **"Catalog"** tab and search for the plugin named **Webhooks**.
+4.  Click on it and install it.
+5.  After the installation is complete, **restart your Jellyfin server** to activate the plugin.
 
-   ```
+### Step 3: Download & Configure the Bot
 
-   Example: `http://192.168.1.100:8282/jellyfin-webhook`
+Now we will download the source code and set up the environment variables.
 
-6. **Invite bot to your server**  
-   Create a Discord Application, create a Bot, copy the `DISCORD_TOKEN` to `.env`
-   Generate an invite link with scopes `bot` and `applications.commands`. Give minimal permissions `(Send Messages, Embed Links)`.
+1.  **Clone the repository** into a folder of your choice:
+    ```bash
+    git clone https://github.com/nairdahh/anchorr.git
+    cd anchorr
+    ```
+2.  **Create and configure the `.env` file**. Copy the example file and open it with a text editor.
+    ```bash
+    cp .env.example .env
+    ```
+3.  Edit the `.env` file and fill in the required variables.
+
+### Step 4: Run the Bot (Choose a method)
+
+You can run the bot directly using Node.js or through a Docker container.
+
+#### Option 1: Run with Node.js (for development)
+
+This method is ideal if you want to modify the code or debug. It requires **Node.js** and **npm** to be installed.
+
+1.  **Install the project dependencies**:
+    ```bash
+    npm install
+    ```
+2.  **Start the bot**:
+    ```bash
+    node app.js
+    ```
+
+#### Option 2: Run with Docker Compose (recommended)
+
+This is the recommended method for most users as it simplifies dependency management. It requires **Docker** and **Docker Compose** to be installed.
+
+1.  **Build and start the container** in the background:
+    ```bash
+    docker compose up -d --build
+    ```
+
+## Step 5: Connect Jellyfin to the Bot
+
+The final step is to configure Jellyfin to send events to your running bot.
+
+1.  Go back to your **Jellyfin Dashboard** -> **Webhooks** (the section will appear in the menu after the plugin is installed).
+2.  Click the **`+`** button to add a new webhook.
+3.  In the **URL** field, enter the IP address of the machine where the bot is running, followed by the port set in `.env` and the webhook path. The format is:
+    `http://<your-host-ip>:<WEBHOOK_PORT>/jellyfin-webhook`
+4.  **Example**: If the bot is running on a machine with the local IP `192.168.1.100` and you left the port as `8282` in your `.env` file, the URL will be:
+    ```
+    [http://192.168.1.100:8282/jellyfin-webhook](http://192.168.1.100:8282/jellyfin-webhook)
+    ```
+5.  Choose which notifications you want to receive, save, and you're all set! Your bot is now fully configured.
 
 ## Configuration
 
