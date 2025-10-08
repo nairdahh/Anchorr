@@ -1,7 +1,7 @@
 services:
-  jellycorrd:
-    image: nairdah/jellycorrd:1.0.0
-    container_name: jellycorrd
+  anchorr:
+    image: nairdah/anchorr:1.0.1
+    container_name: anchorr
     restart: unless-stopped
     env_file: .env
     ports:

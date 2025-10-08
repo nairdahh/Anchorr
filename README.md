@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="./assets/logo-text.png" alt="Jellycorrd logo-text"/>
+  <img src="./assets/logo-text.png" alt="Anchorr logo-text"/>
 </p>
 
-# Jellycorrd
+# Anchorr
 
-**Jellycorrd** — a small Discord bot that lets you request movies/TV via Jellyseerr and receives Jellyfin "item added" notifications in Discord.  
+**Anchorr** — a small Discord bot that lets you request movies/TV via Jellyseerr and receives Jellyfin "item added" notifications in Discord.  
 Use slash commands to search/request (TMDB and OMDB-backed) and get pretty embeds when content shows up on your server.
 
 ## Features
@@ -35,8 +35,8 @@ The bot will also available as a hosted Discord bot (maintainer-hosted) soon.
 1. **Clone the repo**
 
    ```bash
-   git clone https://github.com/nairdahh/jellycorrd.git
-   cd jellycorrd
+   git clone https://github.com/nairdahh/anchorr.git
+   cd anchorr
    ```
 
 2. **Copy and fill .env**
@@ -70,7 +70,7 @@ The bot will also available as a hosted Discord bot (maintainer-hosted) soon.
 
 ## Configuration
 
-Jellycorrd is configured using a `.env` file. Copy the `.env.example` to `.env` and fill in the values:
+Anchorr is configured using a `.env` file. Copy the `.env.example` to `.env` and fill in the values:
 
 - `DISCORD_TOKEN`: Your **bot's unique token**. Think of it as the bot's password. You can get this from the "Bot" section of your application in the Discord Developer Portal.
 - `BOT_ID`: The **Client ID of your bot**. Find this on the "General Information" page of your Discord application.

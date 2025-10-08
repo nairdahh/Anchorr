@@ -1,4 +1,4 @@
-# Contributing to Jellycorrd
+# Contributing to Anchorr
 
 First off, thank you for considering contributing! Your help is greatly appreciated.
 
@@ -36,4 +36,4 @@ We are actively looking for help in the following areas:
 - **Per-Guild Settings:** Implementing a database (like SQLite) to allow the bot to be configured differently for each Discord server it joins.
 - **Web Dashboard:** Building a simple web interface for easier configuration.
 
-Thank you for making Jellycorrd better!
+Thank you for making Anchorr better!
