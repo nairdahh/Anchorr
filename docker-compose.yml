@@ -1,6 +1,6 @@
 services:
   anchorr:
-    image: nairdah/anchorr:1.0.1
+    image: nairdah/anchorr:main
     container_name: anchorr
     restart: unless-stopped
     env_file: .env
