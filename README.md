@@ -169,7 +169,7 @@ docker run -p 8282:8282 \
 
 **Note**: For Docker, use `host.docker.internal` to reference services on the host machine.
 
-## 📸 Screenshots (a bit updated for now)
+## 📸 Screenshots (a bit outdated for now)
 
 | Feature               | Screenshot                                            |
 | --------------------- | ----------------------------------------------------- |
