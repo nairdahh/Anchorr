@@ -7,11 +7,12 @@
 </p>
 
 <p align="center">
-  <a href="#features">Features</a> • 
-  <a href="#quick-start">Quick Start</a> • 
-  <a href="#configuration">Configuration</a> • 
-  <a href="#commands">Commands</a> •
-  <a href="#setup-guide">Setup Guide</a>
+  <a href="#-features">Features</a> • 
+  <a href="#-quick-start">Quick Start</a> • 
+  <a href="#-configuration">Configuration</a> • 
+  <a href="#-commands">Commands</a> •
+  <a href="#-docker-deployment">Docker</a> •
+  <a href="#-contributing">Contributing</a>
 </p>
 
 ## 🌟 Features
