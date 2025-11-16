@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anchorr</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.5/font/bootstrap-icons.min.css"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="/libs/coloris/coloris.css" />
+    <link rel="icon" href="assets/logo.png" type="image/png" />
+  </head>
+  <body>
+    <div class="content-wrapper">
+      <nav class="navbar">
+        <div class="container">
+          <a href="#" class="navbar-brand">
+            <img src="/assets/logo-text.png" alt="Anchorr Logo" class="logo" />
+          </a>
+          <ul class="nav-links">
+            <li>
+              <a href="https://anchorr.nairdah.me/discord-bot.html" class="nav-highlight">Public Bot</a>
+            </li>
+            <li>
+              <a
+                href="https://github.com/nairdahh/Anchorr"
+                target="_blank"
+                rel="noopener noreferrer"
+                >GitHub</a
+              >
+            </li>
+          </ul>
+        </div>
+      </nav>
+
+      <header class="hero">
+        <div class="container">
+          <div class="hero-aurora"></div>
+          <div class="page-content">
+            <div class="hero-content">
+              <h1 class="hero-title">Anchorr Configuration</h1>
+              <p class="hero-subtitle">
+                Anchorr needs to be connect with your Discord bot and with your
+                Jellyfin and Jellyseerr instances.
+                <br />
+                Below is a step-by-step walkthrough to help you set up
+                everything you need to get started!
+              </p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-content" style="flex-grow: 1">
+        <section id="setup" class="setup-section">
+          <div class="container">
+            <div
+              class="dashboard-header"
+              style="margin-bottom: 2rem; padding-bottom: 1rem"
+            >
+              <h2
+                class="dashboard-title"
+                style="font-size: 2rem; color: var(--blue); margin: 0"
+              >
+                Configuration
+              </h2>
+              <button type="button" id="bot-control-btn" class="btn btn-status btn-danger">
+                <i class="bi bi-play-fill"></i>
+                <span id="bot-control-text">Start Bot</span>
+              </button>
+            </div>
+
+            <div class="dashboard-layout">
+              <div class="dashboard-sidebar">
+                <nav class="dashboard-nav">
+                  <a href="#" class="nav-item active" data-target="discord">1. Discord</a>
+                  <a href="#" class="nav-item" data-target="jellyseerr">2. Jellyseerr</a>
+                  <a href="#" class="nav-item" data-target="media">3. Media Databases</a>
+                  <a href="#" class="nav-item" data-target="jellyfin">4. Jellyfin Notifications</a>
+                  <a href="#" class="nav-item" data-target="network">5. Network</a>
+                  <button type="submit" form="config-form" class="btn btn-primary">Save Settings</button>
+                  <button type="button" class="btn btn-secondary about-button" data-target="about">About Anchorr</button>
+                </nav>
+              </div>
+
+
+              <div class="dashboard-content">
+                <form id="config-form">
+                  <!-- Discord Pane -->
+                  <div id="config-pane-discord" class="config-pane active">
+                    <fieldset>
+                      <legend>Discord Settings</legend>
+                      <div class="form-group">
+                        <label for="DISCORD_TOKEN">Discord Bot Token</label>
+                        <input
+                          type="password"
+                          id="DISCORD_TOKEN"
+                          name="DISCORD_TOKEN"
+                          placeholder="MTQyNTkwNTDwedRFAoYzMDAyMzEyNzSwoR.GHh1xM..."
+                        />
+                        <div class="form-text">
+                          The secret token of your bot from the
+                          <a
+                            href="https://discord.com/developers/applications"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            >Discord Developer Portal</a
+                          >
+                          -&gt; Bot -&gt; Reset Token
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="BOT_ID">Bot Client ID</label>
+                        <input
+                          type="text"
+                          id="BOT_ID"
+                          name="BOT_ID"
+                          placeholder="1455304670023657132"
+                        />
+                        <div class="form-text">
+                          The application's client ID from the
+                          <a
+                            href="https://discord.com/developers/applications"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            >Discord Developer Portal</a
+                          >
+                          -&gt; OAuth2 -&gt; Client ID
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="GUILD_ID">Discord Server ID</label>
+                        <input
+                          type="text"
+                          id="GUILD_ID"
+                          name="GUILD_ID"
+                          placeholder="964256253460106077"
+                        />
+                        <div class="form-text">
+                          The ID of the server where the bot will register
+                          commands. Right click your Discord server -&gt; Copy
+                          Server ID (Developer Mode must be enabled in your
+                          Discord client)
+                        </div>
+                      </div>
+                    </fieldset>
+                  </div>
+
+                  <!-- Jellyseerr Pane -->
+                  <div id="config-pane-jellyseerr" class="config-pane">
+                    <fieldset>
+                      <legend>Jellyseerr Settings</legend>
+                      <div class="form-group">
+                        <label for="JELLYSEERR_URL">Jellyseerr URL</label>
+                        <input
+                          type="text"
+                          id="JELLYSEERR_URL"
+                          name="JELLYSEERR_URL"
+                          placeholder="http://localhost:5055/api/v1"
+                        />
+                        <div class="form-text">
+                          The full URL of your Jellyseerr instance, including
+                          <code>/api/v1</code> at the end.
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="JELLYSEERR_API_KEY"
+                          >Jellyseerr API Key</label
+                        >
+                        <input
+                          type="password"
+                          id="JELLYSEERR_API_KEY"
+                          name="JELLYSEERR_API_KEY"
+                          placeholder="MTc2MjA6WDN0ODc5NPAWNDEwLEO2LWRjMGMtNDEzMS1iNzQ3LPljQTg6YpQ5Yzg2Nw=="
+                        />
+                        <div class="form-text">
+                          Your API key from Jellyseerr settings
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <button type="button" id="test-jellyseerr-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Test Connection</button>
+                        <span
+                          id="test-jellyseerr-status"
+                          style="margin-left: 1rem;"
+                        ></span>
+                      </div>
+                    </fieldset>
+                  </div>
+
+                  <!-- Media Databases Pane -->
+                  <div id="config-pane-media" class="config-pane">
+                    <fieldset>
+                      <legend>Media Database Settings</legend>
+                      <div class="form-group">
+                        <label for="TMDB_API_KEY">TMDB API Key</label>
+                        <input
+                          type="text"
+                          id="TMDB_API_KEY"
+                          name="TMDB_API_KEY"
+                          placeholder="f94a3e627b8a545201e2531b62087b47"
+                        />
+                        <div class="form-text">
+                          A 
+                          <a
+                            href="https://www.themoviedb.org/settings/api"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            >TMDB API Key</a
+                          >
+                          is required for searching and fetching
+                          movie/show details. Found in the
+                          <a
+                            href="https://www.themoviedb.org/settings/api"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            >API settings page of your TMDB account</a
+                          >
+                          after you log in.
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="OMDB_API_KEY"
+                          >OMDb API Key (Optional)</label
+                        >
+                        <input
+                          type="text"
+                          id="OMDB_API_KEY"
+                          name="OMDB_API_KEY"
+                          placeholder="e23eb6be"
+                        />
+                        <div class="form-text">
+                          Optional, but recommended for richer data like ratings
+                          and directors. Create one on the
+                          <a
+                            href="https://www.omdbapi.com/apikey.aspx"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            >API Key page of OMDb</a
+                          >.
+                        </div>
+                      </div>
+                    </fieldset>
+                  </div>
+
+                  <!-- Jellyfin Notifications Pane -->
+                  <div id="config-pane-jellyfin" class="config-pane">
+                    <fieldset>
+                      <legend>Jellyfin Notification Settings</legend>
+                      <div class="form-group">
+                        <label for="JELLYFIN_BASE_URL"
+                          >Jellyfin Public URL</label
+                        >
+                        <input
+                          type="text"
+                          id="JELLYFIN_BASE_URL"
+                          name="JELLYFIN_BASE_URL"
+                          placeholder="http://jellyfin.yourdomain.com  |  http://192.168.1.1:8096"
+                        />
+                        <div class="form-text">
+                          The public URL of your Jellyfin server. Used for the
+                          "Watch Now" button.
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <button type="button" id="test-jellyfin-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Test Endpoint</button>
+                        <span
+                          id="test-jellyfin-status"
+                          style="margin-left: 1rem;"
+                        ></span>
+                      </div>
+                      <div class="form-group">
+                        <label for="JELLYFIN_SERVER_ID"
+                          >Jellyfin Server ID</label
+                        >
+                        <input
+                          type="text"
+                          id="JELLYFIN_SERVER_ID"
+                          name="JELLYFIN_SERVER_ID"
+                          placeholder="c1507dcd594b404a8e668ba38f8eaa0c"
+                        />
+                        <div class="form-text">
+                          Used for redirecting to the correct path of your
+                          Jellysin server media page when using the "Watch Now"
+                          button. You can find this in your Jellyfin URL when
+                          viewing the page of any movie or show from your
+                          library.
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="JELLYFIN_CHANNEL_ID"
+                          >Discord Notification Channel ID</label
+                        >
+                        <input
+                          type="text"
+                          id="JELLYFIN_CHANNEL_ID"
+                          name="JELLYFIN_CHANNEL_ID"
+                          placeholder="1419434396510847006"
+                        />
+                        <div class="form-text">
+                          The channel ID from your Discord server where new
+                          media notifications will be sent. Right click the
+                          channel -&gt; Copy Channel ID (Developer Mode must be
+                          enabled in your Discord client)
+                        </div>
+                      </div>
+
+                      <div id="webhook-section" class="webhook-box" style="margin-top: 1rem;">
+                        <h3 class="webhook-title">Your Jellyfin Webhook URL</h3>
+                        <div class="webhook-content">
+                          <p>
+                            To receive notifications, add this URL to your <strong>Jellyfin Webhooks plugin</strong> settings:
+                          </p>
+                          <div class="webhook-url-container">
+                            <code id="webhook-url" class="code-block"></code>
+                            <button
+                              type="button"
+                              id="copy-webhook-btn"
+                              class="btn btn-secondary"
+                            >Copy URL</button>
+                          </div>
+                          <p style="margin-top: 1.5rem;">If you don't have the plugin installed, access the <strong>Plugins page</strong> in your <strong>Jellyfin Dashboard</strong>, search for <strong>Webhook</strong>, install it and restart the server.</p>
+                          <p>After the reset, access your Webhook plugin settings and <strong>Add Discord Destination</strong>.</p>
+                          <ol style="padding-left: 1.5rem; opacity: 0.9;">
+                            <li>Complete the <strong>Server Url</strong> with your Jellyfin server's base URL.</li>
+                            <li>Insert the previously specified URL in the <strong>Webhook Url</strong> field.</li>
+                            <li><strong>Status</strong> must be <strong>Enabled</strong>.</li>
+                            <li>For <strong>Notification Type</strong> enable <strong>Item Added</strong>.</li>
+                            <li>For <strong>Item Type</strong> select your desired content you want to receive notifications for.</li>
+                            <li>Enable <strong>Send All Properties</strong>.</li>
+                            <li><strong>Save</strong>.</li>
+                          </ol>
+                        </div>
+                      </div>
+                    </fieldset>
+                  </div>
+
+                  <!-- Network Pane -->
+                  <div id="config-pane-network" class="config-pane">
+                    <fieldset>
+                      <legend>Network Settings</legend>
+                      <div class="form-group">
+                        <label for="WEBHOOK_PORT">Webhook Port</label>
+                        <input
+                          type="text"
+                          id="WEBHOOK_PORT"
+                          name="WEBHOOK_PORT"
+                          placeholder="8282"
+                        />
+                        <div class="form-text">
+                          The port the application will listen on for Jellyfin webhooks.
+                        </div>
+                      </div>
+                    </fieldset>
+                  </div>
+
+                  <!-- About Pane -->
+                  <div id="config-pane-about" class="config-pane">
+                    <div class="about-content">
+                      <h2>About Anchorr</h2>
+                      <p class="about-description">
+                        <strong class="anchor-highlight">Anchorr</strong> is a self-hosted, lightweight bridge that connects your <strong>Jellyfin</strong> media server with <strong>Discord</strong>. It notifies you on a dedicated channel when new media is added to your library, and with <strong>Jellyseerr</strong> integration, you can search and request movies and shows directly from Discord.
+                      </p>
+
+                      <div class="features-list">
+                        <h3 class="features-title">Features</h3>
+                        <ul>
+                          <li><i class="bi bi-search"></i><div><code>/search &lt;title&gt;</code> Search for a movie or show with auto-suggestions. An embed with detailed information is shown, from which you can request the media. For TV shows, you have the option to select the desired seasons for the request.</div></li>
+                          <li><i class="bi bi-send-fill"></i><div><code>/request &lt;title&gt;</code> Instantly send a request for your chosen movie or show directly to Jellyseerr. For TV shows, this automatically requests all seasons.</div></li>
+                          <li><i class="bi bi-bell-fill"></i><div>Receive beautifully formatted notifications on your selected Discord channel whenever new media is added to your Jellyfin library.</div></li>
+                          <li><i class="bi bi-film"></i><div>Using the TMDB and OMDb databases, Discord messages get a beautiful and well-structured look, with essential information about the requested or added media content.</div></li>
+                        </ul>
+                        <div class="tagline-container">
+                          <p class="tagline">Self-hosted, full control.</p>
+                          <p class="tagline-description">This version of Anchorr is open-source and self-hosted by users, allowing full control over how Anchorr works and what it does. In parallel, I am working on a direct bot implementation for Discord, which is much easier to configure and doesn't require a self-hosted server. You can find the link in the header.</p>
+                        </div>
+                      </div>
+
+                      <div class="about-cards">
+                        <div class="about-card support-card">
+                          <i class="bi bi-heart-fill"></i>
+                          <h3>Support the Project</h3>
+                          <p>If you find Anchorr useful, consider supporting its development. Every coffee helps fuel late-night coding sessions!</p>
+                          <a href="https://ko-fi.com/nairdah" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Buy me a Coffee</a>
+                        </div>
+                        <div class="about-card">
+                          <i class="bi bi-github"></i>
+                          <h3>Contribute</h3>
+                          <p>Anchorr is open-source! If you're a developer, your contributions are welcome. Check out the project on GitHub to get started.</p>
+                          <a href="https://github.com/nairdahh/Anchorr" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">View on GitHub</a>
+                        </div>
+                      </div>
+
+                      <div class="dev-footer">
+                        <div class="dev-footer-left">
+                          <a href="https://github.com/nairdahh" target="_blank" rel="noopener noreferrer">
+                            <img src="/assets/nairdah_avatar.jpeg" alt="nairdah's avatar" class="dev-avatar">
+                          </a>
+                          <div class="dev-info">
+                            <span>Created & Maintained by</span>
+                            <a href="https://github.com/nairdahh" target="_blank" rel="noopener noreferrer" class="dev-link">nairdah</a>
+                          </div>
+                        </div>
+                        <div class="dev-footer-right">
+                          <p>Thank you for using Anchorr!<br>Please contact me for any matter about the project.</p>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                </form>
+              </div>
+          </div>
+        </section>
+      </main>
+
+      <section class="cta-section">
+        <div class="container">
+          <div class="hero-aurora"></div>
+          <div class="cta-content">
+            <h2 class="cta-title">Prefer a Zero-Setup Solution?</h2>
+            <p class="cta-text">
+              A public, hosted version of Anchorr is also available. Add it
+              directly to your Discord server with one click-no self-hosting
+              required.
+            </p>
+            <a href="https://anchorr.nairdah.me/discord-bot.html" class="btn btn-primary"
+              >Invite the Public Bot</a
+            >
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <div
+          class="container"
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <div class="footer-links" style="margin-top: 0">
+            <a
+              href="https://github.com/nairdahh/Anchorr"
+              target="_blank"
+              rel="noopener noreferrer"
+              >GitHub</a
+            >
+            <a
+              href="https://github.com/nairdahh/Anchorr/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Report a Bug</a
+            >
+          </div>
+          <div>
+            made by
+            <a
+              href="https://github.com/nairdahh"
+              target="_blank"
+              rel="noopener noreferrer"
+              >nairdah</a
+            >
+            ❤️
+            <a
+              href="https://ko-fi.com/nairdah"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Buy me a Coffee!</a
+            >
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script src="/libs/coloris/coloris.min.js"></script>
+    <script src="script.js"></script>
+    <script>
+      // Initialize Coloris globally on page load
+      document.addEventListener("DOMContentLoaded", () => {
+        Coloris({
+          el: "[data-coloris]",
+          theme: "large",
+          themeMode: "dark",
+          format: "hex",
+          swatches: [
+            "#cba6f7", // Mauve
+            "#89b4fa", // Blue
+            "#a6e3a1", // Green
+            "#ef9f76", // Peach
+            "#f38ba8", // Red
+            "#f9e2af", // Yellow
+          ],
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -1,39 +1,96 @@
-# Contributing to Anchorr
+<h1 align="center">🤝 Contributing to Anchorr</h1>
 
-First off, thank you for considering contributing! Your help is greatly appreciated.
+<p align="center">
+  Thank you for considering contributing to Anchorr! We appreciate all kinds of contributions, from bug reports to new features.
+</p>
 
-## How Can I Contribute?
+## 🎯 Ways to Contribute
 
-### Reporting Bugs
+### 🐛 Report Bugs
 
-If you find a bug, please open an issue on our GitHub repository. When reporting a bug, please include:
+Found a bug? Please help us fix it!
 
-- A clear and descriptive title.
-- Steps to reproduce the bug.
-- Any relevant logs from the console.
-- Your Node.js version and operating system.
+**When reporting, include:**
 
-### Suggesting Enhancements
+- Clear, descriptive title
+- Steps to reproduce the issue
+- Expected vs. actual behavior
+- Console logs/error messages
+- Your environment (Node.js version, OS, etc.)
+- Screenshots if applicable
 
-If you have an idea for a new feature or an improvement to an existing one, please open an issue to discuss it. This allows us to coordinate efforts and ensure the feature aligns with the project's goals.
+[Open a bug report](https://github.com/nairdahh/anchorr/issues/new?labels=bug&template=bug_report.md)
 
-### Pull Requests
+### 💡 Suggest Features
 
-We welcome pull requests! To submit one, please follow these steps:
+Have an idea to improve Anchorr?
 
-1.  **Fork the repository** and clone it to your local machine.
-2.  **Create a new branch** for your changes: `git checkout -b feature/YourFeatureName`
-3.  **Make your changes** and commit them with a clear, descriptive message.
-4.  **Push your branch** to your fork: `git push origin feature/YourFeatureName`
-5.  **Open a Pull Request** against the `main` branch of the original repository.
+**Before submitting:**
 
-## Areas for Contribution
+- Check existing issues to avoid duplicates
+- Provide a clear use case
+- Explain the expected behavior
+- Discuss the implementation approach
 
-We are actively looking for help in the following areas:
+[Suggest a feature](https://github.com/nairdahh/anchorr/issues/new?labels=enhancement&template=feature_request.md)
 
-- **Bugfixes:** Addressing any existing issues.
-- **Packaging Improvements:** Enhancing the Docker setup or adding other deployment methods.
-- **Per-Guild Settings:** Implementing a database (like SQLite) to allow the bot to be configured differently for each Discord server it joins.
-- **Web Dashboard:** Building a simple web interface for easier configuration.
+### 📝 Improve Documentation
 
-Thank you for making Anchorr better!
+Help us improve README, guides, or inline code comments!
+
+### 🔧 Submit Code Changes
+
+We love pull requests! Here's how to submit one:
+
+#### Step 1: Fork & Setup
+
+```bash
+# Fork the repo on GitHub, then:
+git clone https://github.com/YOUR-USERNAME/anchorr.git
+cd anchorr
+npm install
+```
+
+#### Step 2: Create a Feature Branch
+
+```bash
+git checkout -b feature/your-feature-name
+# or for bugfixes:
+git checkout -b fix/bug-description
+```
+
+#### Step 3: Make Changes & Commit
+
+```bash
+git add .
+git commit -m "feat: add awesome feature"
+# Use conventional commits:
+# feat: new feature
+# fix: bug fix
+# docs: documentation
+# style: formatting changes
+# refactor: code refactoring
+# test: adding tests
+```
+
+#### Step 4: Push & Create Pull Request
+
+```bash
+git push origin feature/your-feature-name
+```
+
+Then [open a PR](https://github.com/nairdahh/anchorr/compare) against the `main` branch.
+
+#### PR Guidelines
+
+- ✅ Keep PRs focused on a single feature/fix
+- ✅ Write clear commit messages
+- ✅ Update README if adding new features
+- ✅ Test locally before submitting
+- ✅ Link related issues
+
+## 💬 Communication
+
+- **Questions?** Open an issue with the `question` label
+- **Discussion?** Start a GitHub Discussion
+- **Need help?** Check existing documentation or issues first

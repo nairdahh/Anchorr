@@ -3,6 +3,8 @@
 
 # Environment variables
 .env
+config.json
+config.json
 
 # Logs
 npm-debug.log*

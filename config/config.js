@@ -1,13 +1,14 @@
-export const config = {
-  // Embed colors
-  colors: {
-    search: 0xef9f76, // Color for search results
-    success: 0xa6d189, // Color for successful requests
-    default: 0xef9f76, // Default color
-  },
-
-  // Webhook settings
-  webhook: {
-    debounce_delay: 15000, // 15 seconds delay for debouncing TV show notifications
-  },
+export const configTemplate = {
+  DISCORD_TOKEN: "",
+  BOT_ID: "",
+  GUILD_ID: "",
+  JELLYSEERR_URL: "http://localhost:5055/api/v1",
+  JELLYSEERR_API_KEY: "",
+  TMDB_API_KEY: "",
+  OMDB_API_KEY: "",
+  JELLYFIN_BASE_URL: "",
+  JELLYFIN_SERVER_ID: "",
+  JELLYFIN_CHANNEL_ID: "",
+  WEBHOOK_PORT: "8282",
+  DEBUG: "false",
 };

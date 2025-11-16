@@ -1,182 +1,207 @@
 <p align="center">
-  <img src="./assets/logo-text.png" alt="Anchorr logo-text"/>
+  <img src="./assets/logo-text.png" alt="Anchorr logo-text" width="300"/>
 </p>
 
-# Anchorr
+<p align="center">
+  <strong>A helpful Discord bot for requesting media via Jellyseerr and receiving Jellyfin notifications for new content in your library.</strong>
+</p>
 
-**Anchorr** — a small Discord bot that lets you request movies/TV via Jellyseerr and receives Jellyfin "item added" notifications in Discord.  
-Use slash commands to search/request (TMDB and OMDB-backed) and get pretty embeds when content shows up on your server.
+<p align="center">
+  <a href="#features">Features</a> • 
+  <a href="#quick-start">Quick Start</a> • 
+  <a href="#configuration">Configuration</a> • 
+  <a href="#commands">Commands</a> •
+  <a href="#setup-guide">Setup Guide</a>
+</p>
 
-## Features
+## 🌟 Features
 
-- `/search <title>` — search TMDB and show details in an embed; from the embed you can Request.
-- `/request <title>` — send a request immediately to Jellyseerr.
-- Receives Jellyfin-style webhooks and posts Add notifications into a configured Discord channel (embed with director, short summary, runtime, rating, and quick buttons).
-- Optional OMDb lookup for IMDb rating / director / actors.
+- **🔍 Media Search**: Search for movies and TV shows with `/search` command - you can then request it later withtin the message embed
+- **📤 One-Click Requests**: Directly request media to Jellyseerr with `/request` command
+- **📺 Smart TV Handling**: Choose specific seasons when searching for TV series using `/search`, or request all the seasons at once with `/request`
+- **📬 Jellyfin Notifications**: Automatic Discord notifications when new media is added to your library
+- **🎨 Rich Embeds**: Beautiful, detailed embeds with:
+  - Movie/TV show posters and backdrops
+  - Director/Creator information
+  - IMDb ratings and links
+  - Runtime, genres, and synopsis
+  - Quick action buttons (IMDb, Letterboxd, Watch Now)
+- **🔗 Autocomplete Support**: Intelligent autocomplete for search queries
+- **⚙️ Web Dashboard**: User-friendly web interface for configuration
 
-## Prerequisites
+## 📋 Prerequisites
 
-Before you begin, ensure you have the following:
+Before getting started, ensure you have:
 
-- A running **Jellyfin** server.
-- A running **Jellyseerr** instance.
-- A **Discord account** and a server where you have administrative privileges.
-- API keys from:
-  - **The Movie Database (TMDB)**
-  - **OMDb API** (Optional, but recommended for richer data)
-- **Node.js** (version 18.x or later).
-- **Docker** and **Docker Compose** (if you choose the Docker installation method).
+- ✅ A running **Jellyfin** server
+- ✅ A running **Jellyseerr** instance
+- ✅ A **Discord account** with a server where you have admin privileges
+- ✅ API keys from:
+  - [The Movie Database (TMDB)](https://www.themoviedb.org/settings/api) - **Required**
+  - [OMDb API](http://www.omdbapi.com/apikey.aspx) - Optional, but recommended for richer data
+- ✅ **Node.js** v18+ or **Docker & Docker Compose**
 
-## Setup Guide
+## 🚀 Quick Start
 
-This project is intended to be self-hosted by each user (so everyone keeps their own API keys).  
-The bot will also available as a hosted Discord bot (maintainer-hosted) soon.
+### 1️⃣ Clone and Install
 
-### Step 1: Create & Configure the Discord Bot
+```bash
+git clone https://github.com/nairdahh/anchorr.git
+cd anchorr
+npm install
+```
 
-Before installing `anchorr`, you need to create an application and a bot user in the Discord Developer Portal.
+### 2️⃣ Start the Application
 
-1.  **Go to the [Discord Developer Portal](https://discord.com/developers/applications)** and log in.
-2.  Click the **"New Application"** button in the top-right corner. Give it a name and accept the terms.
-3.  In the left-hand menu, navigate to the **"Bot"** section.
-4.  Click the **"Add Bot"** button and confirm the action.
-5.  Under the bot's username, click **"Reset Token"** to generate the bot's secret key. Copy this token. **Keep this token secure and do not share it with anyone!** You will need it shortly.
-6.  Now, let's generate the invite link. Go to **"OAuth2"** -> **"URL Generator"**.
-7.  In the **"SCOPES"** section, check the boxes for `bot` and `applications.commands`.
-8.  A new **"BOT PERMISSIONS"** section will appear below. Grant the following minimum permissions:
-    - **Send Messages**
-    - **Embed Links**
-9.  Copy the generated URL at the bottom of the page, open it in a new browser tab, and invite the bot to your Discord server.
+```bash
+node app.js
+```
 
-### Step 2: Install the Jellyfin Webhook Plugin
+The web dashboard will be available at `http://localhost:8282`
 
-For Jellyfin to be able to send notifications to the bot, you need the official Webhooks plugin.
+### 3️⃣ Configure via Web Dashboard
 
-1.  Log in to your Jellyfin interface with an administrator account.
-2.  Navigate to **Dashboard** -> **Plugins**.
-3.  Go to the **"Catalog"** tab and search for the plugin named **Webhooks**.
-4.  Click on it and install it.
-5.  After the installation is complete, **restart your Jellyfin server** to activate the plugin.
+1. Open `http://localhost:8282` in your browser
+2. Fill in your Discord Bot credentials, API keys, and service URLs
+3. Click the test buttons to verify connections
+4. Start the bot using the dashboard button
 
-### Step 3: Download & Configure the Bot
+### 4️⃣ Invite Bot to Discord
 
-Now we will download the source code and set up the environment variables.
+Generate an OAuth2 URL in [Discord Developer Portal](https://discord.com/developers/applications):
 
-1.  **Clone the repository** into a folder of your choice:
-    ```bash
-    git clone https://github.com/nairdahh/anchorr.git
-    cd anchorr
-    ```
-2.  **Create and configure the `.env` file**. Copy the example file and open it with a text editor.
-    ```bash
-    cp .env.example .env
-    ```
-3.  Edit the `.env` file and fill in the required variables.
+- OAuth2 → URL Generator
+- Scopes: `bot`, `applications.commands`
+- Permissions: Send Messages, Embed Links
+- Copy generated URL and open in browser
 
-### Step 4: Run the Bot (Choose a method)
+### 5️⃣ Configure Jellyfin Webhook
 
-You can run the bot directly using Node.js or through a Docker container.
+In Jellyfin Dashboard → Webhooks:
 
-#### Option 1: Run with Node.js (for development)
+1. Click **+** to add new webhook
+2. Enter URL: `http://<bot-host>:<port>/jellyfin-webhook`
+3. Example: `http://192.168.1.100:8282/jellyfin-webhook`
+4. Save and you're done! 🎉
 
-This method is ideal if you want to modify the code or debug. It requires **Node.js** and **npm** to be installed.
+## ⚙️ Configuration
 
-1.  **Install the project dependencies**:
-    ```bash
-    npm install
-    ```
-2.  **Start the bot**:
-    ```bash
-    node app.js
-    ```
+Configuration is managed through a **web dashboard** at `http://localhost:8282/`. However, you can also configure it programmatically.
 
-#### Option 2: Run with Docker Compose (recommended)
+### Configuration Variables
 
-This is the recommended method for most users as it simplifies dependency management. It requires **Docker** and **Docker Compose** to be installed.
+| Variable              | Description                       | Example                        |
+| --------------------- | --------------------------------- | ------------------------------ |
+| `DISCORD_TOKEN`       | Your bot's secret token           | `MjU0...`                      |
+| `BOT_ID`              | Bot's Application ID              | `123456789...`                 |
+| `GUILD_ID`            | Discord server ID                 | `987654321...`                 |
+| `JELLYSEERR_URL`      | Jellyseerr API endpoint           | `http://localhost:5055/api/v1` |
+| `JELLYSEERR_API_KEY`  | Your Jellyseerr API key           | `abc123...`                    |
+| `TMDB_API_KEY`        | TMDB API key                      | `xyz789...`                    |
+| `OMDB_API_KEY`        | OMDb API key (optional)           | `abc123xyz...`                 |
+| `JELLYFIN_BASE_URL`   | Public Jellyfin URL               | `http://jellyfin.example.com`  |
+| `JELLYFIN_CHANNEL_ID` | Discord channel for notifications | `123456789...`                 |
+| `WEBHOOK_PORT`        | Port for webhook listener         | `8282`                         |
 
-1.  **Build and start the container** in the background:
-    ```bash
-    docker compose up -d --build
-    ```
+### 🔄 Automatic Migration from `.env`
 
-### Step 5: Connect Jellyfin to the Bot
+If you're upgrading from an older version with a `.env` file:
 
-The final step is to configure Jellyfin to send events to your running bot.
+- Simply run the new version
+- The app will automatically detect and migrate your `.env` variables to `config.json`
+- You can then safely delete the `.env` file
 
-1.  Go back to your **Jellyfin Dashboard** -> **Webhooks** (the section will appear in the menu after the plugin is installed).
-2.  Click the **`+`** button to add a new webhook.
-3.  In the **URL** field, enter the IP address of the machine where the bot is running, followed by the port set in `.env` and the webhook path. The format is:
-    `http://<your-host-ip>:<WEBHOOK_PORT>/jellyfin-webhook`
-4.  **Example**: If the bot is running on a machine with the local IP `192.168.1.100` and you left the port as `8282` in your `.env` file, the URL will be:
-    ```
-    http://192.168.1.100:8282/jellyfin-webhook
-    ```
-5.  Choose which notifications you want to receive, save, and you're all set! Your bot is now fully configured.
+## 💬 Commands
 
-## Configuration
+### `/search <title>`
 
-Anchorr is configured using a `.env` file. Copy the `.env.example` to `.env` and fill in the values:
+Search for a movie or TV show and view detailed information.
 
-- `DISCORD_TOKEN`: Your **bot's unique token**. Think of it as the bot's password. You can get this from the "Bot" section of your application in the Discord Developer Portal.
-- `BOT_ID`: The **Client ID of your bot**. Find this on the "General Information" page of your Discord application.
-- `GUILD_ID`: The **ID of the Discord server** where you will use the bot. Enable Developer Mode in Discord, then right-click your server icon and "Copy Server ID".
-- `JELLYSEERR_URL`: The full **URL to your Jellyseerr API**. The correct value depends on your setup. **Make sure to include `/api/v1` at the end**.
+- Shows poster, backdrop, ratings, genres, and synopsis
+- Interactive buttons to request directly or view on IMDb/Letterboxd
+- For TV shows: Choose specific seasons to request
 
-  - **If running the bot directly with Node.js (without Docker):**
+### `/request <title>`
 
-    - If Jellyseerr is on the **same machine**, use localhost: `JELLYSEERR_URL=http://localhost:5055/api/v1`
+Instantly request a movie or TV show (all seasons for TV).
 
-    - If Jellyseerr is on a **different machine on your local network**, use its IP address: `JELLYSEERR_URL=http://<jellyseerr-ip-address>:5055/api/v1`
+- Automatically sends to Jellyseerr
+- Shows confirmation with media details
 
-  - **If running the bot inside a Docker container:**
+### Autocomplete
 
-    - If Jellyseerr is running on the **host machine (outside of Docker)**, you must use host.docker.internal: `JELLYSEERR_URL=http://host.docker.internal:5055/api/v1`
-      _(Note: `host.docker.internal` is a special DNS name provided by Docker that resolves to the host machine's IP address)._
+Start typing in either command to see real-time suggestions with release year and the director/creator.
 
-    - If Jellyseerr is running **in another Docker container on the same network**, use its service name: `JELLYSEERR_URL=http://jellyseerr:5055/api/v1`
-      _(Note: Here, `jellyseerr` is the service name of your Jellyseerr container in your `docker-compose.yml` file)._
+## 🔔 Jellyfin Notifications
 
-- `JELLYSEERR_API_KEY`: Your **API key from Jellyseerr**. Find it in your Jellyseerr settings under `Settings` -> `API Keys`.
+When new media is added to your Jellyfin library, the bot automatically posts to your configured Discord channel:
 
-- `TMDB_API_KEY`: Your **API key from The Movie Database** (TMDB). You can get one by creating an account on their website.
-- `OMDB_API_KEY`: (Optional) Your **API key from OMDb API** for fetching IMDb ratings, director, and actor information.
+- 🎬 **Movies**: Full details with IMDb and Letterboxd links
+- 📺 **TV Shows**: Series information with IMDb link and when available, a Letterboxed link
+- 🎞️ **Episodes**: Season and episode number with timestamps
 
-- `JELLYFIN_BASE_URL`: The **publicly accessible URL of your Jellyfin server**. **This must be reachable from the internet** for the "Watch Now" links in Discord to work for other users.
-  - **Correct examples:** `http://jellyfin.yourdomain.com` or `http://88.99.100.101:8096` (if using a public IP).
-  - **Note:** Using `localhost` or a local network IP (e.g., `192.168.1.100`) will only work for users on the same local network as the server.
-- `JELLYFIN_SERVER_ID`: The unique **ID of your Jellyfin server**. You can find this by navigating to any item in your library; it's the `serverId` parameter in the URL.
-- `JELLYFIN_CHANNEL_ID`: The **ID of the Discord text channel** where you want to receive notifications about new media. Enable Developer Mode, right-click the channel, and "Copy Channel ID".
+Each notification includes:
 
-- `WEBHOOK_PORT`: The **network port** the bot will listen on for incoming webhooks from Jellyfin. The default is `8282`.
+- High-quality poster
+- Runtime, rating, genres and synopysis
+- "Watch Now" button linking directly to Jellyfin
+- IMDb and Letterboxd quick links
 
-## Commands & usage
+## 🐳 Docker Deployment
 
-`/search <title>` — opens interactive embed; use the Request button to send to Jellyseerr.  
-`/request <title>` — instantly request the title.
+### Using Docker Compose (Recommended)
 
-When Jellyfin (or your add pipeline) sends a webhook to `http://<host>:<port>/jellyfin-webhook`, the bot will post the notification to the configured Discord channel.
+```bash
+docker compose up -d --build
+```
 
-## Publishing & Docker (optional)
+### Custom Docker Build
 
-A Dockerfile is provided in the repo. Use `docker compose up -d` to run.
+```bash
+docker build -t anchorr .
+docker run -p 8282:8282 \
+  -e DISCORD_TOKEN=your_token \
+  -e BOT_ID=your_bot_id \
+  -e GUILD_ID=your_guild_id \
+  anchorr
+```
 
-Keep secrets out of the repo (use `.env` only).
+**Note**: For Docker, use `host.docker.internal` to reference services on the host machine.
 
-GitHub Actions can be set up to build/push images to GHCR or Docker Hub.
+## 📸 Screenshots (a bit updated for now)
 
-## Screenshots
+| Feature               | Screenshot                                            |
+| --------------------- | ----------------------------------------------------- |
+| Autocomplete          | ![Autocomplete](./assets/screenshot-autocomplete.png) |
+| Search Results        | ![Search](./assets/screenshot-search.png)             |
+| Request Confirmation  | ![Request](./assets/screenshot-request.png)           |
+| Jellyfin Notification | ![New Media](./assets/screenshot-newmedia.png)        |
 
-![App screenshot autocomplete](./assets/screenshot-autocomplete.png)  
-![App screenshot search](./assets/screenshot-search.png)  
-![App screenshot request](./assets/screenshot-request.png)
-![App screenshot new media](./assets/screenshot-newmedia.png)
+## 🔧 Advanced Features
 
-## Contributing
+### Web Dashboard
 
-Contributions are always welcome!
+- ✅ Real-time bot status monitoring
+- ✅ One-click start/stop controls
+- ✅ Connection testing for Jellyseerr and Jellyfin
+- ✅ Configuration editing and persistence
+- ✅ Webhook URL display with copy-to-clipboard
+- ✅ Tab-based organization (Discord, Jellyseerr, TMDB, Jellyfin)
 
-See `contributing.md` for ways to get started.
+### API Endpoints (Internal)
 
-## License
+- `GET /api/config` - Fetch current configuration
+- `POST /api/save-config` - Save configuration changes
+- `GET /api/status` - Get bot status
+- `POST /api/start-bot` - Start the bot
+- `POST /api/stop-bot` - Stop the bot
+- `POST /api/test-jellyseerr` - Test Jellyseerr connection
+- `POST /api/test-jellyfin` - Test Jellyfin connection
 
-This repo is released under the Unlicense — public domain. Do anything with the code.
+## 🤝 Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+
+## 📄 License
+
+This project is released under the **Unlicense** — it's public domain. Do anything you want with the code!
