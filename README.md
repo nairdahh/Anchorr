@@ -12,6 +12,7 @@
   <a href="#-configuration">Configuration</a> • 
   <a href="#-commands">Commands</a> •
   <a href="#-docker-deployment">Docker</a> •
+  <a href="./CHANGELOG.md">Changelog</a> •
   <a href="#-contributing">Contributing</a>
 </p>
 
