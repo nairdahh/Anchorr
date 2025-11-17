@@ -16,7 +16,10 @@ COPY . .
 
 # set permissions for app user
 RUN chown -R app:app /usr/src/app && \
-    chmod -R 755 /usr/src/app/assets
+    chmod -R 755 /usr/src/app/assets && \
+    mkdir -p /config && \
+    chown -R app:app /config && \
+    chmod -R 777 /config
 
 USER app
 

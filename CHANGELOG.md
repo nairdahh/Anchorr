@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.1] - 2025-11-17
+
+### 🐛 Fixed
+
+- **Watch Now Button**: Fixed double slash issue in Jellyfin URLs (e.g., `//web/index.html`) by properly normalizing base URLs
+- **Docker Permissions**: Fixed `config.json` permission issues in Docker volumes by setting proper ownership and chmod during build and runtime
+- **Web UI**: Added clear step-by-step instructions for creating Discord bot in configuration panel
+- **Web UI**: Jellyfin is no longer a sin
+
 ## [1.2.0] - 2025-11-16
 
 ### ✨ Added

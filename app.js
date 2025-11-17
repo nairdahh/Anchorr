@@ -79,6 +79,8 @@ function migrateEnvToConfig() {
     // Save migrated config
     try {
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(migratedConfig, null, 2));
+      // Ensure proper permissions in Docker volumes
+      fs.chmodSync(CONFIG_PATH, 0o666);
       console.log("✅ Migration successful! config.json created from .env");
       console.log(
         "📝 You can now delete the .env file as it's no longer needed."
@@ -829,6 +831,8 @@ function configureWebServer() {
     const oldGuildId = process.env.GUILD_ID;
 
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(configData, null, 2));
+    // Ensure proper permissions in Docker volumes
+    fs.chmodSync(CONFIG_PATH, 0o666);
     loadConfig(); // Reload config into process.env
 
     // If bot is running and critical settings changed, restart the bot logic
