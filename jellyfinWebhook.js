@@ -33,6 +33,28 @@ function minutesToHhMm(mins) {
   return result;
 }
 
+// Build a Jellyfin URL that preserves a potential subpath (e.g., /jellyfin)
+// and appends the provided path and optional hash fragment safely.
+function buildJellyfinUrl(baseUrl, appendPath, hash) {
+  try {
+    const u = new URL(baseUrl);
+    let p = u.pathname || "/";
+    if (!p.endsWith("/")) p += "/";
+    const pathClean = String(appendPath || "").replace(/^\/+/, "");
+    u.pathname = p + pathClean;
+    if (hash != null) {
+      const h = String(hash);
+      u.hash = h.startsWith("#") ? h.slice(1) : h;
+    }
+    return u.toString();
+  } catch (_e) {
+    const baseNoSlash = String(baseUrl || "").replace(/\/+$/, "");
+    const pathNoLead = String(appendPath || "").replace(/^\/+/, "");
+    const h = hash ? (String(hash).startsWith("#") ? String(hash) : `#${hash}`) : "";
+    return `${baseNoSlash}/${pathNoLead}${h}`;
+  }
+}
+
 async function fetchOMDbData(imdbId) {
   if (!imdbId || !process.env.OMDB_API_KEY) return null;
   try {
@@ -169,7 +191,11 @@ async function processAndSendNotification(data, client) {
     .setAuthor({ name: authorName })
     .setTitle(embedTitle)
     .setURL(
-      `${ServerUrl}/web/index.html#!/details?id=${ItemId}&serverId=${ServerId}`
+      buildJellyfinUrl(
+        ServerUrl,
+        "web/index.html",
+        `!/details?id=${ItemId}&serverId=${ServerId}`
+      )
     )
     .setColor("#cba6f7")
     .addFields(
@@ -182,7 +208,7 @@ async function processAndSendNotification(data, client) {
   const backdropPath = details ? findBestBackdrop(details) : null;
   const backdrop = backdropPath
     ? `https://image.tmdb.org/t/p/w1280${backdropPath}`
-    : `${ServerUrl}/Items/${ItemId}/Images/Backdrop`;
+    : buildJellyfinUrl(ServerUrl, `Items/${ItemId}/Images/Backdrop`);
   embed.setImage(backdrop);
 
   const buttonComponents = [];
@@ -205,7 +231,11 @@ async function processAndSendNotification(data, client) {
       .setStyle(ButtonStyle.Link)
       .setLabel("▶ Watch Now!")
       .setURL(
-        `${ServerUrl}/web/index.html#!/details?id=${ItemId}&serverId=${ServerId}`
+        buildJellyfinUrl(
+          ServerUrl,
+          "web/index.html",
+          `!/details?id=${ItemId}&serverId=${ServerId}`
+        )
       )
   );
 

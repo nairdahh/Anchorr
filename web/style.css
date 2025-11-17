@@ -1191,3 +1191,59 @@ input:checked + .slider:before {
   margin-left: 0;
   margin-right: 0;
 }
+
+/* Discord Setup Instructions Box */
+.setup-instructions-box {
+  background-color: var(--background);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.setup-instructions-intro {
+  margin: 0 0 1rem 0;
+  color: var(--text);
+  font-size: 0.95rem;
+  opacity: 0.95;
+  line-height: 1.6;
+}
+
+.setup-instructions-list {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.setup-instructions-list li {
+  margin: 0;
+  padding: 0;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+.setup-instructions-list strong {
+  color: var(--mauve);
+  font-weight: 600;
+}
+
+.setup-instructions-list code {
+  background-color: var(--code-bg);
+  padding: 0.25em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+/* Emphasis Mauve for important text */
+.emphasis-mauve {
+  color: var(--mauve);
+  font-weight: 600;
+}
+
+/* Emphasis Mauve for important text */
+.emphasis-mauve {
+  color: var(--mauve);
+  font-weight: 600;
+}

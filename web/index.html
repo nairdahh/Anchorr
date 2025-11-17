@@ -92,6 +92,33 @@
                   <div id="config-pane-discord" class="config-pane active">
                     <fieldset>
                       <legend>Discord Settings</legend>
+                      
+                      <!-- Discord Bot Setup Instructions -->
+                      <div class="setup-instructions-box">
+                        <p class="setup-instructions-intro">
+                          First, you need to create a Discord application for the bot. Access 
+                          <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer">Discord Developer Portal</a> 
+                          and log in. Create a new application, then:
+                        </p>
+                        <ol class="setup-instructions-list">
+                          <li>
+                            Go to <strong>"Bot"</strong> in the sidebar and click <strong>"Add Bot"</strong>
+                          </li>
+                          <li>
+                            Go to <strong>"OAuth2"</strong> → <strong>"URL Generator"</strong>
+                          </li>
+                          <li>
+                            Select scopes: <code>bot</code> and <code>applications.commands</code>
+                          </li>
+                          <li>
+                            Select permissions: <code>Send Messages</code> and <code>Embed Links</code>
+                          </li>
+                          <li>
+                            Copy the generated URL, open it in your browser, and authorize the bot on your Discord server
+                          </li>
+                        </ol>
+                      </div>
+
                       <div class="form-group">
                         <label for="DISCORD_TOKEN">Discord Bot Token</label>
                         <input
@@ -282,7 +309,7 @@
                         />
                         <div class="form-text">
                           Used for redirecting to the correct path of your
-                          Jellysin server media page when using the "Watch Now"
+                          Jellyfin server media page when using the "Watch Now"
                           button. You can find this in your Jellyfin URL when
                           viewing the page of any movie or show from your
                           library.
@@ -310,7 +337,7 @@
                         <h3 class="webhook-title">Your Jellyfin Webhook URL</h3>
                         <div class="webhook-content">
                           <p>
-                            To receive notifications, add this URL to your <strong>Jellyfin Webhooks plugin</strong> settings:
+                            To receive notifications, add this URL to your <strong class="emphasis-mauve">Jellyfin Webhooks plugin</strong> settings:
                           </p>
                           <div class="webhook-url-container">
                             <code id="webhook-url" class="code-block"></code>
@@ -320,16 +347,19 @@
                               class="btn btn-secondary"
                             >Copy URL</button>
                           </div>
-                          <p style="margin-top: 1.5rem;">If you don't have the plugin installed, access the <strong>Plugins page</strong> in your <strong>Jellyfin Dashboard</strong>, search for <strong>Webhook</strong>, install it and restart the server.</p>
-                          <p>After the reset, access your Webhook plugin settings and <strong>Add Discord Destination</strong>.</p>
+                          <p style="margin-top: 0.75rem; font-size: 0.9rem; opacity: 0.8;">
+                            <strong>Note:</strong> If you're running Anchorr in Docker, you may need to replace <code>localhost</code> with your server's IP address.
+                          </p>
+                          <p style="margin-top: 1.5rem;">If you don't have the plugin installed, access the <strong class="emphasis-mauve">Plugins page</strong> in your <strong class="emphasis-mauve">Jellyfin Dashboard</strong>, search for <strong class="emphasis-mauve">Webhook</strong>, install it and restart the server.</p>
+                          <p>After the reset, access your <strong class="emphasis-mauve">Webhook plugin settings</strong> and <strong class="emphasis-mauve">Add Discord Destination</strong>.</p>
                           <ol style="padding-left: 1.5rem; opacity: 0.9;">
-                            <li>Complete the <strong>Server Url</strong> with your Jellyfin server's base URL.</li>
-                            <li>Insert the previously specified URL in the <strong>Webhook Url</strong> field.</li>
-                            <li><strong>Status</strong> must be <strong>Enabled</strong>.</li>
-                            <li>For <strong>Notification Type</strong> enable <strong>Item Added</strong>.</li>
-                            <li>For <strong>Item Type</strong> select your desired content you want to receive notifications for.</li>
-                            <li>Enable <strong>Send All Properties</strong>.</li>
-                            <li><strong>Save</strong>.</li>
+                            <li>Complete the <strong class="emphasis-mauve">Server Url</strong> with your Jellyfin server's base URL.</li>
+                            <li>Insert the previously specified URL in the <strong class="emphasis-mauve">Webhook Url</strong> field.</li>
+                            <li><strong class="emphasis-mauve">Status</strong> must be <strong class="emphasis-mauve">Enabled</strong>.</li>
+                            <li>For <strong class="emphasis-mauve">Notification Type</strong> enable <strong class="emphasis-mauve">Item Added</strong>.</li>
+                            <li>For <strong class="emphasis-mauve">Item Type</strong> select your desired content you want to receive notifications for.</li>
+                            <li>Enable <strong class="emphasis-mauve">Send All Properties</strong>.</li>
+                            <li><strong class="emphasis-mauve">Save</strong>.</li>
                           </ol>
                         </div>
                       </div>
