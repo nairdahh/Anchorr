@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.2] - 2025-11-18
+
+### ✨ Added
+
+- **Autocomplete**: Added runtime information for movies in autocomplete suggestions
+- **Autocomplete**: Added season count for TV shows in autocomplete suggestions
+- **Format**: Autocomplete now displays as "🎬 Title (Year) — directed by Director — runtime: 2h 14m" for movies
+- **Format**: Autocomplete now displays as "📺 Title (Year) — created by Creator — 3 seasons" for TV shows
+- **Auto-start Bot**: Added `AUTO_START_BOT` configuration option to automatically start the bot on server boot when valid credentials are present
+- **Web UI**: Added toggle in Discord settings to enable/disable bot auto-start feature
+
+### 🐛 Fixed
+
+- **Autocomplete Character Limit**: Fixed Discord character limit errors by truncating long names to 95 characters + "..."
+- **Autocomplete Performance**: Optimized TMDB API calls to include credits in a single request (append_to_response)
+- **Linux Permissions**: Improved config.json permission handling on Linux systems with better error handling
+
+### 🔄 Changed
+
+- **TMDB API**: Updated `tmdbGetDetails()` to include credits information for director/creator data
+- **Bot Startup**: Bot now auto-starts on container/server restart if `AUTO_START_BOT` is enabled and Discord credentials are valid
+
+---
+
 ## [1.2.1] - 2025-11-17
 
 ### 🐛 Fixed

@@ -37,7 +37,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const config = await response.json();
       for (const key in config) {
         const input = document.getElementById(key);
-        if (input) {
+        if (!input) continue;
+        if (input.type === "checkbox") {
+          const val = String(config[key]).trim().toLowerCase();
+          input.checked = val === "true" || val === "1" || val === "yes";
+        } else {
           input.value = config[key];
         }
       }
@@ -95,6 +99,10 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     const formData = new FormData(form);
     const config = Object.fromEntries(formData.entries());
+    // Explicitly capture checkbox values as "true"/"false"
+    document.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+      config[cb.id] = cb.checked ? "true" : "false";
+    });
 
     try {
       const response = await fetch("/api/save-config", {

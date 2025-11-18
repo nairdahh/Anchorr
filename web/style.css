@@ -598,6 +598,46 @@ input[data-coloris]:focus {
   box-shadow: 0 0 0 3px rgba(203, 166, 247, 0.2) !important;
 }
 
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  background-color: var(--background);
+  border: 2px solid var(--surface1);
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+input[type="checkbox"]:hover {
+  border-color: var(--mauve);
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--mauve);
+  border-color: var(--mauve);
+}
+
+input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--background);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(203, 166, 247, 0.2);
+}
+
 .clr-field {
   cursor: pointer;
   padding: 0;

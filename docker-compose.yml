@@ -10,6 +10,8 @@ services:
       - "8282:8282"
     volumes:
       - anchorr-config:/config
+    # Uncomment if you have permission issues on Linux
+    # user: "1000:1000"
     labels:
       - "com.example.description=Discord bot for Jellyfin media requests via Jellyseerr"
       - "com.example.version=1.2.0"

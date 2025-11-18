@@ -78,15 +78,20 @@ function migrateEnvToConfig() {
 
     // Save migrated config
     try {
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(migratedConfig, null, 2));
-      // Ensure proper permissions in Docker volumes
-      fs.chmodSync(CONFIG_PATH, 0o666);
+      // Ensure /config directory exists with proper permissions
+      const configDir = path.dirname(CONFIG_PATH);
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
+      }
+      
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(migratedConfig, null, 2), { mode: 0o666 });
       console.log("✅ Migration successful! config.json created from .env");
       console.log(
         "📝 You can now delete the .env file as it's no longer needed."
       );
     } catch (error) {
-      console.error("Error saving migrated config:", error);
+      console.error("❌ Error saving migrated config:", error);
+      console.error("Check that /config directory has write permissions");
     }
   }
 }
@@ -241,7 +246,7 @@ async function startBot() {
       params: {
         api_key: TMDB_API_KEY,
         language: "en-US",
-        append_to_response: "images",
+        append_to_response: "images,credits",
       },
     });
     return res.data;
@@ -593,54 +598,82 @@ async function startBot() {
       if (interaction.isAutocomplete()) {
         const focused = interaction.options.getFocused();
         if (!focused) return interaction.respond([]);
-        if (!focused) return await interaction.respond([]);
-        const results = await tmdbSearch(focused);
-        const filtered = results
-          .filter((r) => r.media_type === "movie" || r.media_type === "tv")
-          .slice(0, 25);
-        const choicePromises = filtered.map(async (item) => {
-          try {
-            const imdbId = await tmdbGetExternalImdb(item.id, item.media_type);
-            const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
-
-            const emoji = item.media_type === "movie" ? "🎬" : "📺";
-            const date = item.release_date || item.first_air_date || "";
-            const year = date ? ` (${date.slice(0, 4)})` : "";
-            const extraInfoParts = [];
-
-            if (omdb) {
-              if (
-                item.media_type === "movie" &&
-                omdb.Director &&
-                omdb.Director !== "N/A"
-              ) {
-                extraInfoParts.push(`directed by ${omdb.Director}`);
-              } else if (
-                item.media_type === "tv" &&
-                omdb.Writer &&
-                omdb.Writer !== "N/A"
-              ) {
-                const creators = omdb.Writer.split(",")[0].trim();
-                extraInfoParts.push(`created by ${creators}`);
+        
+        try {
+          const results = await tmdbSearch(focused);
+          const filtered = results
+            .filter((r) => r.media_type === "movie" || r.media_type === "tv")
+            .slice(0, 25);
+          
+          const choicePromises = filtered.map(async (item) => {
+            try {
+              const emoji = item.media_type === "movie" ? "🎬" : "📺";
+              const date = item.release_date || item.first_air_date || "";
+              const year = date ? ` (${date.slice(0, 4)})` : "";
+              
+              // Fetch detailed info from TMDB
+              const details = await tmdbGetDetails(item.id, item.media_type);
+              
+              let extraInfo = "";
+              
+              if (item.media_type === "movie") {
+                // Get director
+                const director = details.credits?.crew?.find(c => c.job === "Director")?.name;
+                if (director) {
+                  extraInfo += ` — directed by ${director}`;
+                }
+                // Get runtime
+                if (details.runtime) {
+                  const hours = Math.floor(details.runtime / 60);
+                  const mins = details.runtime % 60;
+                  const runtime = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+                  extraInfo += ` — runtime: ${runtime}`;
+                }
+              } else if (item.media_type === "tv") {
+                // Get creator
+                const creator = details.created_by?.[0]?.name;
+                if (creator) {
+                  extraInfo += ` — created by ${creator}`;
+                }
+                // Get seasons count
+                if (details.number_of_seasons) {
+                  const seasons = details.number_of_seasons;
+                  extraInfo += ` — ${seasons} season${seasons > 1 ? 's' : ''}`;
+                }
               }
+              
+              let fullName = `${emoji} ${item.title || item.name}${year}${extraInfo}`;
+              
+              // Discord requires choice names to be 1-100 characters
+              // Keep it safe at 98 and add ... within that limit if needed
+              if (fullName.length > 98) {
+                fullName = fullName.substring(0, 95) + '...';
+              }
+              
+              return {
+                name: fullName,
+                value: `${item.id}|${item.media_type}`,
+              };
+            } catch (e) {
+              // Fallback to basic info if details fetch fails
+              const emoji = item.media_type === "movie" ? "🎬" : "📺";
+              const date = item.release_date || item.first_air_date || "";
+              const year = date ? ` (${date.slice(0, 4)})` : "";
+              let fallback = `${emoji} ${item.title || item.name}${year}`;
+              if (fallback.length > 98) fallback = fallback.substring(0, 95) + '...';
+              return {
+                name: fallback,
+                value: `${item.id}|${item.media_type}`,
+              };
             }
+          });
 
-            const extraInfo =
-              extraInfoParts.length > 0
-                ? ` — ${extraInfoParts.join(" • ")}`
-                : "";
-
-            return {
-              name: `${emoji} ${item.title || item.name}${year}${extraInfo}`,
-              value: `${item.id}|${item.media_type}`,
-            };
-          } catch (e) {
-            return null; // Ignore errors for single items to not fail the whole response
-          }
-        });
-
-        const choices = (await Promise.all(choicePromises)).filter(Boolean);
-        return await interaction.respond(choices);
+          const choices = await Promise.all(choicePromises);
+          return await interaction.respond(choices);
+        } catch (e) {
+          console.error('Autocomplete error:', e);
+          return await interaction.respond([]);
+        }
       }
 
       // Commands
@@ -691,15 +724,7 @@ async function startBot() {
           );
           const components = buildButtons(tmdbId, imdbId, true, mediaType);
 
-          if (interaction.message && interaction.message.edit) {
-            await interaction.message.edit({ embeds: [embed], components });
-          } else {
-            await interaction.followUp({
-              embeds: [embed],
-              components,
-              flags: 64,
-            });
-          }
+          await interaction.editReply({ embeds: [embed], components });
         } catch (err) {
           console.error("Button request error:", err);
           try {
@@ -830,9 +855,23 @@ function configureWebServer() {
     const oldToken = process.env.DISCORD_TOKEN;
     const oldGuildId = process.env.GUILD_ID;
 
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(configData, null, 2));
-    // Ensure proper permissions in Docker volumes
-    fs.chmodSync(CONFIG_PATH, 0o666);
+    try {
+      // Ensure /config directory exists with proper permissions
+      const configDir = path.dirname(CONFIG_PATH);
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
+      }
+      
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(configData, null, 2), { mode: 0o666 });
+      console.log('✅ Configuration saved successfully');
+    } catch (writeErr) {
+      console.error('Error saving config.json:', writeErr);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to save configuration file. Check Docker volume permissions.' 
+      });
+    }
+    
     loadConfig(); // Reload config into process.env
 
     // If bot is running and critical settings changed, restart the bot logic
@@ -986,6 +1025,45 @@ function startServer() {
       console.log(`   - Local: http://127.0.0.1:${address.port}`);
       console.log(`   - Network: http://<your-server-ip>:${address.port}`);
       console.log(`   - Docker: http://<host-ip>:${address.port}`);
+    }
+
+    // Auto-start bot if a valid config.json is present
+    try {
+      const autoStartFlag = String(
+        typeof process.env.AUTO_START_BOT === "undefined"
+          ? "true"
+          : process.env.AUTO_START_BOT
+      )
+        .trim()
+        .toLowerCase();
+
+      const autoStartDisabled = ["false", "0", "no"].includes(autoStartFlag);
+      if (autoStartDisabled) {
+        console.log("ℹ️ AUTO_START_BOT is disabled. Bot will not auto-start.");
+        return;
+      }
+
+      const hasConfigFile = fs.existsSync(CONFIG_PATH);
+      const required = ["DISCORD_TOKEN", "BOT_ID", "GUILD_ID"];
+      const hasDiscordCreds = required.every(
+        (k) => process.env[k] && String(process.env[k]).trim() !== ""
+      );
+
+      if (!isBotRunning && hasConfigFile && hasDiscordCreds) {
+        console.log("🚀 Detected existing config.json with Discord credentials. Auto-starting bot...");
+        (async () => {
+          try {
+            await startBot();
+            console.log("✅ Bot auto-started successfully.");
+          } catch (e) {
+            console.error("❌ Bot auto-start failed:", e?.message || e);
+          }
+        })();
+      } else if (!hasDiscordCreds) {
+        console.log("ℹ️ Config found but Discord credentials are incomplete. Bot not auto-started.");
+      }
+    } catch (e) {
+      console.error("Error during auto-start check:", e?.message || e);
     }
   });
 

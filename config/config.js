@@ -10,5 +10,6 @@ export const configTemplate = {
   JELLYFIN_SERVER_ID: "",
   JELLYFIN_CHANNEL_ID: "",
   WEBHOOK_PORT: "8282",
+  AUTO_START_BOT: "true",
   DEBUG: "false",
 };
