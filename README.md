@@ -18,7 +18,7 @@
 
 ## 🌟 Features
 
-- **🔍 Media Search**: Search for movies and TV shows with `/search` command - you can then request it later withtin the message embed
+- **🔍 Media Search**: Search for movies and TV shows with `/search` command - you can then request it later within the message embed
 - **📤 One-Click Requests**: Directly request media to Jellyseerr with `/request` command
 - **📺 Smart TV Handling**: Choose specific seasons when searching for TV series using `/search`, or request all the seasons at once with `/request`
 - **📬 Jellyfin Notifications**: Automatic Discord notifications when new media is added to your library
@@ -139,13 +139,13 @@ Start typing in either command to see real-time suggestions with release year an
 When new media is added to your Jellyfin library, the bot automatically posts to your configured Discord channel:
 
 - 🎬 **Movies**: Full details with IMDb and Letterboxd links
-- 📺 **TV Shows**: Series information with IMDb link and when available, a Letterboxed link
+- 📺 **TV Shows**: Series information with IMDb link and when available, a Letterboxd link
 - 🎞️ **Episodes**: Season and episode number with timestamps
 
 Each notification includes:
 
 - High-quality poster
-- Runtime, rating, genres and synopysis
+- Runtime, rating, genres and synopsis
 - "Watch Now" button linking directly to Jellyfin
 - IMDb and Letterboxd quick links
 
