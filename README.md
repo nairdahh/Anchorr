@@ -29,6 +29,7 @@
   - Runtime, genres, and synopsis
   - Quick action buttons (IMDb, Letterboxd, Watch Now)
 - **🔗 Autocomplete Support**: Intelligent autocomplete for search queries
+- **👁️ Ephemeral Interactions**: Optional private responses visible only to the command user
 - **⚙️ Web Dashboard**: User-friendly web interface for configuration
 
 ## 📋 Prerequisites
@@ -97,6 +98,7 @@ Configuration is managed through a **web dashboard** at `http://localhost:8282/`
 | `DISCORD_TOKEN`       | Your bot's secret token           | `MjU0...`                      |
 | `BOT_ID`              | Bot's Application ID              | `123456789...`                 |
 | `GUILD_ID`            | Discord server ID                 | `987654321...`                 |
+| `EPHEMERAL_INTERACTIONS` | Make bot responses private     | `true` or `false` (default)    |
 | `JELLYSEERR_URL`      | Jellyseerr API endpoint           | `http://localhost:5055/api/v1` |
 | `JELLYSEERR_API_KEY`  | Your Jellyseerr API key           | `abc123...`                    |
 | `TMDB_API_KEY`        | TMDB API key                      | `xyz789...`                    |
@@ -122,6 +124,7 @@ Search for a movie or TV show and view detailed information.
 - Shows poster, backdrop, ratings, genres, and synopsis
 - Interactive buttons to request directly or view on IMDb/Letterboxd
 - For TV shows: Choose specific seasons to request
+- **Private Mode**: When ephemeral interactions are enabled, only you can see the search results
 
 ### `/request <title>`
 
@@ -129,6 +132,7 @@ Instantly request a movie or TV show (all seasons for TV).
 
 - Automatically sends to Jellyseerr
 - Shows confirmation with media details
+- **Private Mode**: When ephemeral interactions are enabled, only you can see the request confirmation
 
 ### Autocomplete
 
