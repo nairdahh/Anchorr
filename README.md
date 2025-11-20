@@ -104,7 +104,9 @@ Configuration is managed through a **web dashboard** at `http://localhost:8282/`
 | `TMDB_API_KEY`        | TMDB API key                      | `xyz789...`                    |
 | `OMDB_API_KEY`        | OMDb API key (optional)           | `abc123xyz...`                 |
 | `JELLYFIN_BASE_URL`   | Public Jellyfin URL               | `http://jellyfin.example.com`  |
+| `JELLYFIN_API_KEY`    | Jellyfin API key (optional)       | `c4b6b3c8f1d4f0a8a6c2e4d8...`  |
 | `JELLYFIN_CHANNEL_ID` | Discord channel for notifications | `123456789...`                 |
+| `JELLYFIN_EXCLUDED_LIBRARIES` | Libraries to exclude from notifications | `lib1,lib2,lib3`        |
 | `WEBHOOK_PORT`        | Port for webhook listener         | `8282`                         |
 
 ### 🔄 Automatic Migration from `.env`
@@ -152,6 +154,22 @@ Each notification includes:
 - Runtime, rating, genres and synopsis
 - "Watch Now" button linking directly to Jellyfin
 - IMDb and Letterboxd quick links
+
+### 📚 Library Exclusion
+
+You can exclude specific Jellyfin libraries from notifications to filter out unwanted alerts:
+
+1. **Configure in Dashboard**: Open the web dashboard and navigate to "Jellyfin Notifications"
+2. **Load Libraries**: Click "Load Libraries" to fetch all available libraries from your Jellyfin server
+3. **Select to Exclude**: Check the boxes next to libraries you want to exclude from notifications
+4. **Save Settings**: Click "Save Settings" to apply your exclusion list
+
+**Use Cases:**
+- Exclude test or personal libraries
+- Filter notifications by content type
+- Reduce noise from specific collections
+
+The system automatically filters webhook events from excluded libraries, logging skipped notifications for transparency.
 
 ## 🐳 Docker Deployment
 
