@@ -343,6 +343,24 @@
                         </div>
                       </div>
 
+                      <!-- Library Exclusion Section -->
+                      <div class="form-group" style="margin-top: 1.5rem;">
+                        <label>Excluded Libraries</label>
+                        <div class="form-text" style="margin-bottom: 0.75rem;">
+                          Select libraries to exclude from notifications. Webhook events from these libraries will be ignored.
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+                          <button type="button" id="fetch-libraries-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem;">
+                            Load Libraries
+                          </button>
+                          <span id="fetch-libraries-status" style="line-height: 2.5; opacity: 0.8;"></span>
+                        </div>
+                        <div id="libraries-list" class="libraries-container" style="display: none;">
+                          <!-- Libraries will be loaded here dynamically -->
+                        </div>
+                        <input type="hidden" id="JELLYFIN_EXCLUDED_LIBRARIES" name="JELLYFIN_EXCLUDED_LIBRARIES" />
+                      </div>
+
                       <div id="webhook-section" class="webhook-box" style="margin-top: 1rem;">
                         <h3 class="webhook-title">Your Jellyfin Webhook URL</h3>
                         <div class="webhook-content">
