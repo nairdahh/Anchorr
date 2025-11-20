@@ -216,6 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (testJellyfinBtn) {
     testJellyfinBtn.addEventListener("click", async () => {
       const url = document.getElementById("JELLYFIN_BASE_URL").value;
+      const apiKey = document.getElementById("JELLYFIN_API_KEY").value;
 
       testJellyfinBtn.disabled = true;
       testJellyfinStatus.textContent = "Testing...";
@@ -225,7 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const response = await fetch("/api/test-jellyfin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url, apiKey }),
         });
 
         const result = await response.json();
@@ -255,6 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (fetchLibrariesBtn) {
     fetchLibrariesBtn.addEventListener("click", async () => {
       const url = document.getElementById("JELLYFIN_BASE_URL").value;
+      const apiKey = document.getElementById("JELLYFIN_API_KEY").value;
       
       if (!url || !url.trim()) {
         showToast("Please enter a Jellyfin URL first.");
@@ -269,7 +271,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const response = await fetch("/api/jellyfin-libraries", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url, apiKey }),
         });
 
         const result = await response.json();
