@@ -342,9 +342,7 @@ export async function handleJellyfinWebhook(req, res, client) {
       // Call the debounced function. It will only execute after 30s of inactivity.
       debouncer.sender(debouncer.latestData);
 
-      return res
-        .status(200)
-        .send(`OK: TV notification for ${SeriesId} is debounced.`);
+      return res.status(200).send(`OK: TV notification for ${SeriesId} is debounced.`);
     }
 
     await processAndSendNotification(data, client);

@@ -3,9 +3,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const botControlBtn = document.getElementById("bot-control-btn");
   const botControlText = document.getElementById("bot-control-text");
   const botControlIcon = botControlBtn.querySelector("i");
-  const webhookSection = document.getElementById("webhook-section");
-  const webhookUrlElement = document.getElementById("webhook-url");
-  const copyWebhookBtn = document.getElementById("copy-webhook-btn");
   const navItems = document.querySelectorAll(".nav-item, .about-button");
   const testJellyseerrBtn = document.getElementById("test-jellyseerr-btn");
   const testJellyseerrStatus = document.getElementById(
@@ -45,7 +42,6 @@ document.addEventListener("DOMContentLoaded", () => {
           input.value = config[key];
         }
       }
-      updateWebhookUrl();
     } catch (error) {
       console.error("Error fetching config:", error);
       showToast("Error fetching configuration.");
@@ -80,17 +76,6 @@ document.addEventListener("DOMContentLoaded", () => {
       botControlText.textContent = "Start Bot";
       botControlBtn.dataset.action = "start";
     }
-  }
-
-  function updateWebhookUrl() {
-    const portInput = document.getElementById("WEBHOOK_PORT");
-    if (!portInput) return;
-
-    const port = portInput.value || 8282;
-    // Use `window.location.hostname` which is more reliable than guessing the host IP.
-    // This works well for localhost and for accessing via a local network IP.
-    const host = window.location.hostname;
-    webhookUrlElement.textContent = `http://${host}:${port}/jellyfin-webhook`;
   }
 
   // --- Event Listeners ---
@@ -163,18 +148,6 @@ document.addEventListener("DOMContentLoaded", () => {
         .getElementById(`config-pane-${targetId}`)
         .classList.add("active");
     });
-  });
-
-  // Update webhook URL when port changes
-  const portInput = document.getElementById("WEBHOOK_PORT");
-  if (portInput) {
-    portInput.addEventListener("input", updateWebhookUrl);
-  }
-
-  // Copy webhook URL
-  copyWebhookBtn.addEventListener("click", () => {
-    navigator.clipboard.writeText(webhookUrlElement.textContent);
-    showToast("Webhook URL copied to clipboard!");
   });
 
   // Test Jellyseerr Connection

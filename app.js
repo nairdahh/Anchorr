@@ -17,6 +17,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
+  MessageFlags,
 } from "discord.js";
 
 // --- CONFIGURATION ---
@@ -506,7 +507,9 @@ async function startBot() {
       });
     }
 
-    await interaction.deferReply();
+    // Use MessageFlags.Ephemeral based on configuration
+    const isEphemeral = String(process.env.EPHEMERAL_INTERACTIONS || 'false').toLowerCase() === 'true';
+    await interaction.deferReply({ flags: isEphemeral ? MessageFlags.Ephemeral : undefined });
 
     try {
       const details = await tmdbGetDetails(tmdbId, mediaType);
@@ -535,7 +538,9 @@ async function startBot() {
         details
       );
 
-      await interaction.editReply({ embeds: [embed], components });
+      // For both search & request: check if interactions should be ephemeral.
+      const isEphemeral = String(process.env.EPHEMERAL_INTERACTIONS || 'false').toLowerCase() === 'true';
+      await interaction.editReply({ embeds: [embed], components, ephemeral: isEphemeral });
     } catch (err) {
       console.error("Error in handleSearchOrRequest:", err);
       await interaction.editReply({
@@ -683,7 +688,7 @@ async function startBot() {
           return interaction.reply({
             content:
               "⚠️ This command is disabled because Jellyseerr or TMDB configuration is missing.",
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
         const raw = getOptionStringRobust(interaction);
@@ -722,9 +727,12 @@ async function startBot() {
             "success",
             omdb
           );
-          const components = buildButtons(tmdbId, imdbId, true, mediaType);
+          const originalEmbeds = interaction.message.embeds;
+          const disabledComponents = buildButtons(tmdbId, imdbId, true, mediaType);
 
-          await interaction.editReply({ embeds: [embed], components });
+          await interaction.editReply({ embeds: originalEmbeds, components: disabledComponents });
+          const isEphemeral = String(process.env.EPHEMERAL_INTERACTIONS || 'false').toLowerCase() === 'true';
+          await interaction.followUp({ embeds: [embed], flags: isEphemeral ? MessageFlags.Ephemeral : undefined });
         } catch (err) {
           console.error("Button request error:", err);
           try {
@@ -747,7 +755,7 @@ async function startBot() {
         if (!tmdbId || !selectedSeasons.length) {
           return interaction.reply({
             content: "⚠️ Invalid selection.",
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -769,7 +777,8 @@ async function startBot() {
           );
 
           // Disable the select menu after successful request
-          const components = buildButtons(
+          const originalEmbeds = interaction.message.embeds;
+          const disabledComponents = buildButtons(
             tmdbId,
             imdbId,
             true,
@@ -779,15 +788,17 @@ async function startBot() {
           );
 
           await interaction.editReply({
-            embeds: [embed],
-            components: components,
+            embeds: originalEmbeds,
+            components: disabledComponents,
           });
+          const isEphemeral = String(process.env.EPHEMERAL_INTERACTIONS || 'false').toLowerCase() === 'true';
+          await interaction.followUp({ embeds: [embed], flags: isEphemeral ? MessageFlags.Ephemeral : undefined });
         } catch (err) {
           console.error("Season request error:", err);
           await interaction.followUp({
             content:
               "⚠️ I could not send the request for the selected seasons.",
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
       }
