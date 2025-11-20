@@ -947,7 +947,7 @@ function configureWebServer() {
   });
 
   app.post("/api/test-jellyfin", async (req, res) => {
-    const { url } = req.body;
+    const { url, apiKey } = req.body;
     if (!url) {
       return res
         .status(400)
@@ -956,12 +956,23 @@ function configureWebServer() {
 
     try {
       const testUrl = `${url.replace(/\/$/, "")}/System/Info/Public`;
-      const response = await axios.get(testUrl, { timeout: 8000 });
+      const headers = {};
+      
+      // Add API key to headers if provided for more comprehensive testing
+      if (apiKey) {
+        headers["X-Emby-Token"] = apiKey;
+      }
+      
+      const response = await axios.get(testUrl, { 
+        headers,
+        timeout: 8000 
+      });
 
       if (response.data?.ServerName && response.data?.Version) {
+        const authStatus = apiKey ? " (with API key)" : " (public endpoint)";
         return res.json({
           success: true,
-          message: `Connected to ${response.data.ServerName} (v${response.data.Version})`,
+          message: `Connected to ${response.data.ServerName} (v${response.data.Version})${authStatus}`,
         });
       }
       throw new Error("Invalid response from Jellyfin server.");
@@ -970,6 +981,51 @@ function configureWebServer() {
       res.status(500).json({
         success: false,
         message: "Connection failed. Check URL and network.",
+      });
+    }
+  });
+
+  // Fetch all Jellyfin libraries for the exclusion UI
+  app.post("/api/jellyfin-libraries", async (req, res) => {
+    const { url, apiKey } = req.body;
+    if (!url) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Jellyfin URL is required." });
+    }
+
+    try {
+      // Fetch libraries from Jellyfin API
+      // The endpoint requires authentication if apiKey is provided
+      const librariesUrl = `${url.replace(/\/$/, "")}/Library/MediaFolders`;
+      const headers = {};
+      
+      // Add API key to headers if provided
+      if (apiKey) {
+        headers["X-Emby-Token"] = apiKey;
+      }
+
+      const response = await axios.get(librariesUrl, { 
+        headers,
+        timeout: 8000 
+      });
+
+      // Extract relevant library information
+      const libraries = (response.data?.Items || []).map(lib => ({
+        id: lib.Id,
+        name: lib.Name,
+        type: lib.CollectionType || 'mixed'
+      }));
+
+      res.json({
+        success: true,
+        libraries: libraries
+      });
+    } catch (error) {
+      console.error("Failed to fetch Jellyfin libraries:", error.message);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch libraries. Make sure the URL is correct and the server is accessible.",
       });
     }
   });

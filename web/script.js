@@ -189,6 +189,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (testJellyfinBtn) {
     testJellyfinBtn.addEventListener("click", async () => {
       const url = document.getElementById("JELLYFIN_BASE_URL").value;
+      const apiKey = document.getElementById("JELLYFIN_API_KEY").value;
 
       testJellyfinBtn.disabled = true;
       testJellyfinStatus.textContent = "Testing...";
@@ -198,7 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const response = await fetch("/api/test-jellyfin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url, apiKey }),
         });
 
         const result = await response.json();
@@ -217,6 +218,94 @@ document.addEventListener("DOMContentLoaded", () => {
         testJellyfinBtn.disabled = false;
       }
     });
+  }
+
+  // Fetch and display Jellyfin libraries for exclusion
+  const fetchLibrariesBtn = document.getElementById("fetch-libraries-btn");
+  const fetchLibrariesStatus = document.getElementById("fetch-libraries-status");
+  const librariesList = document.getElementById("libraries-list");
+  const excludedLibrariesInput = document.getElementById("JELLYFIN_EXCLUDED_LIBRARIES");
+
+  if (fetchLibrariesBtn) {
+    fetchLibrariesBtn.addEventListener("click", async () => {
+      const url = document.getElementById("JELLYFIN_BASE_URL").value;
+      const apiKey = document.getElementById("JELLYFIN_API_KEY").value;
+      
+      if (!url || !url.trim()) {
+        showToast("Please enter a Jellyfin URL first.");
+        return;
+      }
+
+      fetchLibrariesBtn.disabled = true;
+      fetchLibrariesStatus.textContent = "Loading...";
+      fetchLibrariesStatus.style.color = "var(--text)";
+
+      try {
+        const response = await fetch("/api/jellyfin-libraries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, apiKey }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          const libraries = result.libraries || [];
+          
+          if (libraries.length === 0) {
+            librariesList.innerHTML = '<div class="libraries-empty">No libraries found.</div>';
+          } else {
+            // Get currently excluded libraries from the hidden input
+            const excludedIds = excludedLibrariesInput.value.split(",").map(id => id.trim()).filter(id => id);
+            
+            // Render the libraries as checkboxes
+            librariesList.innerHTML = libraries.map(lib => `
+              <div class="library-item">
+                <label>
+                  <input 
+                    type="checkbox" 
+                    value="${lib.id}" 
+                    class="library-checkbox"
+                    ${excludedIds.includes(lib.id) ? 'checked' : ''}
+                  />
+                  <div class="library-info">
+                    <span class="library-name">${lib.name}</span>
+                    <span class="library-type">${lib.type}</span>
+                  </div>
+                </label>
+              </div>
+            `).join('');
+            
+            // Add event listeners to checkboxes to update the hidden input
+            const checkboxes = librariesList.querySelectorAll('.library-checkbox');
+            checkboxes.forEach(checkbox => {
+              checkbox.addEventListener('change', () => {
+                updateExcludedLibraries();
+              });
+            });
+          }
+          
+          librariesList.style.display = 'block';
+          fetchLibrariesStatus.textContent = `Found ${libraries.length} ${libraries.length === 1 ? 'library' : 'libraries'}`;
+          fetchLibrariesStatus.style.color = "var(--green)";
+        } else {
+          throw new Error(result.message || "Failed to fetch libraries");
+        }
+      } catch (error) {
+        fetchLibrariesStatus.textContent = error.message || "Failed to load libraries.";
+        fetchLibrariesStatus.style.color = "#f38ba8"; // Red
+        librariesList.style.display = 'none';
+      } finally {
+        fetchLibrariesBtn.disabled = false;
+      }
+    });
+  }
+
+  // Update the hidden input with selected excluded libraries
+  function updateExcludedLibraries() {
+    const checkboxes = librariesList.querySelectorAll('.library-checkbox:checked');
+    const excludedIds = Array.from(checkboxes).map(cb => cb.value);
+    excludedLibrariesInput.value = excludedIds.join(',');
   }
 
   // --- Initial Load ---
