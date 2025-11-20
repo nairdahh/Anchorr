@@ -26,6 +26,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }, duration);
   }
 
+  async function fetchWebhookUrl() {
+    try {
+      const response = await fetch("/api/webhook-url");
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      const webhookUrlElement = document.getElementById("webhook-url");
+      if (webhookUrlElement) {
+        webhookUrlElement.textContent = data.webhookUrl;
+      }
+    } catch (error) {
+      console.error("Error fetching webhook URL:", error);
+      const webhookUrlElement = document.getElementById("webhook-url");
+      if (webhookUrlElement) {
+        webhookUrlElement.textContent = "Error loading webhook URL";
+      }
+    }
+  }
+
   async function fetchConfig() {
     try {
       const response = await fetch("/api/config");
@@ -308,8 +326,37 @@ document.addEventListener("DOMContentLoaded", () => {
     excludedLibrariesInput.value = excludedIds.join(',');
   }
 
+  // Copy webhook URL to clipboard
+  const copyWebhookBtn = document.getElementById("copy-webhook-btn");
+  if (copyWebhookBtn) {
+    copyWebhookBtn.addEventListener("click", async () => {
+      const webhookUrlElement = document.getElementById("webhook-url");
+      const webhookUrl = webhookUrlElement.textContent;
+      
+      if (!webhookUrl || webhookUrl === "Error loading webhook URL") {
+        showToast("No webhook URL to copy");
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(webhookUrl);
+        showToast("Webhook URL copied to clipboard!");
+      } catch (error) {
+        // Fallback for older browsers
+        const textArea = document.createElement("textarea");
+        textArea.value = webhookUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        showToast("Webhook URL copied to clipboard!");
+      }
+    });
+  }
+
   // --- Initial Load ---
   fetchConfig();
   fetchStatus();
+  fetchWebhookUrl();
   setInterval(fetchStatus, 10000); // Poll status every 10 seconds
 });

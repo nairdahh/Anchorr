@@ -1038,6 +1038,13 @@ function configureWebServer() {
     });
   });
 
+  app.get("/api/webhook-url", (req, res) => {
+    const protocol = req.get('X-Forwarded-Proto') || (req.secure ? 'https' : 'http');
+    const host = req.get('Host') || `localhost:${port}`;
+    const webhookUrl = `${protocol}://${host}/jellyfin-webhook`;
+    res.json({ webhookUrl });
+  });
+
   app.post("/api/start-bot", async (req, res) => {
     if (isBotRunning) {
       return res.status(400).json({ message: "Bot is already running." });
