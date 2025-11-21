@@ -1353,6 +1353,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Back to configuration button handler
+  const backToConfigBtn = document.getElementById("back-to-config-btn");
+  backToConfigBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    logsSection.style.display = "none";
+    setupSection.style.display = "block";
+    window.scrollTo(0, 0);
+  });
+
   // Back to setup button (reuse nav items logic for logs section)
   document.querySelectorAll(".nav-item, .about-button, .about-link").forEach(item => {
     item.addEventListener("click", (e) => {

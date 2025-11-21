@@ -626,42 +626,47 @@
           </div>
         </div>
       </footer>
-      <!-- Logs Section -->
-      <section id="logs-section" class="setup-section" style="display: none;">
-        <div class="container">
-          <div class="dashboard-header">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <h2 class="dashboard-title" style="margin: 0;">Logs</h2>
-              <div style="display: flex; gap: 0.5rem; border-left: 1px solid var(--surface0); padding-left: 1rem;">
-                <button type="button" class="logs-tab-btn active" data-target="all">All Logs</button>
-                <button type="button" class="logs-tab-btn" data-target="error">Error Logs</button>
-              </div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 1.5rem;">
-              <!-- Status Indicators -->
-              <div style="display: flex; gap: 1.5rem; align-items: center;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div id="jellyseerr-status-indicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: #888; transition: background-color 0.3s;"></div>
-                  <span style="font-size: 0.9rem; color: var(--subtext0);">Jellyseerr</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div id="jellyfin-status-indicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: #888; transition: background-color 0.3s;"></div>
-                  <span style="font-size: 0.9rem; color: var(--subtext0);">Jellyfin</span>
-                </div>
-              </div>
-              <button type="button" id="bot-control-btn-logs" class="btn btn-status btn-danger">
-                <i class="bi bi-play-fill"></i>
-                <span id="bot-control-text-logs">Start Bot</span>
-              </button>
+    </div>
+
+    <!-- Logs Section -->
+    <section id="logs-section" class="setup-section" style="display: none;">
+      <div class="container">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+          <button type="button" id="back-to-config-btn" style="background: none; border: none; color: var(--blue); cursor: pointer; font-size: 0.95rem; text-decoration: underline; transition: color 0.2s;">← Back to Configuration</button>
+        </div>
+
+        <div class="dashboard-header">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <h2 class="dashboard-title" style="margin: 0;">Logs</h2>
+            <div style="display: flex; gap: 0.5rem; border-left: 1px solid var(--surface0); padding-left: 1rem;">
+              <button type="button" class="logs-tab-btn active" data-target="all">All Logs</button>
+              <button type="button" class="logs-tab-btn" data-target="error">Error Logs</button>
             </div>
           </div>
-
-          <div id="logs-container" style="overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; line-height: 1.6; background-color: var(--base); padding: 1.5rem; border-radius: 8px;">
-            <div style="text-align: center; color: var(--subtext0);">Loading logs...</div>
+          <div style="display: flex; align-items: center; gap: 1.5rem;">
+            <!-- Status Indicators -->
+            <div style="display: flex; gap: 1.5rem; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div id="jellyseerr-status-indicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: #888; transition: background-color 0.3s;"></div>
+                <span style="font-size: 0.9rem; color: var(--subtext0);">Jellyseerr</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div id="jellyfin-status-indicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: #888; transition: background-color 0.3s;"></div>
+                <span style="font-size: 0.9rem; color: var(--subtext0);">Jellyfin</span>
+              </div>
+            </div>
+            <button type="button" id="bot-control-btn-logs" class="btn btn-status btn-danger">
+              <i class="bi bi-play-fill"></i>
+              <span id="bot-control-text-logs">Start Bot</span>
+            </button>
           </div>
         </div>
-      </section>
-    </div>
+
+        <div id="logs-container" style="overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; line-height: 1.6; background-color: var(--base); padding: 1.5rem; border-radius: 8px; min-height: 400px;">
+          <div style="text-align: center; color: var(--subtext0);">Loading logs...</div>
+        </div>
+      </div>
+    </section>
 
     <script src="/libs/coloris/coloris.min.js"></script>
     <script src="script.js"></script>
