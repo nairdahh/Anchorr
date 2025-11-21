@@ -175,11 +175,36 @@ The system automatically filters webhook events from excluded libraries, logging
 
 ### Using Docker Compose (Recommended)
 
+You can run Anchorr without cloning the repository! Just download the compose file:
+
 ```bash
-docker compose up -d --build
+# Download the compose file
+curl -O https://raw.githubusercontent.com/nairdahh/anchorr/main/docker-compose.yml
+
+# Start the container
+docker compose up -d
+```
+
+Or if you have cloned the repository:
+
+```bash
+docker compose up -d
+```
+
+The bot will automatically pull the pre-built image from GitHub Container Registry.
+
+### Alternative Docker Images
+
+If GitHub Container Registry is unavailable, you can use Docker Hub:
+
+```bash
+# Edit your compose file to use Docker Hub image
+image: nairdah/anchorr:latest
 ```
 
 ### Custom Docker Build
+
+For development or custom builds:
 
 ```bash
 docker build -t anchorr .

@@ -1,6 +1,6 @@
 services:
   anchorr:
-    image: nairdah/anchorr:latest
+    image: ghcr.io/nairdahh/anchorr:latest
     container_name: anchorr
     restart: unless-stopped
     environment:
