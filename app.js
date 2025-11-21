@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import express from "express";
+import rateLimit from "express-rate-limit";
 import { handleJellyfinWebhook } from "./jellyfinWebhook.js";
 import { configTemplate } from "./config/config.js";
 import axios from "axios";
@@ -10,14 +11,21 @@ import {
   GatewayIntentBits,
   Partials,
   REST,
-  Routes,
-  SlashCommandBuilder,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
 } from "discord.js";
+
+// --- MODULE IMPORTS ---
+import * as tmdbApi from "./api/tmdb.js";
+import * as jellyseerrApi from "./api/jellyseerr.js";
+import { registerCommands } from "./discord/commands.js";
+import logger from "./utils/logger.js";
+import { validateBody, configSchema, userMappingSchema } from "./utils/validation.js";
+import cache from "./utils/cache.js";
+import { COLORS, TIMEOUTS } from "./config/constants.js";
 
 // --- CONFIGURATION ---
 // Use /config volume if in Docker, otherwise use current directory
@@ -54,7 +62,7 @@ function parseEnvFile(filePath) {
 
     return envVars;
   } catch (error) {
-    console.error("Error reading or parsing .env file:", error);
+    logger.error("Error reading or parsing .env file:", error);
     return {};
   }
 }
@@ -62,7 +70,7 @@ function parseEnvFile(filePath) {
 function migrateEnvToConfig() {
   // Check if .env exists and config.json doesn't
   if (fs.existsSync(ENV_PATH) && !fs.existsSync(CONFIG_PATH)) {
-    console.log(
+    logger.info(
       "🔄 Detected .env file. Migrating environment variables to config.json..."
     );
 
@@ -84,33 +92,46 @@ function migrateEnvToConfig() {
         fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
       }
       
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(migratedConfig, null, 2), { mode: 0o666 });
-      console.log("✅ Migration successful! config.json created from .env");
-      console.log(
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(migratedConfig, null, 2), { mode: 0o600 });
+      logger.info("✅ Migration successful! config.json created from .env");
+      logger.info(
         "📝 You can now delete the .env file as it's no longer needed."
       );
     } catch (error) {
-      console.error("❌ Error saving migrated config:", error);
-      console.error("Check that /config directory has write permissions");
+      logger.error("❌ Error saving migrated config:", error);
+      logger.error("Check that /config directory has write permissions");
     }
   }
 }
 
 function loadConfig() {
+  logger.debug("[LOADCONFIG] Checking CONFIG_PATH:", CONFIG_PATH);
+  logger.debug("[LOADCONFIG] File exists:", fs.existsSync(CONFIG_PATH));
   if (fs.existsSync(CONFIG_PATH)) {
     try {
       const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
       const config = JSON.parse(rawData);
+      logger.debug("[LOADCONFIG] Config keys:", Object.keys(config));
+      logger.debug("[LOADCONFIG] DISCORD_TOKEN in config:", config.DISCORD_TOKEN ? config.DISCORD_TOKEN.slice(0, 6) + '...' : 'UNDEFINED IN CONFIG');
+
+      // Normalize JELLYSEERR_URL to remove /api/v1 suffix if present
+      if (config.JELLYSEERR_URL && typeof config.JELLYSEERR_URL === 'string') {
+        config.JELLYSEERR_URL = config.JELLYSEERR_URL.replace(/\/api\/v1\/?$/, '');
+      }
+
       // Load config into process.env for compatibility with existing code
       for (const [key, value] of Object.entries(config)) {
-        process.env[key] = value;
+        // Convert objects to JSON strings to avoid "[object Object]" conversion
+        process.env[key] = typeof value === 'object' ? JSON.stringify(value) : value;
       }
+      logger.debug("[LOADCONFIG] Loaded DISCORD_TOKEN into process.env:", process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.slice(0, 6) + '...' : 'UNDEFINED AFTER SET');
       return true;
     } catch (error) {
-      console.error("Error reading or parsing config.json:", error);
+      logger.error("Error reading or parsing config.json:", error);
       return false;
     }
   }
+  logger.debug("[LOADCONFIG] Config file does not exist");
   return false;
 }
 
@@ -121,11 +142,21 @@ let port = process.env.WEBHOOK_PORT || 8282;
 let discordClient = null;
 let isBotRunning = false;
 
+// --- PENDING REQUESTS TRACKING ---
+// Map to track user requests: key = "tmdbId-mediaType", value = Set of Discord user IDs
+const pendingRequests = new Map();
+
 async function startBot() {
   if (isBotRunning && discordClient) {
-    console.log("Bot is already running.");
+    logger.info("Bot is already running.");
     return { success: true, message: "Bot is already running." };
   }
+
+
+  // DEBUG: Log Discord credentials (partial)
+  logger.debug("[DEBUG] BOT_ID:", process.env.BOT_ID);
+  logger.debug("[DEBUG] GUILD_ID:", process.env.GUILD_ID);
+  logger.debug("[DEBUG] DISCORD_TOKEN:", process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.slice(0, 6) + '...' : undefined);
 
   // Load the latest config from file
   const configLoaded = loadConfig();
@@ -136,34 +167,34 @@ async function startBot() {
     );
   }
 
-  // ----------------- VALIDATE ENV -----------------
-  const REQUIRED_DISCORD = ["DISCORD_TOKEN", "BOT_ID", "GUILD_ID"];
+  // DEBUG: Log Discord credentials after loadConfig
+  logger.debug("[DEBUG AFTER LOAD] BOT_ID:", process.env.BOT_ID);
+  logger.debug("[DEBUG AFTER LOAD] GUILD_ID:", process.env.GUILD_ID);
+  logger.debug("[DEBUG AFTER LOAD] DISCORD_TOKEN:", process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.slice(0, 6) + '...' : 'UNDEFINED AFTER LOAD');
 
+  // ----------------- VALIDATE ENV -----------------
+  const REQUIRED_DISCORD = ["DISCORD_TOKEN", "BOT_ID"];
   const missing = REQUIRED_DISCORD.filter((k) => !process.env[k]);
   if (missing.length) {
     throw new Error(
-      `Bot cannot start. Missing required Discord variables: ${missing.join(
-        ", "
-      )}`
+      `Bot cannot start. Missing required Discord variables: ${missing.join(", ")}`
     );
   }
 
   const client = new Client({
-    intents: [GatewayIntentBits.Guilds],
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
     partials: [Partials.Channel],
   });
   discordClient = client; // Store client instance globally
 
   const BOT_ID = process.env.BOT_ID;
   const GUILD_ID = process.env.GUILD_ID;
-  const JELLYSEERR_URL = process.env.JELLYSEERR_URL?.replace(/\/$/, "");
+  let JELLYSEERR_URL = process.env.JELLYSEERR_URL?.replace(/\/$/, "");
+  if (JELLYSEERR_URL && !JELLYSEERR_URL.endsWith('/api/v1')) {
+    JELLYSEERR_URL += '/api/v1';
+  }
   const JELLYSEERR_API_KEY = process.env.JELLYSEERR_API_KEY;
   const TMDB_API_KEY = process.env.TMDB_API_KEY;
-
-  // Colors
-  const COLOR_SEARCH = 0xef9f76;
-  const COLOR_SUCCESS = 0xa6d189;
-  const COLOR_DEFAULT = 0xef9f76;
 
   // ----------------- HELPERS -----------------
   function pad2(n) {
@@ -187,24 +218,14 @@ async function startBot() {
     try {
       const res = await axios.get("http://www.omdbapi.com/", {
         params: { i: imdbId, apikey: process.env.OMDB_API_KEY },
-        timeout: 7000,
+        timeout: TIMEOUTS.OMDB_API,
       });
       return res.data;
     } catch (err) {
-      console.warn("OMDb fetch failed:", err?.message || err);
+      logger.warn("OMDb fetch failed:", err?.message || err);
       return null;
     }
   }
-
-  const findBestBackdrop = (details) => {
-    if (details.images?.backdrops?.length > 0) {
-      const englishBackdrop = details.images.backdrops.find(
-        (b) => b.iso_639_1 === "en"
-      );
-      if (englishBackdrop) return englishBackdrop.file_path;
-    }
-    return details.backdrop_path;
-  };
 
   function getOptionStringRobust(
     interaction,
@@ -226,69 +247,6 @@ async function startBot() {
       }
     } catch (e) {}
     return null;
-  }
-
-  async function tmdbSearch(query) {
-    const url = "https://api.themoviedb.org/3/search/multi";
-    const res = await axios.get(url, {
-      params: { api_key: TMDB_API_KEY, query, include_adult: false, page: 1 },
-      timeout: 8000,
-    });
-    return res.data.results || [];
-  }
-
-  async function tmdbGetDetails(id, mediaType) {
-    const url =
-      mediaType === "movie"
-        ? `https://api.themoviedb.org/3/movie/${id}`
-        : `https://api.themoviedb.org/3/tv/${id}`;
-    const res = await axios.get(url, {
-      params: {
-        api_key: TMDB_API_KEY,
-        language: "en-US",
-        append_to_response: "images,credits",
-      },
-    });
-    return res.data;
-  }
-
-  async function tmdbGetExternalImdb(id, mediaType) {
-    const url =
-      mediaType === "movie"
-        ? `https://api.themoviedb.org/3/movie/${id}/external_ids`
-        : `https://api.themoviedb.org/3/tv/${id}/external_ids`;
-    const res = await axios.get(url, { params: { api_key: TMDB_API_KEY } });
-    return res.data.imdb_id || null;
-  }
-
-  // ----------------- JELLYSEERR -----------------
-  async function sendRequestToJellyseerr(tmdbId, mediaType, seasons = []) {
-    const payload = {
-      mediaId: tmdbId,
-      mediaType: mediaType,
-    };
-
-    if (mediaType === "tv" && seasons.length > 0) {
-      payload.seasons = seasons.includes("all")
-        ? "all"
-        : seasons.map((s) => parseInt(s, 10));
-    }
-
-    try {
-      console.log("Trying Jellyseerr request with payload:", payload);
-      const response = await axios.post(`${JELLYSEERR_URL}/request`, payload, {
-        headers: { "X-Api-Key": JELLYSEERR_API_KEY },
-        timeout: 10000,
-      });
-      console.log("Jellyseerr request successful!");
-      return response.data;
-    } catch (err) {
-      console.error(
-        "Jellyseerr request failed:",
-        err?.response?.data || err?.message || err
-      );
-      throw err;
-    }
   }
 
   // ----------------- EMBED BUILDER -----------------
@@ -334,13 +292,18 @@ async function startBot() {
       ? `${details.vote_average.toFixed(1)}/10`
       : "N/A";
 
-    const overview =
+    let overview =
       (details.overview && details.overview.trim() !== ""
         ? details.overview
         : null) ||
       (omdb?.Plot && omdb.Plot !== "N/A"
         ? omdb.Plot
         : "No description available.");
+
+    // Add "stay tuned!" for successful requests
+    if (status === "success") {
+      overview = overview + "\n\n🎬 Stay tuned!";
+    }
 
     let headerLine = "Summary";
     if (omdb) {
@@ -359,13 +322,13 @@ async function startBot() {
       .setURL(imdbId ? `https://www.imdb.com/title/${imdbId}/` : undefined)
       .setColor(
         status === "success"
-          ? COLOR_SUCCESS
+          ? COLORS.SUCCESS
           : status === "search"
-          ? COLOR_SEARCH
-          : COLOR_DEFAULT
+          ? COLORS.SEARCH
+          : COLORS.DEFAULT
       );
 
-    const backdropPath = findBestBackdrop(details);
+    const backdropPath = tmdbApi.findBestBackdrop(details);
     const backdrop = backdropPath
       ? `https://image.tmdb.org/t/p/w1280${backdropPath}`
       : null;
@@ -490,7 +453,7 @@ async function startBot() {
       [tmdbId, mediaType] = raw.split("|");
       tmdbId = parseInt(tmdbId, 10);
     } else if (raw) {
-      const found = (await tmdbSearch(raw)).filter(
+      const found = (await tmdbApi.tmdbSearch(raw, TMDB_API_KEY)).filter(
         (r) => r.media_type === "movie" || r.media_type === "tv"
       );
       if (found.length) {
@@ -509,13 +472,49 @@ async function startBot() {
     await interaction.deferReply();
 
     try {
-      const details = await tmdbGetDetails(tmdbId, mediaType);
+      const details = await tmdbApi.tmdbGetDetails(tmdbId, mediaType, TMDB_API_KEY);
 
       if (mode === "request") {
-        await sendRequestToJellyseerr(tmdbId, mediaType, ["all"]);
+        // Check if media already exists in Jellyseerr
+        const status = await jellyseerrApi.checkMediaStatus(
+          tmdbId,
+          mediaType,
+          ["all"],
+          JELLYSEERR_URL,
+          JELLYSEERR_API_KEY
+        );
+
+        if (status.exists && status.available) {
+          // Media already available
+          await interaction.editReply({
+            content: "✅ This content is already available in your library!",
+            components: [],
+            embeds: [],
+          });
+          return;
+        }
+
+        await jellyseerrApi.sendRequest({
+          tmdbId,
+          mediaType,
+          seasons: ["all"],
+          jellyseerrUrl: JELLYSEERR_URL,
+          apiKey: JELLYSEERR_API_KEY,
+          discordUserId: interaction.user.id,
+          userMappings: process.env.USER_MAPPINGS || {},
+        });
+
+        // Track request for notifications if enabled
+        if (process.env.NOTIFY_ON_AVAILABLE === "true") {
+          const requestKey = `${tmdbId}-${mediaType}`;
+          if (!pendingRequests.has(requestKey)) {
+            pendingRequests.set(requestKey, new Set());
+          }
+          pendingRequests.get(requestKey).add(interaction.user.id);
+        }
       }
 
-      const imdbId = await tmdbGetExternalImdb(tmdbId, mediaType);
+      const imdbId = await tmdbApi.tmdbGetExternalImdb(tmdbId, mediaType, TMDB_API_KEY);
 
       const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
 
@@ -537,7 +536,7 @@ async function startBot() {
 
       await interaction.editReply({ embeds: [embed], components });
     } catch (err) {
-      console.error("Error in handleSearchOrRequest:", err);
+      logger.error("Error in handleSearchOrRequest:", err);
       await interaction.editReply({
         content: "⚠️ An error occurred.",
         components: [],
@@ -546,73 +545,82 @@ async function startBot() {
     }
   }
 
-  // ----------------- SLASH COMMANDS -----------------
-  const commands = [
-    new SlashCommandBuilder()
-      .setName("search")
-      .setDescription("Search for a movie/TV show (you can request it later)")
-      .addStringOption((opt) =>
-        opt
-          .setName("title")
-          .setDescription("Title")
-          .setRequired(true)
-          .setAutocomplete(true)
-      ),
-    new SlashCommandBuilder()
-      .setName("request")
-      .setDescription("Send instant request for a movie/TV show")
-      .addStringOption((opt) =>
-        opt
-          .setName("title")
-          .setDescription("Title")
-          .setRequired(true)
-          .setAutocomplete(true)
-      ),
-  ].map((c) => c.toJSON());
-
-  // --- CONFIGURE WEBHOOK ROUTE FOR BOT MODE ---
-  // This must be done before app.listen is called.
-  app.use(express.json({ limit: "10mb" }));
-  app.post("/jellyfin-webhook", (req, res) => {
-    if (!isBotRunning) return res.status(503).send("Bot is not running.");
-    handleJellyfinWebhook(req, res, client);
-  });
-
   // ----------------- REGISTER COMMANDS -----------------
+  // Înregistrează comenzile global sau guild-specific
+  logger.debug(`[REGISTER COMMANDS] Attempting to register commands for BOT_ID: ${BOT_ID}`);
+  logger.debug(`[REGISTER COMMANDS] DISCORD_TOKEN available: ${!!process.env.DISCORD_TOKEN}`);
+  logger.debug(`[REGISTER COMMANDS] DISCORD_TOKEN value: ${process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.slice(0, 10) + '...' : 'UNDEFINED'}`);
+
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
+  logger.debug(`[REGISTER COMMANDS] REST token set: ${!!rest.token}`);
+  logger.debug(`[REGISTER COMMANDS] REST token value: ${rest.token ? rest.token.slice(0, 10) + '...' : 'UNDEFINED'}`);
+
   try {
-    console.log("Registering guild commands...");
-    await rest.put(Routes.applicationGuildCommands(BOT_ID, GUILD_ID), {
-      body: commands,
-    });
-    console.log("Commands registered!");
+    await registerCommands(rest, BOT_ID, GUILD_ID || null, console);
   } catch (err) {
+    logger.error(`[REGISTER COMMANDS] Failed to register Discord commands:`, err);
     throw new Error(`Failed to register Discord commands: ${err.message}`);
   }
 
   // ----------------- EVENTS -----------------
 
+  // Helper function to check if user has permission based on role allowlist/blocklist
+  function checkRolePermission(member) {
+    if (!member || !member.roles) return true; // No member info, allow
+
+    const allowlist = process.env.ROLE_ALLOWLIST
+      ? JSON.parse(process.env.ROLE_ALLOWLIST)
+      : [];
+    const blocklist = process.env.ROLE_BLOCKLIST
+      ? JSON.parse(process.env.ROLE_BLOCKLIST)
+      : [];
+
+    const userRoles = member.roles.cache.map(r => r.id);
+
+    // If allowlist exists and user doesn't have any of those roles, deny
+    if (allowlist.length > 0 && !userRoles.some(r => allowlist.includes(r))) {
+      return false;
+    }
+
+    // If user has any blocklisted role, deny
+    if (blocklist.length > 0 && userRoles.some(r => blocklist.includes(r))) {
+      return false;
+    }
+
+    return true;
+  }
+
   client.on("interactionCreate", async (interaction) => {
     try {
+      // Check role permissions for all commands
+      if (interaction.isCommand() || interaction.isStringSelectMenu() && !interaction.customId.startsWith("request_seasons|") && !interaction.customId.startsWith("request_with_tags|")) {
+        if (!checkRolePermission(interaction.member)) {
+          return interaction.reply({
+            content: "❌ You don't have permission to use this command.",
+            flags: 64,
+          });
+        }
+      }
+
       // Autocomplete
       if (interaction.isAutocomplete()) {
         const focused = interaction.options.getFocused();
         if (!focused) return interaction.respond([]);
         
         try {
-          const results = await tmdbSearch(focused);
+          const results = await tmdbApi.tmdbSearch(focused, TMDB_API_KEY);
           const filtered = results
             .filter((r) => r.media_type === "movie" || r.media_type === "tv")
             .slice(0, 25);
-          
+
           const choicePromises = filtered.map(async (item) => {
             try {
               const emoji = item.media_type === "movie" ? "🎬" : "📺";
               const date = item.release_date || item.first_air_date || "";
               const year = date ? ` (${date.slice(0, 4)})` : "";
-              
+
               // Fetch detailed info from TMDB
-              const details = await tmdbGetDetails(item.id, item.media_type);
+              const details = await tmdbApi.tmdbGetDetails(item.id, item.media_type, TMDB_API_KEY);
               
               let extraInfo = "";
               
@@ -671,7 +679,7 @@ async function startBot() {
           const choices = await Promise.all(choicePromises);
           return await interaction.respond(choices);
         } catch (e) {
-          console.error('Autocomplete error:', e);
+          logger.error('Autocomplete error:', e);
           return await interaction.respond([]);
         }
       }
@@ -708,11 +716,46 @@ async function startBot() {
         await interaction.deferUpdate();
 
         try {
-          const details = await tmdbGetDetails(tmdbId, mediaType);
+          const details = await tmdbApi.tmdbGetDetails(tmdbId, mediaType, TMDB_API_KEY);
 
-          await sendRequestToJellyseerr(tmdbId, mediaType, ["all"]);
+          // Check if media already exists in Jellyseerr
+          const status = await jellyseerrApi.checkMediaStatus(
+            tmdbId,
+            mediaType,
+            ["all"],
+            JELLYSEERR_URL,
+            JELLYSEERR_API_KEY
+          );
 
-          const imdbId = await tmdbGetExternalImdb(tmdbId, mediaType);
+          if (status.exists && status.available) {
+            // Media already available
+            await interaction.followUp({
+              content: "✅ This content is already available in your library!",
+              flags: 64,
+            });
+            return;
+          }
+
+          await jellyseerrApi.sendRequest({
+            tmdbId,
+            mediaType,
+            seasons: ["all"],
+            jellyseerrUrl: JELLYSEERR_URL,
+            apiKey: JELLYSEERR_API_KEY,
+            discordUserId: interaction.user.id,
+            userMappings: process.env.USER_MAPPINGS || {},
+          });
+
+          // Track request for notifications if enabled
+          if (process.env.NOTIFY_ON_AVAILABLE === "true") {
+            const requestKey = `${tmdbId}-${mediaType}`;
+            if (!pendingRequests.has(requestKey)) {
+              pendingRequests.set(requestKey, new Set());
+            }
+            pendingRequests.get(requestKey).add(interaction.user.id);
+          }
+
+          const imdbId = await tmdbApi.tmdbGetExternalImdb(tmdbId, mediaType, TMDB_API_KEY);
           const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
 
           const embed = buildNotificationEmbed(
@@ -726,13 +769,15 @@ async function startBot() {
 
           await interaction.editReply({ embeds: [embed], components });
         } catch (err) {
-          console.error("Button request error:", err);
+          logger.error("Button request error:", err);
           try {
             await interaction.followUp({
               content: "⚠️ I could not send the request.",
               flags: 64,
             });
-          } catch {}
+          } catch (followUpErr) {
+            logger.error("Failed to send follow-up message:", followUpErr);
+          }
         }
       }
 
@@ -754,10 +799,72 @@ async function startBot() {
         await interaction.deferUpdate();
 
         try {
-          await sendRequestToJellyseerr(tmdbId, "tv", selectedSeasons);
+          // Check if requested seasons already exist in Jellyseerr
+          const status = await jellyseerrApi.checkMediaStatus(
+            tmdbId,
+            "tv",
+            selectedSeasons,
+            JELLYSEERR_URL,
+            JELLYSEERR_API_KEY
+          );
 
-          const details = await tmdbGetDetails(tmdbId, "tv");
-          const imdbId = await tmdbGetExternalImdb(tmdbId, "tv");
+          if (status.exists && status.available) {
+            // Requested seasons already available
+            await interaction.followUp({
+              content: "✅ The requested seasons are already available in your library!",
+              flags: 64,
+            });
+            return;
+          }
+
+          // Fetch available tags for selection
+          const tags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
+
+          // If tags are available, show tag selection menu; otherwise proceed with request
+          if (tags && tags.length > 0) {
+            const tagOptions = tags.slice(0, 25).map(tag => ({
+              label: tag.label || tag.name || `Tag ${tag.id}`,
+              value: tag.id.toString(),
+            }));
+
+            const tagMenu = new StringSelectMenuBuilder()
+              .setCustomId(`request_with_tags|${tmdbId}|${selectedSeasons.join(',')}`)
+              .setPlaceholder("Select tags (optional)")
+              .addOptions(tagOptions)
+              .setMinValues(0)
+              .setMaxValues(Math.min(5, tagOptions.length));
+
+            const tagRow = new ActionRowBuilder().addComponents(tagMenu);
+
+            await interaction.editReply({
+              content: "Select tags for this request (optional):",
+              components: [tagRow],
+            });
+            return;
+          }
+
+          // No tags available, proceed directly with request
+          await jellyseerrApi.sendRequest({
+            tmdbId,
+            mediaType: "tv",
+            seasons: selectedSeasons,
+            jellyseerrUrl: JELLYSEERR_URL,
+            apiKey: JELLYSEERR_API_KEY,
+            discordUserId: interaction.user.id,
+            userMappings: process.env.USER_MAPPINGS || {},
+          });
+
+          // Track request for notifications if enabled
+          if (process.env.NOTIFY_ON_AVAILABLE === "true") {
+            const requestKey = `${tmdbId}-tv`;
+            if (!pendingRequests.has(requestKey)) {
+              pendingRequests.set(requestKey, new Set());
+            }
+            pendingRequests.get(requestKey).add(interaction.user.id);
+          }
+
+          const details = await tmdbApi.tmdbGetDetails(tmdbId, "tv", TMDB_API_KEY);
+          const imdbId = await tmdbApi.tmdbGetExternalImdb(tmdbId, "tv", TMDB_API_KEY);
           const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
 
           const embed = buildNotificationEmbed(
@@ -783,7 +890,7 @@ async function startBot() {
             components: components,
           });
         } catch (err) {
-          console.error("Season request error:", err);
+          logger.error("Season request error:", err);
           await interaction.followUp({
             content:
               "⚠️ I could not send the request for the selected seasons.",
@@ -801,22 +908,163 @@ async function startBot() {
             content: "This item was already requested.",
             flags: 64,
           });
-        } catch {}
+        } catch (replyErr) {
+          logger.error("Failed to send 'already requested' reply:", replyErr);
+        }
+      }
+
+      // Select Menu: tags for request
+      if (
+        interaction.isStringSelectMenu() &&
+        interaction.customId.startsWith("request_with_tags|")
+      ) {
+        const parts = interaction.customId.split("|");
+        const tmdbId = parseInt(parts[1], 10);
+        const selectedSeasons = parts[2].split(",");
+        const selectedTags = interaction.values.map(v => parseInt(v, 10));
+
+        if (!tmdbId) {
+          return interaction.reply({
+            content: "⚠️ Invalid request data.",
+            flags: 64,
+          });
+        }
+
+        await interaction.deferUpdate();
+
+        try {
+          // Get tag names from Jellyseerr for display
+          const allTags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
+          const tagNames = selectedTags
+            .map(tagId => allTags.find(t => t.id === tagId)?.label || allTags.find(t => t.id === tagId)?.name || `Tag ${tagId}`)
+            .join(", ");
+
+          // Build button label
+          const seasonLabel = selectedSeasons.length === 1 ? `season ${selectedSeasons[0]}` : `seasons ${selectedSeasons.join(", ")}`;
+          const buttonLabel = tagNames
+            ? `Request ${seasonLabel} with ${tagNames}`
+            : `Request ${seasonLabel}`;
+
+          // Trim to 80 chars max (Discord button limit)
+          const trimmedLabel = buttonLabel.length > 80 ? buttonLabel.substring(0, 77) + "..." : buttonLabel;
+
+          // Create button to confirm request with tags
+          const confirmButton = new ButtonBuilder()
+            .setCustomId(`confirm_request_with_tags|${tmdbId}|${selectedSeasons.join(',')}|${selectedTags.join(',')}`)
+            .setLabel(trimmedLabel)
+            .setStyle(ButtonStyle.Success);
+
+          const buttonRow = new ActionRowBuilder().addComponents(confirmButton);
+
+          await interaction.editReply({
+            content: `Confirm your request:`,
+            components: [buttonRow],
+          });
+        } catch (err) {
+          logger.error("Tags display error:", err);
+          await interaction.followUp({
+            content: "⚠️ Could not display tags.",
+            ephemeral: true,
+          });
+        }
+      }
+
+      // Button: confirm request with tags
+      if (
+        interaction.isButton() &&
+        interaction.customId.startsWith("confirm_request_with_tags|")
+      ) {
+        const parts = interaction.customId.split("|");
+        const tmdbId = parseInt(parts[1], 10);
+        const selectedSeasons = parts[2].split(",");
+        const selectedTags = parts[3].split(",").map(v => parseInt(v, 10));
+
+        if (!tmdbId) {
+          return interaction.reply({
+            content: "⚠️ Invalid request data.",
+            flags: 64,
+          });
+        }
+
+        await interaction.deferUpdate();
+
+        try {
+          await jellyseerrApi.sendRequest({
+            tmdbId,
+            mediaType: "tv",
+            seasons: selectedSeasons,
+            tags: selectedTags.length > 0 ? selectedTags : undefined,
+            jellyseerrUrl: JELLYSEERR_URL,
+            apiKey: JELLYSEERR_API_KEY,
+            discordUserId: interaction.user.id,
+            userMappings: process.env.USER_MAPPINGS || {},
+          });
+
+          // Track request for notifications if enabled
+          if (process.env.NOTIFY_ON_AVAILABLE === "true") {
+            const requestKey = `${tmdbId}-tv`;
+            if (!pendingRequests.has(requestKey)) {
+              pendingRequests.set(requestKey, new Set());
+            }
+            pendingRequests.get(requestKey).add(interaction.user.id);
+          }
+
+          const details = await tmdbApi.tmdbGetDetails(tmdbId, "tv", TMDB_API_KEY);
+          const imdbId = await tmdbApi.tmdbGetExternalImdb(tmdbId, "tv", TMDB_API_KEY);
+          const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
+
+          const embed = buildNotificationEmbed(
+            details,
+            "tv",
+            imdbId,
+            "success",
+            omdb
+          );
+
+          const components = buildButtons(
+            tmdbId,
+            imdbId,
+            true,
+            "tv",
+            details,
+            selectedSeasons
+          );
+
+          await interaction.editReply({
+            embeds: [embed],
+            components: components,
+          });
+        } catch (err) {
+          logger.error("Request with tags error:", err);
+          await interaction.followUp({
+            content: "⚠️ I could not send the request with tags.",
+            ephemeral: true,
+          });
+        }
       }
     } catch (outerErr) {
-      console.error("Interaction handler error:", outerErr);
+      logger.error("Interaction handler error:", outerErr);
     }
   });
 
   return new Promise((resolve, reject) => {
-    client.once("ready", () => {
-      console.log(`✅ Bot logged in as ${client.user.tag}`);
+    client.once("clientReady", () => {
+      logger.info(`✅ Bot logged in as ${client.user.tag}`);
       isBotRunning = true;
       resolve({ success: true, message: `Logged in as ${client.user.tag}` });
     });
 
     client.login(process.env.DISCORD_TOKEN).catch((err) => {
-      console.error("Bot login failed:", err);
+      logger.error("[DISCORD LOGIN ERROR] Bot login failed:");
+      if (err && err.message) {
+        logger.error("[DISCORD LOGIN ERROR] Message:", err.message);
+      }
+      if (err && err.code) {
+        logger.error("[DISCORD LOGIN ERROR] Code:", err.code);
+      }
+      if (err && err.stack) {
+        logger.error("[DISCORD LOGIN ERROR] Stack:", err.stack);
+      }
       isBotRunning = false;
       discordClient = null;
       reject(err);
@@ -825,7 +1073,413 @@ async function startBot() {
 }
 
 function configureWebServer() {
-  app.use(express.json()); // Middleware for parsing JSON bodies
+    // Middleware for parsing JSON bodies - MUST be before routes that use req.body
+    app.use(express.json());
+
+    // Rate limiting middleware - DoS protection
+    const apiLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 100, // Limit each IP to 100 requests per windowMs
+      message: { success: false, error: 'Too many requests, please try again later.' },
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
+
+    const configLimiter = rateLimit({
+      windowMs: 5 * 60 * 1000, // 5 minutes
+      max: 10, // Limit config changes to 10 per 5 minutes
+      message: { success: false, error: 'Too many configuration changes, please slow down.' },
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
+
+    // Apply rate limiting to all API endpoints
+    app.use('/api/', apiLimiter);
+
+    // Endpoint pentru lista de servere Discord (guilds)
+    app.get("/api/discord/guilds", async (req, res) => {
+      try {
+        if (!discordClient || !discordClient.user) {
+          logger.debug("[GUILDS API] Bot not running or not logged in.");
+          return res.json({ success: false, message: "Bot not running" });
+        }
+        // Debug: log all guilds
+        logger.debug("[GUILDS API] discordClient.guilds.cache:", discordClient.guilds.cache.map(g => ({id: g.id, name: g.name})));
+        // Fetch guilds the bot is in
+        const guilds = discordClient.guilds.cache.map(g => ({
+          id: g.id,
+          name: g.name
+        }));
+        res.json({ success: true, guilds });
+      } catch (err) {
+        logger.error("[GUILDS API] Error:", err);
+        res.json({ success: false, message: err.message });
+      }
+    });
+
+    // Endpoint pentru lista de canale Discord dintr-un server
+    app.get("/api/discord/channels/:guildId", async (req, res) => {
+      try {
+        const { guildId } = req.params;
+        if (!discordClient || !discordClient.user) {
+          logger.debug("[CHANNELS API] Bot not running or not logged in.");
+          return res.json({ success: false, message: "Bot not running" });
+        }
+
+        const guild = discordClient.guilds.cache.get(guildId);
+        if (!guild) {
+          return res.json({ success: false, message: "Guild not found" });
+        }
+
+        // Fetch text channels where bot can send messages
+        const channels = guild.channels.cache
+          .filter(channel =>
+            channel.type === 0 && // GUILD_TEXT
+            channel.permissionsFor(discordClient.user).has("SendMessages")
+          )
+          .map(channel => ({
+            id: channel.id,
+            name: channel.name,
+            type: channel.type === 2 ? 'announcement' : 'text'
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+
+        logger.debug(`[CHANNELS API] Found ${channels.length} channels in guild ${guild.name}`);
+        res.json({ success: true, channels });
+      } catch (err) {
+        logger.error("[CHANNELS API] Error:", err);
+        res.json({ success: false, message: err.message });
+      }
+    });
+
+    // Endpoint pentru membrii Discord dintr-un server
+    app.get("/api/discord-members", async (req, res) => {
+      try {
+        logger.debug("[MEMBERS API] Request received");
+        if (!discordClient || !discordClient.user) {
+          logger.debug("[MEMBERS API] Bot not running");
+          return res.json({ success: false, message: "Bot not running" });
+        }
+
+        const guildId = process.env.GUILD_ID;
+        logger.debug("[MEMBERS API] GUILD_ID from env:", guildId);
+        if (!guildId) {
+          logger.debug("[MEMBERS API] No guild selected");
+          return res.json({ success: false, message: "No guild selected" });
+        }
+
+        const guild = discordClient.guilds.cache.get(guildId);
+        if (!guild) {
+          logger.debug("[MEMBERS API] Guild not found in cache");
+          return res.json({ success: false, message: "Guild not found" });
+        }
+
+        logger.debug("[MEMBERS API] Guild found:", guild.name, "Member count:", guild.memberCount);
+
+        // Check if bot has permission to view members
+        const botMember = guild.members.cache.get(discordClient.user.id);
+        if (!botMember) {
+          logger.debug("[MEMBERS API] Bot member not found in guild");
+          return res.json({ success: false, message: "Bot not in guild" });
+        }
+
+        logger.debug("[MEMBERS API] Bot permissions:", botMember.permissions.toArray());
+
+        // Try to fetch members - this may fail if GUILD_MEMBERS intent is not enabled
+        try {
+          logger.debug("[MEMBERS API] Attempting to fetch members...");
+          await guild.members.fetch();
+          logger.debug("[MEMBERS API] Members fetched successfully");
+        } catch (fetchErr) {
+          logger.error("[MEMBERS API] Failed to fetch members:", fetchErr.message);
+          logger.debug("[MEMBERS API] This is normal if Server Members Intent is not enabled in Discord Developer Portal");
+          logger.debug("[MEMBERS API] Using cached members instead");
+        }
+
+        // Get members from cache (will include bot and users that have been active)
+        const members = guild.members.cache
+          .filter(member => !member.user.bot) // Exclude bots
+          .map(member => ({
+            id: member.id,
+            username: member.user.username,
+            displayName: member.displayName,
+            avatar: member.user.displayAvatarURL({ size: 64 }),
+            discriminator: member.user.discriminator
+          }))
+          .slice(0, 100); // Limit to first 100 members for performance
+
+        logger.debug(`[MEMBERS API] Returning ${members.length} members`);
+        res.json({ success: true, members });
+      } catch (err) {
+        logger.error("[MEMBERS API] Error:", err);
+        res.json({ success: false, message: err.message });
+      }
+    });
+
+    // Endpoint pentru rolurile Discord dintr-un server
+    app.get("/api/discord-roles", async (req, res) => {
+      try {
+        logger.debug("[ROLES API] Request received");
+        if (!discordClient || !discordClient.user) {
+          logger.debug("[ROLES API] Bot not running");
+          return res.json({ success: false, message: "Bot not running" });
+        }
+
+        const guildId = process.env.GUILD_ID;
+        logger.debug("[ROLES API] GUILD_ID from env:", guildId);
+        if (!guildId) {
+          logger.debug("[ROLES API] No guild selected");
+          return res.json({ success: false, message: "No guild selected" });
+        }
+
+        const guild = discordClient.guilds.cache.get(guildId);
+        if (!guild) {
+          logger.debug("[ROLES API] Guild not found in cache");
+          return res.json({ success: false, message: "Guild not found" });
+        }
+
+        logger.debug("[ROLES API] Guild found:", guild.name);
+
+        // Fetch roles
+        const roles = guild.roles.cache
+          .filter(role => !role.managed) // Exclude managed roles (bot roles)
+          .map(role => ({
+            id: role.id,
+            name: role.name,
+            color: role.hexColor,
+            memberCount: role.members.size
+          }))
+          .sort((a, b) => b.memberCount - a.memberCount); // Sort by member count descending
+
+        logger.debug(`[ROLES API] Returning ${roles.length} roles`);
+        res.json({ success: true, roles });
+      } catch (err) {
+        logger.error("[ROLES API] Error:", err);
+        res.json({ success: false, message: err.message });
+      }
+    });
+
+    // Endpoint pentru utilizatorii Jellyseerr
+    app.get("/api/jellyseerr-users", async (req, res) => {
+      try {
+        logger.debug("[JELLYSEERR USERS API] Request received");
+        const jellyseerrUrl = process.env.JELLYSEERR_URL;
+        const apiKey = process.env.JELLYSEERR_API_KEY;
+
+        logger.debug("[JELLYSEERR USERS API] JELLYSEERR_URL:", jellyseerrUrl);
+        logger.debug("[JELLYSEERR USERS API] API_KEY present:", !!apiKey);
+
+        if (!jellyseerrUrl || !apiKey) {
+          logger.debug("[JELLYSEERR USERS API] Missing configuration");
+          return res.json({ success: false, message: "Jellyseerr configuration missing" });
+        }
+
+        let baseUrl = jellyseerrUrl.replace(/\/$/, "");
+        if (!baseUrl.endsWith('/api/v1')) {
+          baseUrl += '/api/v1';
+        }
+
+        logger.debug("[JELLYSEERR USERS API] Making request to:", `${baseUrl}/user`);
+
+        const response = await axios.get(
+          `${baseUrl}/user`,
+          {
+            headers: { "X-Api-Key": apiKey },
+            timeout: TIMEOUTS.JELLYSEERR_API,
+          }
+        );
+
+        logger.debug("[JELLYSEERR USERS API] Response received, status:", response.status);
+        logger.debug("[JELLYSEERR USERS API] Response data type:", typeof response.data);
+        logger.debug("[JELLYSEERR USERS API] Response data is array:", Array.isArray(response.data));
+        if (!Array.isArray(response.data)) {
+          logger.debug("[JELLYSEERR USERS API] Response data keys:", Object.keys(response.data));
+        }
+        logger.debug("[JELLYSEERR USERS API] Response data length:", Array.isArray(response.data) ? response.data.length : (response.data.results?.length || 'N/A'));
+
+        // Jellyseerr API returns { pageInfo, results: [] }
+        const userData = response.data.results || [];
+        
+        const users = userData.map(user => {
+          let avatar = user.avatar || null;
+          // If avatar is relative, make it absolute
+          if (avatar && !avatar.startsWith('http')) {
+            avatar = `${jellyseerrUrl.replace(/\/api\/v1$/, '')}${avatar}`;
+          }
+          return {
+            id: user.id,
+            displayName: user.displayName || user.username || `User ${user.id}`,
+            email: user.email || '',
+            avatar: avatar
+          };
+        });
+
+        logger.debug(`[JELLYSEERR USERS API] Returning ${users.length} users`);
+        res.json({ success: true, users });
+      } catch (err) {
+        logger.error("[JELLYSEERR USERS API] Error:", err.message);
+        if (err.response) {
+          logger.error("[JELLYSEERR USERS API] Response status:", err.response.status);
+          logger.error("[JELLYSEERR USERS API] Response data:", err.response.data);
+        }
+        res.json({ success: false, message: err.message });
+      }
+    });
+
+    // Endpoint pentru mapările utilizatorilor
+    app.get("/api/user-mappings", (req, res) => {
+      // Load from config.json
+      if (fs.existsSync(CONFIG_PATH)) {
+        try {
+          const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
+          const config = JSON.parse(rawData);
+          const mappings = config.USER_MAPPINGS || [];
+          res.json(mappings);
+        } catch (error) {
+          logger.error("Error reading config for mappings:", error);
+          res.json([]);
+        }
+      } else {
+        res.json([]);
+      }
+    });
+
+    app.post("/api/user-mappings", validateBody(userMappingSchema), (req, res) => {
+      const { discordUserId, jellyseerrUserId, discordUsername, discordDisplayName, jellyseerrDisplayName } = req.body;
+
+      if (!discordUserId || !jellyseerrUserId) {
+        return res.status(400).json({ success: false, message: "Discord user ID and Jellyseerr user ID are required." });
+      }
+
+      try {
+        // Load current config
+        let config = {};
+        if (fs.existsSync(CONFIG_PATH)) {
+          const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
+          config = JSON.parse(rawData);
+        }
+
+        // Initialize USER_MAPPINGS if it doesn't exist
+        if (!config.USER_MAPPINGS) {
+          config.USER_MAPPINGS = [];
+        }
+
+        // Check if mapping already exists
+        const existingIndex = config.USER_MAPPINGS.findIndex(
+          mapping => mapping.discordUserId === discordUserId
+        );
+
+        const mapping = {
+          discordUserId,
+          jellyseerrUserId,
+          discordUsername: discordUsername || null,
+          discordDisplayName: discordDisplayName || null,
+          jellyseerrDisplayName: jellyseerrDisplayName || null,
+          createdAt: new Date().toISOString()
+        };
+
+        if (existingIndex >= 0) {
+          // Update existing mapping
+          config.USER_MAPPINGS[existingIndex] = mapping;
+        } else {
+          // Add new mapping
+          config.USER_MAPPINGS.push(mapping);
+        }
+
+        // Save updated config
+        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o600 });
+
+        res.json({ success: true, message: "Mapping saved successfully." });
+      } catch (error) {
+        logger.error("Error saving user mapping:", error);
+        res.status(500).json({ success: false, message: "Failed to save mapping." });
+      }
+    });
+
+    app.delete("/api/user-mappings/:discordUserId", (req, res) => {
+      const { discordUserId } = req.params;
+
+      try {
+        // Load current config
+        let config = {};
+        if (fs.existsSync(CONFIG_PATH)) {
+          const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
+          config = JSON.parse(rawData);
+        }
+
+        if (!config.USER_MAPPINGS) {
+          return res.status(404).json({ success: false, message: "No mappings found." });
+        }
+
+        // Find and remove the mapping
+        const initialLength = config.USER_MAPPINGS.length;
+        config.USER_MAPPINGS = config.USER_MAPPINGS.filter(
+          mapping => mapping.discordUserId !== discordUserId
+        );
+
+        if (config.USER_MAPPINGS.length === initialLength) {
+          return res.status(404).json({ success: false, message: "Mapping not found." });
+        }
+
+        // Save updated config
+        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o600 });
+
+        res.json({ success: true, message: "Mapping deleted successfully." });
+      } catch (error) {
+        logger.error("Error deleting user mapping:", error);
+        res.status(500).json({ success: false, message: "Failed to delete mapping." });
+      }
+    });
+
+    // Endpoint pentru bibliotecile Jellyfin
+    app.post("/api/jellyfin-libraries", async (req, res) => {
+      try {
+        const { url, apiKey } = req.body;
+
+        if (!url || !apiKey) {
+          return res.status(400).json({ success: false, message: "URL and API Key are required." });
+        }
+
+        const response = await axios.get(
+          `${url.replace(/\/$/, "")}/Library/MediaFolders`,
+          {
+            headers: { "X-Emby-Token": apiKey },
+            timeout: TIMEOUTS.JELLYFIN_API,
+          }
+        );
+
+        const libraries = response.data.Items.map(item => ({
+          id: item.Id,
+          name: item.Name,
+          type: item.CollectionType || 'unknown'
+        }));
+
+        res.json({ success: true, libraries });
+      } catch (err) {
+        logger.error("[JELLYFIN LIBRARIES API] Error:", err);
+        res.json({ success: false, message: err.message });
+      }
+    });
+
+  // Global error handler middleware - must be last
+  app.use((err, req, res, next) => {
+    logger.error('Express error handler:', {
+      error: err.message,
+      stack: err.stack,
+      path: req.path,
+      method: req.method
+    });
+
+    // Don't expose internal errors to client in production
+    const statusCode = err.status || err.statusCode || 500;
+    const message = statusCode === 500 ? 'Internal server error' : err.message;
+
+    res.status(statusCode).json({
+      success: false,
+      error: message
+    });
+  });
+
   app.use("/assets", express.static(path.join(process.cwd(), "assets")));
   app.use(express.static(path.join(process.cwd(), "web")));
 
@@ -836,7 +1490,7 @@ function configureWebServer() {
   app.post("/jellyfin-webhook", (req, res) => {
     if (!isBotRunning || !discordClient)
       return res.status(503).send("Bot is not running.");
-    handleJellyfinWebhook(req, res, discordClient);
+    handleJellyfinWebhook(req, res, discordClient, pendingRequests);
   });
 
   app.get("/api/config", (req, res) => {
@@ -850,25 +1504,45 @@ function configureWebServer() {
     }
   });
 
-  app.post("/api/save-config", async (req, res) => {
+  app.post("/api/save-config", configLimiter, validateBody(configSchema), async (req, res) => {
     const configData = req.body;
     const oldToken = process.env.DISCORD_TOKEN;
     const oldGuildId = process.env.GUILD_ID;
 
+    // Normalize JELLYSEERR_URL to remove /api/v1 suffix if present
+    if (configData.JELLYSEERR_URL && typeof configData.JELLYSEERR_URL === 'string') {
+      configData.JELLYSEERR_URL = configData.JELLYSEERR_URL.replace(/\/api\/v1\/?$/, '');
+    }
+
     try {
+      // Load existing config to preserve USER_MAPPINGS and other non-form fields
+      let existingConfig = {};
+      if (fs.existsSync(CONFIG_PATH)) {
+        const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
+        existingConfig = JSON.parse(rawData);
+      }
+
+      // Merge with existing config, preserving USER_MAPPINGS and other fields not in the form
+      const finalConfig = {
+        ...existingConfig,
+        ...configData,
+        // Ensure USER_MAPPINGS is preserved
+        USER_MAPPINGS: existingConfig.USER_MAPPINGS || []
+      };
+
       // Ensure /config directory exists with proper permissions
       const configDir = path.dirname(CONFIG_PATH);
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
       }
       
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(configData, null, 2), { mode: 0o666 });
-      console.log('✅ Configuration saved successfully');
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(finalConfig, null, 2), { mode: 0o600 });
+      logger.info('✅ Configuration saved successfully');
     } catch (writeErr) {
-      console.error('Error saving config.json:', writeErr);
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Failed to save configuration file. Check Docker volume permissions.' 
+      logger.error('Error saving config.json:', writeErr);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to save configuration file. Check Docker volume permissions.'
       });
     }
     
@@ -880,7 +1554,7 @@ function configureWebServer() {
       (oldToken !== process.env.DISCORD_TOKEN ||
         oldGuildId !== process.env.GUILD_ID)
     ) {
-      console.log("Critical Discord settings changed. Restarting bot logic...");
+      logger.warn("Critical Discord settings changed. Restarting bot logic...");
       await discordClient.destroy();
       isBotRunning = false;
       discordClient = null;
@@ -908,11 +1582,16 @@ function configureWebServer() {
     }
 
     try {
+      let baseUrl = url.replace(/\/$/, "");
+      if (!baseUrl.endsWith('/api/v1')) {
+        baseUrl += '/api/v1';
+      }
+
       const response = await axios.get(
-        `${url.replace(/\/$/, "")}/settings/about`,
+        `${baseUrl}/settings/about`,
         {
           headers: { "X-Api-Key": apiKey },
-          timeout: 8000,
+          timeout: TIMEOUTS.JELLYSEERR_API,
         }
       );
       const version = response.data?.version;
@@ -921,7 +1600,7 @@ function configureWebServer() {
         message: `Connection successful! (v${version})`,
       });
     } catch (error) {
-      console.error("Jellyseerr test failed:", error.message);
+      logger.error("Jellyseerr test failed:", error.message);
       // Check if the error is due to an invalid API key (401/403)
       if (error.response && [401, 403].includes(error.response.status)) {
         return res
@@ -945,7 +1624,7 @@ function configureWebServer() {
 
     try {
       const testUrl = `${url.replace(/\/$/, "")}/System/Info/Public`;
-      const response = await axios.get(testUrl, { timeout: 8000 });
+      const response = await axios.get(testUrl, { timeout: TIMEOUTS.JELLYFIN_API });
 
       if (response.data?.ServerName && response.data?.Version) {
         return res.json({
@@ -955,12 +1634,107 @@ function configureWebServer() {
       }
       throw new Error("Invalid response from Jellyfin server.");
     } catch (error) {
-      console.error("Jellyfin test failed:", error.message);
+      logger.error("Jellyfin test failed:", error.message);
       res.status(500).json({
         success: false,
         message: "Connection failed. Check URL and network.",
       });
     }
+  });
+
+  // Health check endpoint for monitoring
+  app.get("/api/health", (req, res) => {
+    const uptime = process.uptime();
+    const cacheStats = cache.getStats();
+
+    res.json({
+      status: "healthy",
+      uptime: Math.floor(uptime),
+      uptimeFormatted: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${Math.floor(uptime % 60)}s`,
+      bot: {
+        running: isBotRunning,
+        username: isBotRunning && discordClient?.user ? discordClient.user.tag : null,
+        connected: discordClient?.ws?.status === 0, // 0 = READY
+      },
+      cache: {
+        hits: cacheStats.hits,
+        misses: cacheStats.misses,
+        keys: cacheStats.keys,
+        hitRate: cacheStats.hits + cacheStats.misses > 0
+          ? ((cacheStats.hits / (cacheStats.hits + cacheStats.misses)) * 100).toFixed(2) + '%'
+          : '0%'
+      },
+      memory: {
+        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
+      },
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // Parse log file and return formatted entries
+  function parseLogFile(filePath) {
+    try {
+      if (!fs.existsSync(filePath)) {
+        return [];
+      }
+      const content = fs.readFileSync(filePath, "utf-8");
+      const lines = content.split("\n").filter(line => line.trim());
+
+      return lines.map(line => {
+        // Parse Winston JSON logs
+        try {
+          const logEntry = JSON.parse(line);
+          return {
+            timestamp: logEntry.timestamp || "N/A",
+            level: logEntry.level || "unknown",
+            message: logEntry.message || ""
+          };
+        } catch {
+          // Fallback for non-JSON lines
+          const match = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(\w+):\s+(.+)$/);
+          if (match) {
+            return {
+              timestamp: match[1],
+              level: match[2],
+              message: match[3]
+            };
+          }
+          return {
+            timestamp: "N/A",
+            level: "unknown",
+            message: line
+          };
+        }
+      });
+    } catch (error) {
+      logger.error("Error parsing log file:", error);
+      return [];
+    }
+  }
+
+  // API endpoint for error logs
+  app.get("/api/logs/error", (req, res) => {
+    const logsDir = path.join(process.cwd(), "logs");
+    const errorLogPath = path.join(logsDir, "error.log");
+    const logs = parseLogFile(errorLogPath);
+    res.json({
+      file: "error.log",
+      count: logs.length,
+      entries: logs
+    });
+  });
+
+  // API endpoint for all logs
+  app.get("/api/logs/all", (req, res) => {
+    const logsDir = path.join(process.cwd(), "logs");
+    const combinedLogPath = path.join(logsDir, "combined.log");
+    const logs = parseLogFile(combinedLogPath);
+    res.json({
+      file: "combined.log",
+      count: logs.length,
+      entries: logs
+    });
   });
 
   app.get("/api/status", (req, res) => {
@@ -994,7 +1768,7 @@ function configureWebServer() {
     await discordClient.destroy();
     isBotRunning = false;
     discordClient = null;
-    console.log("Bot has been stopped.");
+    logger.info("Bot has been stopped.");
     res.status(200).json({ message: "Bot stopped successfully." });
   });
 }
@@ -1003,9 +1777,9 @@ function configureWebServer() {
 // First, check for .env migration before anything else
 migrateEnvToConfig();
 
-console.log("Initializing web server...");
+logger.info("Initializing web server...");
 configureWebServer();
-console.log("Web server configured successfully");
+logger.info("Web server configured successfully");
 
 // --- START THE SERVER ---
 // This single `app.listen` call handles both modes.
@@ -1014,17 +1788,17 @@ let server;
 function startServer() {
   loadConfig();
   port = process.env.WEBHOOK_PORT || 8282;
-  console.log(`Attempting to start server on port ${port}...`);
+  logger.info(`Attempting to start server on port ${port}...`);
   server = app.listen(port, "0.0.0.0");
 
   server.on("listening", () => {
     const address = server.address();
     if (address) {
-      console.log(`✅ Anchorr web server is running on port ${address.port}.`);
-      console.log(`📝 Access it at:`);
-      console.log(`   - Local: http://127.0.0.1:${address.port}`);
-      console.log(`   - Network: http://<your-server-ip>:${address.port}`);
-      console.log(`   - Docker: http://<host-ip>:${address.port}`);
+      logger.info(`✅ Anchorr web server is running on port ${address.port}.`);
+      logger.info(`📝 Access it at:`);
+      logger.info(`   - Local: http://127.0.0.1:${address.port}`);
+      logger.info(`   - Network: http://<your-server-ip>:${address.port}`);
+      logger.info(`   - Docker: http://<host-ip>:${address.port}`);
     }
 
     // Auto-start bot if a valid config.json is present
@@ -1039,41 +1813,41 @@ function startServer() {
 
       const autoStartDisabled = ["false", "0", "no"].includes(autoStartFlag);
       if (autoStartDisabled) {
-        console.log("ℹ️ AUTO_START_BOT is disabled. Bot will not auto-start.");
+        logger.info("ℹ️ AUTO_START_BOT is disabled. Bot will not auto-start.");
         return;
       }
 
       const hasConfigFile = fs.existsSync(CONFIG_PATH);
-      const required = ["DISCORD_TOKEN", "BOT_ID", "GUILD_ID"];
+      const required = ["DISCORD_TOKEN", "BOT_ID"];
       const hasDiscordCreds = required.every(
         (k) => process.env[k] && String(process.env[k]).trim() !== ""
       );
 
       if (!isBotRunning && hasConfigFile && hasDiscordCreds) {
-        console.log("🚀 Detected existing config.json with Discord credentials. Auto-starting bot...");
+        logger.info("🚀 Detected existing config.json with Discord credentials. Auto-starting bot...");
         (async () => {
           try {
             await startBot();
-            console.log("✅ Bot auto-started successfully.");
+            logger.info("✅ Bot auto-started successfully.");
           } catch (e) {
-            console.error("❌ Bot auto-start failed:", e?.message || e);
+            logger.error("❌ Bot auto-start failed:", e?.message || e);
           }
         })();
       } else if (!hasDiscordCreds) {
-        console.log("ℹ️ Config found but Discord credentials are incomplete. Bot not auto-started.");
+        logger.info("ℹ️ Config found but Discord credentials are incomplete. Bot not auto-started.");
       }
     } catch (e) {
-      console.error("Error during auto-start check:", e?.message || e);
+      logger.error("Error during auto-start check:", e?.message || e);
     }
   });
 
   server.on("error", (err) => {
     if (err.code === "EADDRINUSE") {
-      console.error(
+      logger.error(
         `❌ Port ${port} is already in use. Please free the port or change WEBHOOK_PORT.`
       );
     } else {
-      console.error("Server error:", err);
+      logger.error("Server error:", err);
     }
     process.exit(1);
   });
@@ -1081,29 +1855,29 @@ function startServer() {
 
 // Keep the process alive
 process.on("SIGTERM", () => {
-  console.log("SIGTERM signal received: closing HTTP server");
+  logger.info("SIGTERM signal received: closing HTTP server");
   server.close(() => {
-    console.log("HTTP server closed");
+    logger.info("HTTP server closed");
     process.exit(0);
   });
 });
 
 process.on("SIGINT", () => {
-  console.log("SIGINT signal received: closing HTTP server");
+  logger.info("SIGINT signal received: closing HTTP server");
   server.close(() => {
-    console.log("HTTP server closed");
+    logger.info("HTTP server closed");
     process.exit(0);
   });
 });
 
 // Catch uncaught exceptions
 process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception:", err);
+  logger.error("Uncaught Exception:", err);
   process.exit(1);
 });
 
 process.on("unhandledRejection", (reason, promise) => {
-  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  logger.error("Unhandled Rejection at:", promise, "reason:", reason);
   process.exit(1);
 });
 

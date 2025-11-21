@@ -21,7 +21,7 @@
           </a>
           <ul class="nav-links">
             <li>
-              <a href="https://anchorr.nairdah.me/discord-bot.html" class="nav-highlight">Public Bot</a>
+              <a href="#" class="about-link" data-target="about">About</a>
             </li>
             <li>
               <a
@@ -58,11 +58,10 @@
           <div class="container">
             <div
               class="dashboard-header"
-              style="margin-bottom: 2rem; padding-bottom: 1rem"
             >
               <h2
                 class="dashboard-title"
-                style="font-size: 2rem; color: var(--blue); margin: 0"
+                id="dashboard-title"
               >
                 Configuration
               </h2>
@@ -79,9 +78,10 @@
                   <a href="#" class="nav-item" data-target="jellyseerr">2. Jellyseerr</a>
                   <a href="#" class="nav-item" data-target="media">3. Media Databases</a>
                   <a href="#" class="nav-item" data-target="jellyfin">4. Jellyfin Notifications</a>
-                  <a href="#" class="nav-item" data-target="network">5. Network</a>
+                  <a href="#" class="nav-item" data-target="mappings">5. User Mapping</a>
+                  <a href="#" class="nav-item" data-target="roles">6. Role Permissions</a>
+                  <a href="#" class="nav-item" data-target="misc">7. Miscellaneous</a>
                   <button type="submit" form="config-form" class="btn btn-primary">Save Settings</button>
-                  <button type="button" class="btn btn-secondary about-button" data-target="about">About Anchorr</button>
                 </nav>
               </div>
 
@@ -105,6 +105,9 @@
                             Go to <strong>"Bot"</strong> in the sidebar and click <strong>"Add Bot"</strong>
                           </li>
                           <li>
+                            In the <strong>"Bot"</strong> section, scroll down to <strong>"Privileged Gateway Intents"</strong> and enable <code>SERVER MEMBERS INTENT</code> (required for user mappings feature)
+                          </li>
+                          <li>
                             Go to <strong>"OAuth2"</strong> → <strong>"URL Generator"</strong>
                           </li>
                           <li>
@@ -115,6 +118,9 @@
                           </li>
                           <li>
                             Copy the generated URL, open it in your browser, and authorize the bot on your Discord server
+                          </li>
+                          <li>
+                            Come back here and fill in the <strong>Discord Bot Token</strong> and <strong>Bot Client ID</strong> below, then select your server and notification channel from the dropdowns
                           </li>
                         </ol>
                       </div>
@@ -158,30 +164,31 @@
                         </div>
                       </div>
                       <div class="form-group">
-                        <label for="GUILD_ID">Discord Server ID</label>
-                        <input
-                          type="text"
-                          id="GUILD_ID"
+                        <label for="GUILD_ID">Discord Server</label>
+                        <select 
+                          id="GUILD_ID" 
                           name="GUILD_ID"
-                          placeholder="964256253460106077"
-                        />
+                          style="width: 100%; background-color: var(--background); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                          <option value="">Loading servers...</option>
+                        </select>
                         <div class="form-text">
-                          The ID of the server where the bot will register
-                          commands. Right click your Discord server -&gt; Copy
-                          Server ID (Developer Mode must be enabled in your
-                          Discord client)
+                          Select the Discord server where the bot will operate. Make sure you've added the bot to your server first.
                         </div>
                       </div>
 
-                      <div class="form-group" style="margin-top: 1rem;">
-                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                          <input type="checkbox" id="AUTO_START_BOT" name="AUTO_START_BOT" />
-                          Auto-start bot on server boot
-                        </label>
+                      <div class="form-group">
+                        <label for="JELLYFIN_CHANNEL_ID">Notification Channel</label>
+                        <select 
+                          id="JELLYFIN_CHANNEL_ID" 
+                          name="JELLYFIN_CHANNEL_ID"
+                          style="width: 100%; background-color: var(--background); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                          <option value="">Select a server first...</option>
+                        </select>
                         <div class="form-text">
-                          If enabled, the bot starts automatically when the container restarts and valid Discord credentials are present.
+                          Select the Discord channel where Jellyfin notifications will be sent. Choose a server above first.
                         </div>
                       </div>
+
                     </fieldset>
                   </div>
 
@@ -301,6 +308,20 @@
                         </div>
                       </div>
                       <div class="form-group">
+                        <label for="JELLYFIN_API_KEY"
+                          >Jellyfin API Key</label
+                        >
+                        <input
+                          type="password"
+                          id="JELLYFIN_API_KEY"
+                          name="JELLYFIN_API_KEY"
+                          placeholder="c4b6b3c8f1d4f0a8a6c2e4d8f1b3c7a9"
+                        />
+                        <div class="form-text">
+                          API key for your Jellyfin server. Generate one in Jellyfin Dashboard → Administration → API Keys. Required for loading libraries and enhanced features.
+                        </div>
+                      </div>
+                      <div class="form-group">
                         <button type="button" id="test-jellyfin-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Test Endpoint</button>
                         <span
                           id="test-jellyfin-status"
@@ -323,23 +344,6 @@
                           button. You can find this in your Jellyfin URL when
                           viewing the page of any movie or show from your
                           library.
-                        </div>
-                      </div>
-                      <div class="form-group">
-                        <label for="JELLYFIN_CHANNEL_ID"
-                          >Discord Notification Channel ID</label
-                        >
-                        <input
-                          type="text"
-                          id="JELLYFIN_CHANNEL_ID"
-                          name="JELLYFIN_CHANNEL_ID"
-                          placeholder="1419434396510847006"
-                        />
-                        <div class="form-text">
-                          The channel ID from your Discord server where new
-                          media notifications will be sent. Right click the
-                          channel -&gt; Copy Channel ID (Developer Mode must be
-                          enabled in your Discord client)
                         </div>
                       </div>
 
@@ -373,105 +377,212 @@
                           </ol>
                         </div>
                       </div>
+
+                      <!-- Library Notifications Section -->
+                      <div class="form-group" style="margin-top: 2rem;">
+                        <label>Library Notifications</label>
+                        <div class="form-text" style="margin-bottom: 0.75rem;">
+                          Select which Jellyfin libraries should send Discord notifications.
+                          By default, all libraries are enabled. Uncheck a library to stop receiving notifications from it.
+                          <br><strong>Note:</strong> Enter Jellyfin URL and API Key above before loading libraries.
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+                          <button type="button" id="fetch-libraries-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem;">
+                            Load Libraries
+                          </button>
+                          <span id="fetch-libraries-status" style="line-height: 2.5; opacity: 0.8;"></span>
+                        </div>
+                        <div id="libraries-list" class="libraries-container" style="display: none;">
+                          <!-- Populated dynamically -->
+                        </div>
+                        <input type="hidden" id="JELLYFIN_NOTIFICATION_LIBRARIES" name="JELLYFIN_NOTIFICATION_LIBRARIES" />
+                      </div>
                     </fieldset>
                   </div>
 
                   <!-- Network Pane -->
-                  <div id="config-pane-network" class="config-pane">
+                  <!-- User Mappings Pane -->
+                  <div id="config-pane-mappings" class="config-pane">
                     <fieldset>
-                      <legend>Network Settings</legend>
-                      <div class="form-group">
-                        <label for="WEBHOOK_PORT">Webhook Port</label>
-                        <input
-                          type="text"
-                          id="WEBHOOK_PORT"
-                          name="WEBHOOK_PORT"
-                          placeholder="8282"
-                        />
-                        <div class="form-text">
-                          The port the application will listen on for Jellyfin webhooks.
+                      <legend>User Mapping</legend>
+                      <p class="form-text" style="margin-bottom: 1.5rem;">
+                        Map Discord users to their Jellyseerr accounts. When a user makes a request from Discord, it will be associated with their Jellyseerr account instead of the API key owner.
+                      </p>
+                      
+                      <div id="mappings-container">
+                        <div class="mappings-list" id="mappings-list">
+                          <!-- Mappings will be populated here -->
+                        </div>
+                        
+                        <div class="add-mapping-form" style="margin-top: 1.5rem;">
+                          <h4 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--mauve);">Add New Mapping</h4>
+                          <div class="form-group">
+                            <label for="discord-user-select">Discord User</label>
+                            <div class="custom-select" id="discord-user-select">
+                              <input type="text" class="custom-select-trigger" placeholder="Search Discord users..." readonly />
+                              <i class="bi bi-chevron-down custom-select-chevron"></i>
+                              <div class="custom-select-dropdown">
+                                <div class="custom-select-options">
+                                  <!-- Options will be populated here -->
+                                </div>
+                              </div>
+                            </div>
+                            <div class="form-text">
+                              Select a Discord server member
+                            </div>
+                          </div>
+                          <div class="form-group">
+                            <label for="jellyseerr-user-select">Jellyseerr User</label>
+                            <div class="custom-select" id="jellyseerr-user-select">
+                              <input type="text" class="custom-select-trigger" placeholder="Search Jellyseerr users..." readonly />
+                              <i class="bi bi-chevron-down custom-select-chevron"></i>
+                              <div class="custom-select-dropdown">
+                                <div class="custom-select-options">
+                                  <!-- Options will be populated here -->
+                                </div>
+                              </div>
+                            </div>
+                            <div class="form-text">
+                              Select the corresponding Jellyseerr account
+                            </div>
+                          </div>
+                          <button type="button" id="add-mapping-btn" class="btn btn-primary" style="margin-left: 0;">Add Mapping</button>
                         </div>
                       </div>
                     </fieldset>
                   </div>
 
-                  <!-- About Pane -->
-                  <div id="config-pane-about" class="config-pane">
-                    <div class="about-content">
-                      <h2>About Anchorr</h2>
-                      <p class="about-description">
-                        <strong class="anchor-highlight">Anchorr</strong> is a self-hosted, lightweight bridge that connects your <strong>Jellyfin</strong> media server with <strong>Discord</strong>. It notifies you on a dedicated channel when new media is added to your library, and with <strong>Jellyseerr</strong> integration, you can search and request movies and shows directly from Discord.
+                  <!-- Role Permissions Pane -->
+                  <div id="config-pane-roles" class="config-pane">
+                    <fieldset>
+                      <legend>Role Permissions</legend>
+                      <p class="form-text" style="margin-bottom: 1.5rem;">
+                        Control who can use bot commands by configuring role-based permissions. If no roles are selected in the allowlist, everyone can use commands. If any role is added to the blocklist, members with that role will be blocked regardless of allowlist settings.
                       </p>
+                      
+                      <div class="form-group">
+                        <label style="font-weight: 600; color: var(--green);">Allowlist (Allow Only These Roles)</label>
+                        <div id="allowlist-roles" class="role-list">
+                          <p class="form-text" style="opacity: 0.7; font-style: italic;">Loading roles...</p>
+                        </div>
+                        <div class="form-text">
+                          If empty, all members can use commands. If roles are selected, only members with these roles can use commands.
+                        </div>
+                      </div>
+                      
+                      <div class="form-group">
+                        <label style="font-weight: 600; color: var(--peach);">Blocklist (Block These Roles)</label>
+                        <div id="blocklist-roles" class="role-list">
+                          <p class="form-text" style="opacity: 0.7; font-style: italic;">Loading roles...</p>
+                        </div>
+                        <div class="form-text">
+                          Members with these roles will never be able to use bot commands, even if they have an allowed role.
+                        </div>
+                      </div>
+                    </fieldset>
+                  </div>
 
-                      <div class="features-list">
-                        <h3 class="features-title">Features</h3>
-                        <ul>
-                          <li><i class="bi bi-search"></i><div><code>/search &lt;title&gt;</code> Search for a movie or show with auto-suggestions. An embed with detailed information is shown, from which you can request the media. For TV shows, you have the option to select the desired seasons for the request.</div></li>
-                          <li><i class="bi bi-send-fill"></i><div><code>/request &lt;title&gt;</code> Instantly send a request for your chosen movie or show directly to Jellyseerr. For TV shows, this automatically requests all seasons.</div></li>
-                          <li><i class="bi bi-bell-fill"></i><div>Receive beautifully formatted notifications on your selected Discord channel whenever new media is added to your Jellyfin library.</div></li>
-                          <li><i class="bi bi-film"></i><div>Using the TMDB and OMDb databases, Discord messages get a beautiful and well-structured look, with essential information about the requested or added media content.</div></li>
-                        </ul>
-                        <div class="tagline-container">
-                          <p class="tagline">Self-hosted, full control.</p>
-                          <p class="tagline-description">This version of Anchorr is open-source and self-hosted by users, allowing full control over how Anchorr works and what it does. In parallel, I am working on a direct bot implementation for Discord, which is much easier to configure and doesn't require a self-hosted server. You can find the link in the header.</p>
+                  <!-- Miscellaneous Pane -->
+                  <div id="config-pane-misc" class="config-pane">
+                    <fieldset>
+                      <legend>Miscellaneous Settings</legend>
+                      <p class="form-text" style="margin-bottom: 1.5rem;">
+                        Optional settings to enhance your bot experience. These are extra features that can be enabled after your bot is fully configured and running.
+                      </p>
+                      
+                      <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                          <input type="checkbox" id="AUTO_START_BOT" name="AUTO_START_BOT" />
+                          Auto-start bot on server boot
+                        </label>
+                        <div class="form-text">
+                          If enabled, the bot starts automatically when the container/server restarts and valid Discord credentials are present.
                         </div>
                       </div>
 
-                      <div class="about-cards">
-                        <div class="about-card support-card">
-                          <i class="bi bi-heart-fill"></i>
-                          <h3>Support the Project</h3>
-                          <p>If you find Anchorr useful, consider supporting its development. Every coffee helps fuel late-night coding sessions!</p>
-                          <a href="https://ko-fi.com/nairdah" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Buy me a Coffee</a>
-                        </div>
-                        <div class="about-card">
-                          <i class="bi bi-github"></i>
-                          <h3>Contribute</h3>
-                          <p>Anchorr is open-source! If you're a developer, your contributions are welcome. Check out the project on GitHub to get started.</p>
-                          <a href="https://github.com/nairdahh/Anchorr" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">View on GitHub</a>
+                      <div class="form-group" style="margin-top: 1.5rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                          <input type="checkbox" id="NOTIFY_ON_AVAILABLE" name="NOTIFY_ON_AVAILABLE" />
+                          Send PM when request is available
+                        </label>
+                        <div class="form-text">
+                          When enabled, users will receive a private message when their requested content becomes available on Jellyfin.
                         </div>
                       </div>
 
-                      <div class="dev-footer">
-                        <div class="dev-footer-left">
-                          <a href="https://github.com/nairdahh" target="_blank" rel="noopener noreferrer">
-                            <img src="/assets/nairdah_avatar.jpeg" alt="nairdah's avatar" class="dev-avatar">
-                          </a>
-                          <div class="dev-info">
-                            <span>Created & Maintained by</span>
-                            <a href="https://github.com/nairdahh" target="_blank" rel="noopener noreferrer" class="dev-link">nairdah</a>
-                          </div>
-                        </div>
-                        <div class="dev-footer-right">
-                          <p>Thank you for using Anchorr!<br>Please contact me for any matter about the project.</p>
+                      <div class="form-group" style="margin-top: 1.5rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                          <input type="checkbox" id="PRIVATE_MESSAGE_MODE" name="PRIVATE_MESSAGE_MODE" />
+                          Ephemeral Message Mode
+                        </label>
+                        <div class="form-text">
+                          When enabled, all bot responses (search and request results) are sent as ephemeral messages (only visible to the user who used the command). When disabled, successful results are visible to everyone in the channel, but warning messages (e.g., "already on Jellyfin") are always ephemeral.
                         </div>
                       </div>
-
-                    </div>
+                    </fieldset>
                   </div>
 
                 </form>
               </div>
           </div>
+
+          <!-- About Page (Independent) -->
+          <div id="about-page" class="about-page" style="display: none;">
+            <div class="about-content">
+              <h2>About Anchorr</h2>
+              <p class="about-description">
+                <strong class="anchor-highlight">Anchorr</strong> is a self-hosted, lightweight bridge that connects your <strong>Jellyfin</strong> media server with <strong>Discord</strong>. It notifies you on a dedicated channel when new media is added to your library, and with <strong>Jellyseerr</strong> integration, you can search and request movies and shows directly from Discord.
+              </p>
+
+              <div class="features-list">
+                <h3 class="features-title">Features</h3>
+                <ul>
+                  <li><i class="bi bi-search"></i><div><code>/search &lt;title&gt;</code> Search for a movie or show with auto-suggestions. An embed with detailed information is shown, from which you can request the media. For TV shows, you have the option to select the desired seasons for the request.</div></li>
+                  <li><i class="bi bi-send-fill"></i><div><code>/request &lt;title&gt;</code> Instantly send a request for your chosen movie or show directly to Jellyseerr. For TV shows, this automatically requests all seasons.</div></li>
+                  <li><i class="bi bi-bell-fill"></i><div>Receive beautifully formatted notifications on your selected Discord channel whenever new media is added to your Jellyfin library.</div></li>
+                  <li><i class="bi bi-film"></i><div>Using the TMDB and OMDb databases, Discord messages get a beautiful and well-structured look, with essential information about the requested or added media content.</div></li>
+                </ul>
+                <div class="tagline-container">
+                  <p class="tagline">Self-hosted, full control.</p>
+                  <p class="tagline-description">This version of Anchorr is open-source and self-hosted by users, allowing full control over how Anchorr works and what it does. In parallel, I am working on a direct bot implementation for Discord, which is much easier to configure and doesn't require a self-hosted server. You can find the link in the header.</p>
+                </div>
+              </div>
+
+              <div class="about-cards">
+                <div class="about-card support-card">
+                  <i class="bi bi-heart-fill"></i>
+                  <h3>Support the Project</h3>
+                  <p>If you find Anchorr useful, consider supporting its development. Every coffee helps fuel late-night coding sessions!</p>
+                  <a href="https://ko-fi.com/nairdah" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Buy me a Coffee</a>
+                </div>
+                <div class="about-card">
+                  <i class="bi bi-github"></i>
+                  <h3>Contribute</h3>
+                  <p>Anchorr is open-source! If you're a developer, your contributions are welcome. Check out the project on GitHub to get started.</p>
+                  <a href="https://github.com/nairdahh/Anchorr" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">View on GitHub</a>
+                </div>
+              </div>
+
+              <div class="dev-footer">
+                <div class="dev-footer-left">
+                  <a href="https://github.com/nairdahh" target="_blank" rel="noopener noreferrer">
+                    <img src="/assets/nairdah_avatar.jpeg" alt="nairdah's avatar" class="dev-avatar">
+                  </a>
+                  <div class="dev-info">
+                    <span>Created & Maintained by</span>
+                    <a href="https://github.com/nairdahh" target="_blank" rel="noopener noreferrer" class="dev-link">nairdah</a>
+                  </div>
+                </div>
+                <div class="dev-footer-right">
+                  <p>Thank you for using Anchorr!<br>Please contact me for any matter about the project.</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </section>
       </main>
-
-      <section class="cta-section">
-        <div class="container">
-          <div class="hero-aurora"></div>
-          <div class="cta-content">
-            <h2 class="cta-title">Prefer a Zero-Setup Solution?</h2>
-            <p class="cta-text">
-              A public, hosted version of Anchorr is also available. Add it
-              directly to your Discord server with one click-no self-hosting
-              required.
-            </p>
-            <a href="https://anchorr.nairdah.me/discord-bot.html" class="btn btn-primary"
-              >Invite the Public Bot</a
-            >
-          </div>
-        </div>
-      </section>
 
       <footer class="footer">
         <div
@@ -495,6 +606,7 @@
               rel="noopener noreferrer"
               >Report a Bug</a
             >
+            <button id="logs-page-btn" class="btn-link" style="background: none; border: none; color: var(--mauve); cursor: pointer; text-decoration: underline; font-size: 0.9rem;">Logs</button>
           </div>
           <div>
             made by
@@ -514,6 +626,41 @@
           </div>
         </div>
       </footer>
+      <!-- Logs Section -->
+      <section id="logs-section" class="setup-section" style="display: none;">
+        <div class="container">
+          <div class="dashboard-header">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <h2 class="dashboard-title" style="margin: 0;">Logs</h2>
+              <div style="display: flex; gap: 0.5rem; border-left: 1px solid var(--surface0); padding-left: 1rem;">
+                <button type="button" class="logs-tab-btn active" data-target="all">All Logs</button>
+                <button type="button" class="logs-tab-btn" data-target="error">Error Logs</button>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1.5rem;">
+              <!-- Status Indicators -->
+              <div style="display: flex; gap: 1.5rem; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div id="jellyseerr-status-indicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: #888; transition: background-color 0.3s;"></div>
+                  <span style="font-size: 0.9rem; color: var(--subtext0);">Jellyseerr</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div id="jellyfin-status-indicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: #888; transition: background-color 0.3s;"></div>
+                  <span style="font-size: 0.9rem; color: var(--subtext0);">Jellyfin</span>
+                </div>
+              </div>
+              <button type="button" id="bot-control-btn-logs" class="btn btn-status btn-danger">
+                <i class="bi bi-play-fill"></i>
+                <span id="bot-control-text-logs">Start Bot</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="logs-container" style="overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; line-height: 1.6; background-color: var(--base); padding: 1.5rem; border-radius: 8px;">
+            <div style="text-align: center; color: var(--subtext0);">Loading logs...</div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <script src="/libs/coloris/coloris.min.js"></script>
