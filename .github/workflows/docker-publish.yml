@@ -52,6 +52,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Debug - Log Docker Hub tags
+        if: github.event_name == 'pull_request'
         run: |
           echo "Docker Hub Tags:"
           echo "${{ steps.meta-dockerhub.outputs.tags }}"
@@ -70,6 +71,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Debug - Log GHCR tags
+        if: github.event_name == 'pull_request'
         run: |
           echo "GHCR Tags:"
           echo "${{ steps.meta-ghcr.outputs.tags }}"
