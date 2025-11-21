@@ -3,9 +3,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const botControlBtn = document.getElementById("bot-control-btn");
   const botControlText = document.getElementById("bot-control-text");
   const botControlIcon = botControlBtn.querySelector("i");
-  const webhookSection = document.getElementById("webhook-section");
-  const webhookUrlElement = document.getElementById("webhook-url");
-  const copyWebhookBtn = document.getElementById("copy-webhook-btn");
   const navItems = document.querySelectorAll(".nav-item, .about-button");
   const testJellyseerrBtn = document.getElementById("test-jellyseerr-btn");
   const testJellyseerrStatus = document.getElementById(
@@ -29,6 +26,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }, duration);
   }
 
+  async function fetchWebhookUrl() {
+    try {
+      const response = await fetch("/api/webhook-url");
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      const webhookUrlElement = document.getElementById("webhook-url");
+      if (webhookUrlElement) {
+        webhookUrlElement.textContent = data.webhookUrl;
+      }
+    } catch (error) {
+      console.error("Error fetching webhook URL:", error);
+      const webhookUrlElement = document.getElementById("webhook-url");
+      if (webhookUrlElement) {
+        webhookUrlElement.textContent = "Error loading webhook URL";
+      }
+    }
+  }
+
   async function fetchConfig() {
     try {
       const response = await fetch("/api/config");
@@ -45,7 +60,6 @@ document.addEventListener("DOMContentLoaded", () => {
           input.value = config[key];
         }
       }
-      updateWebhookUrl();
     } catch (error) {
       console.error("Error fetching config:", error);
       showToast("Error fetching configuration.");
@@ -80,17 +94,6 @@ document.addEventListener("DOMContentLoaded", () => {
       botControlText.textContent = "Start Bot";
       botControlBtn.dataset.action = "start";
     }
-  }
-
-  function updateWebhookUrl() {
-    const portInput = document.getElementById("WEBHOOK_PORT");
-    if (!portInput) return;
-
-    const port = portInput.value || 8282;
-    // Use `window.location.hostname` which is more reliable than guessing the host IP.
-    // This works well for localhost and for accessing via a local network IP.
-    const host = window.location.hostname;
-    webhookUrlElement.textContent = `http://${host}:${port}/jellyfin-webhook`;
   }
 
   // --- Event Listeners ---
@@ -165,18 +168,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Update webhook URL when port changes
-  const portInput = document.getElementById("WEBHOOK_PORT");
-  if (portInput) {
-    portInput.addEventListener("input", updateWebhookUrl);
-  }
-
-  // Copy webhook URL
-  copyWebhookBtn.addEventListener("click", () => {
-    navigator.clipboard.writeText(webhookUrlElement.textContent);
-    showToast("Webhook URL copied to clipboard!");
-  });
-
   // Test Jellyseerr Connection
   if (testJellyseerrBtn) {
     testJellyseerrBtn.addEventListener("click", async () => {
@@ -216,6 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (testJellyfinBtn) {
     testJellyfinBtn.addEventListener("click", async () => {
       const url = document.getElementById("JELLYFIN_BASE_URL").value;
+      const apiKey = document.getElementById("JELLYFIN_API_KEY").value;
 
       testJellyfinBtn.disabled = true;
       testJellyfinStatus.textContent = "Testing...";
@@ -225,7 +217,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const response = await fetch("/api/test-jellyfin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url, apiKey }),
         });
 
         const result = await response.json();
@@ -246,8 +238,125 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Fetch and display Jellyfin libraries for exclusion
+  const fetchLibrariesBtn = document.getElementById("fetch-libraries-btn");
+  const fetchLibrariesStatus = document.getElementById("fetch-libraries-status");
+  const librariesList = document.getElementById("libraries-list");
+  const excludedLibrariesInput = document.getElementById("JELLYFIN_EXCLUDED_LIBRARIES");
+
+  if (fetchLibrariesBtn) {
+    fetchLibrariesBtn.addEventListener("click", async () => {
+      const url = document.getElementById("JELLYFIN_BASE_URL").value;
+      const apiKey = document.getElementById("JELLYFIN_API_KEY").value;
+      
+      if (!url || !url.trim()) {
+        showToast("Please enter a Jellyfin URL first.");
+        return;
+      }
+
+      fetchLibrariesBtn.disabled = true;
+      fetchLibrariesStatus.textContent = "Loading...";
+      fetchLibrariesStatus.style.color = "var(--text)";
+
+      try {
+        const response = await fetch("/api/jellyfin-libraries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, apiKey }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          const libraries = result.libraries || [];
+          
+          if (libraries.length === 0) {
+            librariesList.innerHTML = '<div class="libraries-empty">No libraries found.</div>';
+          } else {
+            // Get currently excluded libraries from the hidden input
+            const excludedIds = excludedLibrariesInput.value.split(",").map(id => id.trim()).filter(id => id);
+            
+            // Render the libraries as checkboxes
+            librariesList.innerHTML = libraries.map(lib => `
+              <div class="library-item">
+                <label>
+                  <input 
+                    type="checkbox" 
+                    value="${lib.id}" 
+                    class="library-checkbox"
+                    ${excludedIds.includes(lib.id) ? 'checked' : ''}
+                  />
+                  <div class="library-info">
+                    <span class="library-name">${lib.name}</span>
+                    <span class="library-type">${lib.type}</span>
+                  </div>
+                </label>
+              </div>
+            `).join('');
+            
+            // Add event listeners to checkboxes to update the hidden input
+            const checkboxes = librariesList.querySelectorAll('.library-checkbox');
+            checkboxes.forEach(checkbox => {
+              checkbox.addEventListener('change', () => {
+                updateExcludedLibraries();
+              });
+            });
+          }
+          
+          librariesList.style.display = 'block';
+          fetchLibrariesStatus.textContent = `Found ${libraries.length} ${libraries.length === 1 ? 'library' : 'libraries'}`;
+          fetchLibrariesStatus.style.color = "var(--green)";
+        } else {
+          throw new Error(result.message || "Failed to fetch libraries");
+        }
+      } catch (error) {
+        fetchLibrariesStatus.textContent = error.message || "Failed to load libraries.";
+        fetchLibrariesStatus.style.color = "#f38ba8"; // Red
+        librariesList.style.display = 'none';
+      } finally {
+        fetchLibrariesBtn.disabled = false;
+      }
+    });
+  }
+
+  // Update the hidden input with selected excluded libraries
+  function updateExcludedLibraries() {
+    const checkboxes = librariesList.querySelectorAll('.library-checkbox:checked');
+    const excludedIds = Array.from(checkboxes).map(cb => cb.value);
+    excludedLibrariesInput.value = excludedIds.join(',');
+  }
+
+  // Copy webhook URL to clipboard
+  const copyWebhookBtn = document.getElementById("copy-webhook-btn");
+  if (copyWebhookBtn) {
+    copyWebhookBtn.addEventListener("click", async () => {
+      const webhookUrlElement = document.getElementById("webhook-url");
+      const webhookUrl = webhookUrlElement.textContent;
+      
+      if (!webhookUrl || webhookUrl === "Error loading webhook URL") {
+        showToast("No webhook URL to copy");
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(webhookUrl);
+        showToast("Webhook URL copied to clipboard!");
+      } catch (error) {
+        // Fallback for older browsers
+        const textArea = document.createElement("textarea");
+        textArea.value = webhookUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        showToast("Webhook URL copied to clipboard!");
+      }
+    });
+  }
+
   // --- Initial Load ---
   fetchConfig();
   fetchStatus();
+  fetchWebhookUrl();
   setInterval(fetchStatus, 10000); // Poll status every 10 seconds
 });
