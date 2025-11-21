@@ -389,6 +389,23 @@ code:not(.code-block) {
   gap: 1.5rem;
 }
 
+.footer-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.3s ease, text-decoration 0.3s ease;
+  padding: 0;
+  font-weight: 500;
+}
+
+.footer-btn:hover {
+  text-decoration: underline;
+  color: var(--mauve);
+}
+
 @keyframes pulse-glow {
   0% {
     box-shadow: 0 0 8px rgba(203, 166, 247, 0.3);

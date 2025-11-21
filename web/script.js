@@ -156,7 +156,13 @@ document.addEventListener("DOMContentLoaded", () => {
         botControlBtn.disabled = false;
       } else {
         showToast(result.message);
-        setTimeout(fetchStatus, 1000); // Fetch status after a short delay to get the new state
+        setTimeout(() => {
+          fetchStatus();
+          // Also update logs page button if visible
+          if (logsSection.style.display !== "none") {
+            updateBotControlButtonLogs();
+          }
+        }, 1000); // Fetch status after a short delay to get the new state
       }
     } catch (error) {
       console.error(`Error with ${action} action:`, error);
@@ -1301,26 +1307,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Update connection status indicators
   async function updateConnectionStatus() {
-    try {
-      // Test Jellyseerr
-      try {
-        const jellyseerrResponse = await fetch("/api/test-jellyseerr", { method: "POST" });
-        const jellyseerrStatusIndicator = document.getElementById("jellyseerr-status-indicator");
-        jellyseerrStatusIndicator.style.backgroundColor = jellyseerrResponse.ok ? "#a6e3a1" : "#f38ba8";
-      } catch {
-        document.getElementById("jellyseerr-status-indicator").style.backgroundColor = "#f38ba8";
-      }
+    const jellyseerrIndicator = document.getElementById("jellyseerr-status-indicator");
+    const jellyfinIndicator = document.getElementById("jellyfin-status-indicator");
 
-      // Test Jellyfin
-      try {
-        const jellyfinResponse = await fetch("/api/test-jellyfin", { method: "POST" });
-        const jellyfinStatusIndicator = document.getElementById("jellyfin-status-indicator");
-        jellyfinStatusIndicator.style.backgroundColor = jellyfinResponse.ok ? "#a6e3a1" : "#f38ba8";
-      } catch {
-        document.getElementById("jellyfin-status-indicator").style.backgroundColor = "#f38ba8";
-      }
+    // Set to pending (yellow) while checking
+    jellyseerrIndicator.style.backgroundColor = "#f9e2af";
+    jellyfinIndicator.style.backgroundColor = "#f9e2af";
+
+    // Test Jellyseerr
+    try {
+      const jellyseerrResponse = await fetch("/api/test-jellyseerr", { method: "POST" });
+      jellyseerrIndicator.style.backgroundColor = jellyseerrResponse.ok ? "#a6e3a1" : "#f38ba8";
     } catch (error) {
-      console.error("Error updating connection status:", error);
+      jellyseerrIndicator.style.backgroundColor = "#f38ba8";
+    }
+
+    // Test Jellyfin
+    try {
+      const jellyfinResponse = await fetch("/api/test-jellyfin", { method: "POST" });
+      jellyfinIndicator.style.backgroundColor = jellyfinResponse.ok ? "#a6e3a1" : "#f38ba8";
+    } catch (error) {
+      jellyfinIndicator.style.backgroundColor = "#f38ba8";
     }
   }
 
@@ -1348,6 +1355,10 @@ document.addEventListener("DOMContentLoaded", () => {
       showToast(data.message);
       isBotRunning = !isBotRunning;
       updateBotControlButtonLogs();
+      // Also update the configuration page button
+      if (botControlBtn) {
+        updateBotControlButton();
+      }
     } catch (error) {
       showToast(`Error: ${error.message}`);
     }
