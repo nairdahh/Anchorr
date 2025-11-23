@@ -7,9 +7,22 @@ export const configTemplate = {
   TMDB_API_KEY: "",
   OMDB_API_KEY: "",
   JELLYFIN_BASE_URL: "",
+  JELLYFIN_API_KEY: "",
   JELLYFIN_SERVER_ID: "",
   JELLYFIN_CHANNEL_ID: "",
+  JELLYFIN_NOTIFICATION_LIBRARIES: {}, // Changed from array to object: { libraryId: channelId }
+  JELLYFIN_POLLING_ENABLED: "false",
+  JELLYFIN_POLLING_INTERVAL: "300000", // 5 minutes in milliseconds
+  JELLYFIN_NOTIFY_MOVIES: "true",
+  JELLYFIN_NOTIFY_SERIES: "true",
+  JELLYFIN_NOTIFY_SEASONS: "false",
+  JELLYFIN_NOTIFY_EPISODES: "false",
   WEBHOOK_PORT: "8282",
   AUTO_START_BOT: "true",
+  NOTIFY_ON_AVAILABLE: "false",
+  PRIVATE_MESSAGE_MODE: "false",
   DEBUG: "false",
+  USER_MAPPINGS: [],
+  ROLE_ALLOWLIST: [],
+  ROLE_BLOCKLIST: [],
 };

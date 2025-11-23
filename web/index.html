@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="/libs/coloris/coloris.css" />
     <link rel="icon" href="assets/logo.png" type="image/png" />
   </head>
-  <body>
+  <body class="auth-mode">
     <div class="content-wrapper">
       <nav class="navbar">
         <div class="container">
@@ -31,29 +31,81 @@
                 >GitHub</a
               >
             </li>
+            <li>
+              <a href="#" id="logout-btn" style="display: none;">Logout</a>
+            </li>
           </ul>
         </div>
       </nav>
 
-      <header class="hero">
+      <!-- Shared Hero Section -->
+      <header id="main-hero" class="hero full-screen">
         <div class="container">
           <div class="hero-aurora"></div>
           <div class="page-content">
             <div class="hero-content">
-              <h1 class="hero-title">Anchorr Configuration</h1>
-              <p class="hero-subtitle">
-                Anchorr needs to be connect with your Discord bot and with your
-                Jellyfin and Jellyseerr instances.
-                <br />
-                Below is a step-by-step walkthrough to help you set up
-                everything you need to get started!
-              </p>
+              <!-- Auth Text -->
+              <div id="hero-text-auth">
+                <h1 class="hero-title">Anchorr</h1>
+                <p class="hero-subtitle">
+                  Secure, self-hosted bridge for your media server.
+                </p>
+              </div>
+
+              <!-- Dashboard Text -->
+              <div id="hero-text-dashboard" style="display: none;">
+                <h1 class="hero-title">Anchorr Configuration</h1>
+                <p class="hero-subtitle">
+                  Anchorr needs to be connect with your Discord bot and with your
+                  Jellyfin and Jellyseerr instances.
+                  <br />
+                  Below is a step-by-step walkthrough to help you set up
+                  everything you need to get started!
+                </p>
+              </div>
+              
+              <!-- Auth Forms Container -->
+              <div id="auth-container-wrapper" class="auth-container">
+                <!-- Login Form -->
+                <form id="login-form" class="auth-form">
+                  <div class="form-group">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" required placeholder="Enter your username">
+                  </div>
+                  <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" required placeholder="Enter your password">
+                  </div>
+                  <button type="submit" class="btn btn-primary" style="width: 100%; margin: 0;">Login</button>
+                  <p class="auth-switch">
+                    Don't have an account? <a href="#" id="show-register">Register</a>
+                  </p>
+                </form>
+
+                <!-- Register Form -->
+                <form id="register-form" class="auth-form" style="display: none;">
+                  <div class="form-group">
+                    <label for="register-username">Choose Username</label>
+                    <input type="text" id="register-username" required placeholder="Choose a username">
+                  </div>
+                  <div class="form-group">
+                    <label for="register-password">Choose Password</label>
+                    <input type="password" id="register-password" required placeholder="Choose a secure password">
+                  </div>
+                  <button type="submit" class="btn btn-primary" style="width: 100%; margin: 0;">Create Account</button>
+                  <p class="auth-switch">
+                    Already have an account? <a href="#" id="show-login">Login</a>
+                  </p>
+                </form>
+                <div id="auth-error" class="auth-error"></div>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main class="page-content" style="flex-grow: 1">
+      <!-- Dashboard Content (Initially Hidden) -->
+      <main id="dashboard-content" class="page-content" style="flex-grow: 1; display: none;">
         <section id="setup" class="setup-section">
           <div class="container">
             <div
@@ -177,15 +229,15 @@
                       </div>
 
                       <div class="form-group">
-                        <label for="JELLYFIN_CHANNEL_ID">Notification Channel</label>
-                        <select 
-                          id="JELLYFIN_CHANNEL_ID" 
+                        <label for="JELLYFIN_CHANNEL_ID">Default Notification Channel</label>
+                        <select
+                          id="JELLYFIN_CHANNEL_ID"
                           name="JELLYFIN_CHANNEL_ID"
                           style="width: 100%; background-color: var(--background); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
                           <option value="">Select a server first...</option>
                         </select>
                         <div class="form-text">
-                          Select the Discord channel where Jellyfin notifications will be sent. Choose a server above first.
+                          Select the default Discord channel for Jellyfin notifications. You can override this per-library in Step 4. Choose a server above first.
                         </div>
                       </div>
 
@@ -378,9 +430,98 @@
                         </div>
                       </div>
 
+                      <!-- Polling Settings Section -->
+                      <div class="form-group" style="margin-top: 2rem;">
+                        <label>Jellyfin API Polling</label>
+                        <div class="form-text" style="margin-bottom: 1rem;">
+                          Enable API polling to automatically detect new content added to Jellyfin. This is an alternative or supplement to webhooks.
+                          <br><strong>Note:</strong> You can use webhooks, polling, or both simultaneously.
+                        </div>
+
+                        <div class="form-group">
+                          <label class="checkbox-label">
+                            <input
+                              type="checkbox"
+                              id="JELLYFIN_POLLING_ENABLED"
+                              name="JELLYFIN_POLLING_ENABLED"
+                              value="true"
+                            />
+                            <span>Enable API Polling</span>
+                          </label>
+                        </div>
+
+                        <div class="form-group">
+                          <label for="JELLYFIN_POLLING_INTERVAL">Polling Interval (minutes)</label>
+                          <input
+                            type="number"
+                            id="JELLYFIN_POLLING_INTERVAL"
+                            name="JELLYFIN_POLLING_INTERVAL"
+                            min="1"
+                            step="1"
+                            placeholder="5"
+                          />
+                          <div class="form-text">
+                            How often to check for new content (minimum: 1 minute). Default: 5 minutes.
+                          </div>
+                        </div>
+
+                        <label style="margin-top: 1rem;">Notification Types</label>
+                        <div class="form-text" style="margin-bottom: 0.75rem;">
+                          Choose which types of content should trigger notifications.
+                        </div>
+
+                        <div class="form-group">
+                          <label class="checkbox-label">
+                            <input
+                              type="checkbox"
+                              id="JELLYFIN_NOTIFY_MOVIES"
+                              name="JELLYFIN_NOTIFY_MOVIES"
+                              value="true"
+                            />
+                            <span>Notify on Movies</span>
+                          </label>
+                        </div>
+
+                        <div class="form-group">
+                          <label class="checkbox-label">
+                            <input
+                              type="checkbox"
+                              id="JELLYFIN_NOTIFY_SERIES"
+                              name="JELLYFIN_NOTIFY_SERIES"
+                              value="true"
+                            />
+                            <span>Notify on TV Series</span>
+                          </label>
+                        </div>
+
+                        <div class="form-group">
+                          <label class="checkbox-label">
+                            <input
+                              type="checkbox"
+                              id="JELLYFIN_NOTIFY_SEASONS"
+                              name="JELLYFIN_NOTIFY_SEASONS"
+                              value="true"
+                            />
+                            <span>Notify on New Seasons</span>
+                          </label>
+                        </div>
+
+                        <div class="form-group">
+                          <label class="checkbox-label">
+                            <input
+                              type="checkbox"
+                              id="JELLYFIN_NOTIFY_EPISODES"
+                              name="JELLYFIN_NOTIFY_EPISODES"
+                              value="true"
+                            />
+                            <span>Notify on Episodes</span>
+                          </label>
+                        </div>
+                      </div>
+
                       <!-- Library Notifications Section -->
                       <div class="form-group" style="margin-top: 2rem;">
-                        <label>Library Notifications</label>
+                        <label>Library Notifications & Channel Mapping</label>
                         <div class="form-text" style="margin-bottom: 0.75rem;">
                           Select which Jellyfin libraries should send Discord notifications.
                           By default, all libraries are enabled. Uncheck a library to stop receiving notifications from it.
@@ -584,6 +725,56 @@
         </section>
       </main>
 
+      <!-- Logs Section -->
+      <section id="logs-section" class="setup-section" style="display: none;">
+        <div class="container">
+          <div style="margin-bottom: 1rem; flex-shrink: 0;">
+            <button type="button" id="back-to-config-btn">
+              ← Back to Configuration
+            </button>
+          </div>
+
+          <div class="dashboard-header">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <button type="button" class="logs-tab-btn active" data-target="all">
+                All Logs
+              </button>
+              <button type="button" class="logs-tab-btn" data-target="error">
+                Errors
+              </button>
+              <button type="button" id="refresh-logs-btn" class="logs-tab-btn" title="Refresh logs">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1.5rem;">
+              <!-- Status Indicators -->
+              <div class="status-indicator-container">
+                <div class="status-indicator-item">
+                  <div id="jellyseerr-status-indicator" class="status-dot"></div>
+                  <span>Jellyseerr</span>
+                </div>
+                <div class="status-indicator-item">
+                  <div id="jellyfin-status-indicator" class="status-dot"></div>
+                  <span>Jellyfin</span>
+                </div>
+              </div>
+              <button type="button" id="bot-control-btn-logs" class="btn btn-status btn-danger">
+                <i class="bi bi-play-fill"></i>
+                <span id="bot-control-text-logs">Start Bot</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="logs-container">
+            <div style="text-align: center; color: var(--subtext0); padding: 2rem;">
+              Loading logs...
+            </div>
+          </div>
+        </div>
+      </section>
+
+      </main>
+
       <footer class="footer">
         <div
           class="container"
@@ -626,47 +817,6 @@
           </div>
         </div>
       </footer>
-    </div>
-
-    <!-- Logs Section -->
-    <section id="logs-section" class="setup-section" style="display: none;">
-      <div class="container">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
-          <button type="button" id="back-to-config-btn" style="background: none; border: none; color: var(--blue); cursor: pointer; font-size: 0.95rem; text-decoration: underline; transition: color 0.2s;">← Back to Configuration</button>
-        </div>
-
-        <div class="dashboard-header">
-          <div style="display: flex; align-items: center; gap: 1rem;">
-            <h2 class="dashboard-title" style="margin: 0;">Logs</h2>
-            <div style="display: flex; gap: 0.5rem; border-left: 1px solid var(--surface0); padding-left: 1rem;">
-              <button type="button" class="logs-tab-btn active" data-target="all">All Logs</button>
-              <button type="button" class="logs-tab-btn" data-target="error">Error Logs</button>
-            </div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 1.5rem;">
-            <!-- Status Indicators -->
-            <div style="display: flex; gap: 1.5rem; align-items: center;">
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <div id="jellyseerr-status-indicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: #888; transition: background-color 0.3s;"></div>
-                <span style="font-size: 0.9rem; color: var(--subtext0);">Jellyseerr</span>
-              </div>
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <div id="jellyfin-status-indicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: #888; transition: background-color 0.3s;"></div>
-                <span style="font-size: 0.9rem; color: var(--subtext0);">Jellyfin</span>
-              </div>
-            </div>
-            <button type="button" id="bot-control-btn-logs" class="btn btn-status btn-danger">
-              <i class="bi bi-play-fill"></i>
-              <span id="bot-control-text-logs">Start Bot</span>
-            </button>
-          </div>
-        </div>
-
-        <div id="logs-container" style="overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; line-height: 1.6; background-color: var(--base); padding: 1.5rem; border-radius: 8px; min-height: 400px;">
-          <div style="text-align: center; color: var(--subtext0);">Loading logs...</div>
-        </div>
-      </div>
-    </section>
 
     <script src="/libs/coloris/coloris.min.js"></script>
     <script src="script.js"></script>

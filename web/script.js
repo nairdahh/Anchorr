@@ -42,10 +42,17 @@ document.addEventListener("DOMContentLoaded", () => {
           const val = String(config[key]).trim().toLowerCase();
           input.checked = val === "true" || val === "1" || val === "yes";
         } else {
-          // For select elements, save the value to restore later (after options are loaded)
-          if (input.tagName === "SELECT") {
+          // Special handling for polling interval: convert milliseconds to minutes
+          if (key === "JELLYFIN_POLLING_INTERVAL" && config[key]) {
+            const ms = parseInt(config[key], 10);
+            if (!isNaN(ms)) {
+              input.value = Math.round(ms / 60000); // Convert to minutes
+            }
+          } else if (input.tagName === "SELECT") {
+            // For select elements, save the value to restore later (after options are loaded)
             input.dataset.savedValue = config[key];
-            // Don't set value yet - will be set after options are populated
+            // Also try setting it directly in case options are already there (unlikely but safe)
+            input.value = config[key];
           } else {
             input.value = config[key];
           }
@@ -97,6 +104,257 @@ document.addEventListener("DOMContentLoaded", () => {
     webhookUrlElement.textContent = `http://${host}:${actualPort}/jellyfin-webhook`;
   }
 
+  // --- Auth Logic ---
+  const mainHero = document.getElementById("main-hero");
+  const authContainer = document.getElementById("auth-container-wrapper");
+  const heroTextAuth = document.getElementById("hero-text-auth");
+  const heroTextDashboard = document.getElementById("hero-text-dashboard");
+  const dashboardContent = document.getElementById("dashboard-content");
+  
+  const loginForm = document.getElementById("login-form");
+  const registerForm = document.getElementById("register-form");
+  const authError = document.getElementById("auth-error");
+  const showRegisterLink = document.getElementById("show-register");
+  const showLoginLink = document.getElementById("show-login");
+  const logoutBtn = document.getElementById("logout-btn");
+
+  async function checkAuth() {
+    try {
+      const response = await fetch("/api/auth/check");
+      const data = await response.json();
+
+      if (data.isAuthenticated) {
+        // User is authenticated, remove auth-mode to show header/footer
+        document.body.classList.remove("auth-mode");
+        showDashboard(false); // Show dashboard immediately without animation
+        logoutBtn.style.display = "block";
+        fetchConfig().then(() => {
+          loadDiscordGuilds();
+          checkAndLoadMappingsTab();
+        });
+        fetchStatus();
+        setInterval(fetchStatus, 10000);
+      } else {
+        showAuth(data.hasUsers);
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error);
+      showAuth(true); // Default to showing login if check fails
+    }
+  }
+
+  function showAuth(hasUsers) {
+    document.body.classList.add("auth-mode"); // Hide header/footer
+    mainHero.classList.add("full-screen");
+    authContainer.classList.remove("hidden");
+    authContainer.style.display = "block";
+    heroTextAuth.style.display = "block";
+    heroTextDashboard.style.display = "none";
+    dashboardContent.style.display = "none";
+    dashboardContent.classList.remove("visible");
+    
+    if (!hasUsers) {
+      // No users exist, show register form
+      loginForm.style.display = "none";
+      registerForm.style.display = "block";
+    } else {
+      // Users exist, show login form
+      loginForm.style.display = "block";
+      registerForm.style.display = "none";
+    }
+  }
+
+  function showDashboard(animate = true) {
+    const setupContainer = document.querySelector("#config-section .container");
+    const navbar = document.querySelector(".navbar");
+    
+    if (animate) {
+      // Enable transition for animation
+      mainHero.classList.add("animating");
+      
+      // 1. Fade out auth container AND hero text
+      authContainer.classList.add("hidden");
+      heroTextAuth.style.opacity = "0"; // Fade out text
+      heroTextAuth.style.transition = "opacity 0.5s ease"; // Ensure transition
+      
+      // 2. Wait for auth fade out (500ms)
+      setTimeout(() => {
+        authContainer.style.display = "none"; // Remove from flow
+        heroTextAuth.style.display = "none"; // Remove text from flow
+        
+        // 3. Start shrinking hero
+        mainHero.classList.remove("full-screen");
+        
+        // Show dashboard text BUT hide it initially for animation
+        heroTextDashboard.style.display = "block";
+        heroTextDashboard.classList.add("dashboard-text-animate"); // Prepare for animation
+        
+        // Show dashboard content wrapper immediately (but setup container is hidden via class)
+        dashboardContent.style.display = "block";
+        if (setupContainer) {
+          setupContainer.classList.add("setup-container-animate");
+        }
+
+        // 4. Wait for hero shrink to complete (1200ms)
+        setTimeout(() => {
+          // 5. Set hero to final state (min-height: auto)
+          mainHero.classList.add("final-state");
+          mainHero.classList.remove("animating");
+
+          // 6. Prepare Navbar for slide-down
+          // First, ensure it's hidden via transform (while still display:none from auth-mode)
+          if (navbar) {
+            navbar.classList.add("navbar-hidden");
+          }
+          
+          // Remove auth-mode to make navbar display:block (but still hidden via transform)
+          document.body.classList.remove("auth-mode");
+
+          // Force reflow to ensure browser registers the transform: -100% state
+          if (navbar) void navbar.offsetWidth;
+
+          // 7. Animate Navbar Slide Down & Content Fade In simultaneously
+          requestAnimationFrame(() => {
+            // Slide down navbar
+            if (navbar) {
+              navbar.classList.remove("navbar-hidden");
+            }
+            
+            // Fade in content
+            if (setupContainer) {
+              setupContainer.classList.add("visible");
+            }
+
+            // Animate Dashboard Title
+            heroTextDashboard.classList.add("visible");
+          });
+          
+        }, 1200); // Match CSS transition time for hero
+        
+      }, 500); // Match CSS transition time for auth container
+    } else {
+      // Instant switch (No animation)
+      document.body.classList.remove("auth-mode");
+      mainHero.classList.remove("animating");
+      mainHero.classList.add("final-state"); // Ensure final state
+      authContainer.style.display = "none";
+      mainHero.classList.remove("full-screen");
+      heroTextAuth.style.display = "none";
+      heroTextDashboard.style.display = "block";
+      dashboardContent.style.display = "block";
+      
+      // Ensure setup container is visible without animation class
+      if (setupContainer) {
+        setupContainer.classList.remove("setup-container-animate");
+        setupContainer.classList.add("visible");
+        setupContainer.style.opacity = "1";
+        setupContainer.style.transform = "none";
+      }
+
+      // Ensure dashboard text is visible without animation class
+      heroTextDashboard.classList.remove("dashboard-text-animate");
+      heroTextDashboard.classList.add("visible"); // Or just ensure opacity 1
+      heroTextDashboard.style.opacity = "1";
+      heroTextDashboard.style.transform = "none";
+    }
+  }
+
+
+  // Auth Event Listeners
+  if (showRegisterLink) {
+    showRegisterLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      loginForm.style.display = "none";
+      registerForm.style.display = "block";
+      authError.textContent = "";
+    });
+  }
+
+  if (showLoginLink) {
+    showLoginLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      registerForm.style.display = "none";
+      loginForm.style.display = "block";
+      authError.textContent = "";
+    });
+  }
+
+  if (loginForm) {
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("login-username").value;
+      const password = document.getElementById("login-password").value;
+
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          showDashboard(true);
+          logoutBtn.style.display = "block";
+          fetchConfig().then(() => {
+            loadDiscordGuilds();
+            checkAndLoadMappingsTab();
+          });
+          fetchStatus();
+          setInterval(fetchStatus, 10000);
+        } else {
+          authError.textContent = data.message;
+        }
+      } catch (error) {
+        authError.textContent = "Login failed. Please try again.";
+      }
+    });
+  }
+
+  if (registerForm) {
+    registerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("register-username").value;
+      const password = document.getElementById("register-password").value;
+
+      try {
+        const response = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          showDashboard(true);
+          logoutBtn.style.display = "block";
+          fetchConfig().then(() => {
+            loadDiscordGuilds();
+            checkAndLoadMappingsTab();
+          });
+          fetchStatus();
+          setInterval(fetchStatus, 10000);
+        } else {
+          authError.textContent = data.message;
+        }
+      } catch (error) {
+        authError.textContent = "Registration failed. Please try again.";
+      }
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+        location.reload();
+      } catch (error) {
+        console.error("Logout failed:", error);
+      }
+    });
+  }
+
   // --- Event Listeners ---
 
   form.addEventListener("submit", async (e) => {
@@ -116,13 +374,21 @@ document.addEventListener("DOMContentLoaded", () => {
     config.ROLE_ALLOWLIST = allowlistRoles;
     config.ROLE_BLOCKLIST = blocklistRoles;
 
-    // Handle Jellyfin notification libraries as array
+    // Handle Jellyfin notification libraries (can be array or object)
     try {
       config.JELLYFIN_NOTIFICATION_LIBRARIES = config.JELLYFIN_NOTIFICATION_LIBRARIES
         ? JSON.parse(config.JELLYFIN_NOTIFICATION_LIBRARIES)
-        : [];
+        : {};
     } catch (e) {
-      config.JELLYFIN_NOTIFICATION_LIBRARIES = [];
+      config.JELLYFIN_NOTIFICATION_LIBRARIES = {};
+    }
+
+    // Convert polling interval from minutes to milliseconds
+    if (config.JELLYFIN_POLLING_INTERVAL) {
+      const minutes = parseInt(config.JELLYFIN_POLLING_INTERVAL, 10);
+      if (!isNaN(minutes) && minutes >= 1) {
+        config.JELLYFIN_POLLING_INTERVAL = String(minutes * 60000); // Convert to milliseconds
+      }
     }
 
     try {
@@ -426,15 +692,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // --- Initial Load ---
-  fetchConfig().then(() => {
-    // After config loads, populate guild and channel dropdowns if token exists
-    loadDiscordGuilds();
-    
-    // Check if mappings tab is active on page load
-    checkAndLoadMappingsTab();
-  });
-  fetchStatus();
-  setInterval(fetchStatus, 10000); // Poll status every 10 seconds
+  checkAuth();
   
   // Helper function to check and load mappings tab
   function checkAndLoadMappingsTab() {
@@ -578,18 +836,69 @@ document.addEventListener("DOMContentLoaded", () => {
   let membersLoaded = false; // Track if we've loaded members for the dropdown
   let usersLoaded = false; // Track if we've loaded jellyseerr users
 
-  async function loadDiscordMembers() {
-    if (membersLoaded && discordMembers.length > 0) {
+  // Cache keys
+  const DISCORD_MEMBERS_CACHE_KEY = 'anchorr_discord_members_cache';
+  const JELLYSEERR_USERS_CACHE_KEY = 'anchorr_jellyseerr_users_cache';
+  const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
+  // Load from cache
+  function loadFromCache(key) {
+    try {
+      const cached = localStorage.getItem(key);
+      if (!cached) return null;
+
+      const data = JSON.parse(cached);
+      const now = Date.now();
+
+      if (now - data.timestamp > CACHE_DURATION) {
+        localStorage.removeItem(key);
+        return null;
+      }
+
+      return data.value;
+    } catch (error) {
+      console.error('Error loading from cache:', error);
+      return null;
+    }
+  }
+
+  // Save to cache
+  function saveToCache(key, value) {
+    try {
+      const data = {
+        value: value,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (error) {
+      console.error('Error saving to cache:', error);
+    }
+  }
+
+  async function loadDiscordMembers(forceRefresh = false) {
+    // Try cache first
+    if (!forceRefresh) {
+      const cachedMembers = loadFromCache(DISCORD_MEMBERS_CACHE_KEY);
+      if (cachedMembers && cachedMembers.length > 0) {
+        discordMembers = cachedMembers;
+        membersLoaded = true;
+        populateDiscordMemberSelect();
+        return;
+      }
+    }
+
+    if (membersLoaded && discordMembers.length > 0 && !forceRefresh) {
       return;
     }
-    
+
     try {
       const response = await fetch("/api/discord-members");
       const data = await response.json();
-      
+
       if (data.success && data.members) {
         discordMembers = data.members;
         membersLoaded = true;
+        saveToCache(DISCORD_MEMBERS_CACHE_KEY, data.members);
         populateDiscordMemberSelect();
       } else {
         const customSelect = document.getElementById("discord-user-select");
@@ -628,6 +937,7 @@ document.addEventListener("DOMContentLoaded", () => {
       option.dataset.value = member.id;
       option.dataset.displayName = member.displayName;
       option.dataset.username = member.username;
+      option.dataset.avatar = member.avatar || '';
       
       // Check if this member is already in active mappings
       const isInMapping = currentMappings.some(mapping => mapping.discordUserId === member.id);
@@ -697,18 +1007,30 @@ document.addEventListener("DOMContentLoaded", () => {
     trigger.setAttribute("readonly", "");
   }
 
-  async function loadJellyseerrUsers() {
-    if (usersLoaded && jellyseerrUsers.length > 0) {
+  async function loadJellyseerrUsers(forceRefresh = false) {
+    // Try cache first
+    if (!forceRefresh) {
+      const cachedUsers = loadFromCache(JELLYSEERR_USERS_CACHE_KEY);
+      if (cachedUsers && cachedUsers.length > 0) {
+        jellyseerrUsers = cachedUsers;
+        usersLoaded = true;
+        populateJellyseerrUserSelect();
+        return;
+      }
+    }
+
+    if (usersLoaded && jellyseerrUsers.length > 0 && !forceRefresh) {
       return;
     }
-    
+
     try {
       const response = await fetch("/api/jellyseerr-users");
       const data = await response.json();
-      
+
       if (data.success && data.users) {
         jellyseerrUsers = data.users;
         usersLoaded = true;
+        saveToCache(JELLYSEERR_USERS_CACHE_KEY, data.users);
         populateJellyseerrUserSelect();
       } else {
         console.error("Failed to load Jellyseerr users:", data.message);
@@ -816,23 +1138,72 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const response = await fetch("/api/user-mappings");
       currentMappings = await response.json(); // Array with metadata
-      
-      // Display mappings first (without avatars if members not loaded)
-      displayMappings();
-      
-      // Then try to load Discord members for avatars
+
+      // Always try to load members from cache first
       if (!membersLoaded && currentMappings.length > 0) {
-        try {
-          await loadDiscordMembers();
-          // Re-display with avatars
-          displayMappings();
-        } catch (error) {
-          console.error("Error loading Discord members for avatars:", error);
-          // Keep the display without avatars
+        await loadDiscordMembers(); // Will use cache if available
+      }
+
+      // Load Jellyseerr users if not loaded
+      if (!usersLoaded && currentMappings.length > 0) {
+        await loadJellyseerrUsers();
+      }
+
+      // Check if we need to update any mappings with missing metadata
+      let needsUpdate = false;
+      for (const mapping of currentMappings) {
+        if (!mapping.discordDisplayName || !mapping.jellyseerrDisplayName) {
+          needsUpdate = true;
+          break;
         }
       }
+
+      // If mappings need update and we have the data loaded, update them
+      if (needsUpdate && membersLoaded && usersLoaded) {
+        await updateMappingsMetadata();
+      }
+
+      // Display mappings (with avatars if members loaded)
+      displayMappings();
     } catch (error) {
       console.error("Error loading mappings:", error);
+    }
+  }
+
+  // Update mappings that have missing metadata
+  async function updateMappingsMetadata() {
+    try {
+      for (const mapping of currentMappings) {
+        if (!mapping.discordDisplayName || !mapping.discordAvatar || !mapping.jellyseerrDisplayName) {
+          const discordMember = discordMembers.find(m => m.id === mapping.discordUserId);
+          const jellyseerrUser = jellyseerrUsers.find(u => String(u.id) === String(mapping.jellyseerrUserId));
+
+          if (discordMember || jellyseerrUser) {
+            const updatedData = {
+              discordUserId: mapping.discordUserId,
+              jellyseerrUserId: mapping.jellyseerrUserId,
+              discordUsername: discordMember?.username || mapping.discordUsername,
+              discordDisplayName: discordMember?.displayName || mapping.discordDisplayName,
+              discordAvatar: discordMember?.avatar || mapping.discordAvatar,
+              jellyseerrDisplayName: jellyseerrUser?.displayName || mapping.jellyseerrDisplayName
+            };
+
+            console.log('Updating mapping metadata for Discord user:', mapping.discordUserId);
+
+            await fetch("/api/user-mappings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(updatedData)
+            });
+          }
+        }
+      }
+
+      // Reload mappings after update
+      const response = await fetch("/api/user-mappings");
+      currentMappings = await response.json();
+    } catch (error) {
+      console.error("Error updating mappings metadata:", error);
     }
   }
 
@@ -846,26 +1217,42 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     container.innerHTML = currentMappings.map(mapping => {
-      // Use saved metadata first, fallback to live data if available
-      const discordName = mapping.discordDisplayName 
+      // Always prefer saved display names, fallback to IDs only if nothing saved
+      const discordName = mapping.discordDisplayName
         ? `${mapping.discordDisplayName}${mapping.discordUsername ? ` (@${mapping.discordUsername})` : ''}`
-        : `Discord ID: ${mapping.discordUserId}`;
+        : (mapping.discordUsername ? `@${mapping.discordUsername}` : `Discord ID: ${mapping.discordUserId}`);
+
+      // Dynamic lookup for Jellyseerr user to ensure fresh data
+      let jellyseerrName = mapping.jellyseerrDisplayName;
+      const jellyseerrUser = jellyseerrUsers.find(u => String(u.id) === String(mapping.jellyseerrUserId));
       
-      const jellyseerrName = mapping.jellyseerrDisplayName || `User ID: ${mapping.jellyseerrUserId}`;
-      
-      // Avatar for Discord user - try to find from loaded members
-      const discordMember = discordMembers.find(m => m.id === mapping.discordUserId);
-      const avatarHtml = discordMember?.avatar 
-        ? `<img src="${discordMember.avatar}" style="width: 42px; height: 42px; border-radius: 50%; margin-right: 0.75rem; flex-shrink: 0;" alt="${discordName}">`
+      if (jellyseerrUser) {
+        jellyseerrName = jellyseerrUser.displayName;
+        if (jellyseerrUser.email) {
+          jellyseerrName += ` (${jellyseerrUser.email})`;
+        }
+      } else if (!jellyseerrName) {
+        jellyseerrName = `Jellyseerr ID: ${mapping.jellyseerrUserId}`;
+      }
+
+      // Avatar priority: saved in mapping -> find from loaded members -> no avatar
+      let avatarUrl = mapping.discordAvatar;
+      if (!avatarUrl) {
+        const discordMember = discordMembers.find(m => m.id === mapping.discordUserId);
+        avatarUrl = discordMember?.avatar;
+      }
+
+      const avatarHtml = avatarUrl
+        ? `<img src="${avatarUrl}" style="width: 42px; height: 42px; border-radius: 50%; margin-right: 0.75rem; flex-shrink: 0;" alt="${discordName}">`
         : '';
-      
+
       return `
         <div class="mapping-item">
           <div style="display: flex; align-items: center;">
             ${avatarHtml}
             <div>
-              <div style="font-weight: 600; color: var(--blue);">${discordName}</div>
-              <div style="opacity: 0.8; font-size: 0.9rem;">→ Jellyseerr: ${jellyseerrName}</div>
+              <div style="font-weight: 600; color: var(--blue);">${escapeHtml(discordName)}</div>
+              <div style="opacity: 0.8; font-size: 0.9rem;">→ Jellyseerr: ${escapeHtml(jellyseerrName)}</div>
             </div>
           </div>
           <button class="btn btn-danger btn-sm" onclick="deleteMapping('${mapping.discordUserId}')" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
@@ -910,21 +1297,30 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Extract display names from the selected options
+      // Extract display names and avatar from the selected options
       const discordMember = discordMembers.find(m => m.id === discordUserId);
       const jellyseerrUser = jellyseerrUsers.find(u => String(u.id) === String(jellyseerrUserId));
+
+      console.log('Discord Member found:', discordMember);
+      console.log('Jellyseerr User found:', jellyseerrUser);
+
+      // Prepare data for submission
+      const mappingData = {
+        discordUserId,
+        jellyseerrUserId,
+        discordUsername: discordMember?.username || null,
+        discordDisplayName: discordMember?.displayName || null,
+        discordAvatar: discordMember?.avatar || null,
+        jellyseerrDisplayName: jellyseerrUser?.displayName || null
+      };
+
+      console.log('Mapping data being sent:', mappingData);
 
       try {
         const response = await fetch("/api/user-mappings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            discordUserId, 
-            jellyseerrUserId,
-            discordUsername: discordMember?.username || null,
-            discordDisplayName: discordMember?.displayName || null,
-            jellyseerrDisplayName: jellyseerrUser?.displayName || null
-          }),
+          body: JSON.stringify(mappingData),
         });
         const result = await response.json();
 
@@ -1225,6 +1621,7 @@ document.addEventListener("DOMContentLoaded", () => {
     container.innerHTML = guildRoles.map(role => {
       const isChecked = selectedRoles.includes(role.id);
       const listType = containerId.includes('allowlist') ? 'allowlist' : 'blocklist';
+      const roleColor = (role.color && role.color !== '#000000') ? role.color : '#b8bdc2';
 
       return `
         <label class="role-item">
@@ -1232,7 +1629,7 @@ document.addEventListener("DOMContentLoaded", () => {
                  name="${listType === 'allowlist' ? 'ROLE_ALLOWLIST' : 'ROLE_BLOCKLIST'}"
                  value="${role.id}"
                  ${isChecked ? 'checked' : ''}>
-          <div class="role-color-indicator" style="background-color: ${role.color || '#99aab5'};"></div>
+          <div class="role-color-indicator" style="background-color: ${roleColor};"></div>
           <span class="role-name">${role.name}</span>
           <span class="role-member-count">${role.memberCount || 0} members</span>
         </label>
@@ -1250,19 +1647,45 @@ document.addEventListener("DOMContentLoaded", () => {
   const botControlTextLogs = document.getElementById("bot-control-text-logs");
   let currentLogsTab = "all";
 
+  // Track if we're on logs page for polling
+  let logsPageActive = false;
+  let logsPollingInterval = null;
+
   // Logs page button click handler
   logsPageBtn.addEventListener("click", async () => {
     setupSection.style.display = "none";
-    logsSection.style.display = "block";
+    logsSection.style.display = "flex";
+
+    // Hide only hero and footer, keep navbar
+    document.querySelector(".hero").style.display = "none";
+    document.querySelector(".footer").style.display = "none";
+
+    logsPageActive = true;
+
     window.scrollTo(0, 0);
     await loadLogs(currentLogsTab);
-    updateConnectionStatus();
-    updateBotControlButtonLogs();
+    await updateConnectionStatus();
+    await updateBotControlButtonLogs();
+
+    // Start polling for status updates
+    if (logsPollingInterval) {
+      clearInterval(logsPollingInterval);
+    }
+    logsPollingInterval = setInterval(async () => {
+      if (logsPageActive) {
+        await updateBotControlButtonLogs();
+      }
+    }, 10000); // Poll every 10 seconds
   });
 
   // Logs tab switching
   logsTabBtns.forEach(btn => {
     btn.addEventListener("click", async () => {
+      // Skip if this is the refresh button
+      if (btn.id === "refresh-logs-btn") {
+        return;
+      }
+
       logsTabBtns.forEach(b => {
         b.classList.remove("active");
       });
@@ -1272,17 +1695,33 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  // Refresh logs button
+  const refreshLogsBtn = document.getElementById("refresh-logs-btn");
+  if (refreshLogsBtn) {
+    refreshLogsBtn.addEventListener("click", async () => {
+      const icon = refreshLogsBtn.querySelector("i");
+      icon.style.animation = "spin 0.5s linear";
+      await loadLogs(currentLogsTab);
+      setTimeout(() => {
+        icon.style.animation = "";
+      }, 500);
+    });
+  }
+
   // Load and display logs
   async function loadLogs(type) {
     try {
-      logsContainer.innerHTML = '<div style="text-align: center; color: var(--subtext0);">Loading logs...</div>';
+      logsContainer.innerHTML = '<div style="text-align: center; color: var(--subtext0); padding: 2rem;">Loading logs...</div>';
       const endpoint = type === "error" ? "/api/logs/error" : "/api/logs/all";
       const response = await fetch(endpoint);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
 
       if (data.entries.length === 0) {
-        logsContainer.innerHTML = '<div class="logs-empty">No logs available</div>';
+        const emptyMessage = type === "error"
+          ? 'No errors found'
+          : 'No logs available';
+        logsContainer.innerHTML = `<div class="logs-empty">${emptyMessage}</div>`;
         return;
       }
 
@@ -1310,57 +1749,129 @@ document.addEventListener("DOMContentLoaded", () => {
     const jellyseerrIndicator = document.getElementById("jellyseerr-status-indicator");
     const jellyfinIndicator = document.getElementById("jellyfin-status-indicator");
 
-    // Set to pending (yellow) while checking
-    jellyseerrIndicator.style.backgroundColor = "#f9e2af";
-    jellyfinIndicator.style.backgroundColor = "#f9e2af";
-
-    // Test Jellyseerr
-    try {
-      const jellyseerrResponse = await fetch("/api/test-jellyseerr", { method: "POST" });
-      jellyseerrIndicator.style.backgroundColor = jellyseerrResponse.ok ? "#a6e3a1" : "#f38ba8";
-    } catch (error) {
-      jellyseerrIndicator.style.backgroundColor = "#f38ba8";
+    if (!jellyseerrIndicator || !jellyfinIndicator) {
+      return; // Not on logs page
     }
 
-    // Test Jellyfin
+    // Set to checking state
+    jellyseerrIndicator.className = "status-dot status-checking";
+    jellyfinIndicator.className = "status-dot status-checking";
+
+    // Test Jellyseerr - get current config values
     try {
-      const jellyfinResponse = await fetch("/api/test-jellyfin", { method: "POST" });
-      jellyfinIndicator.style.backgroundColor = jellyfinResponse.ok ? "#a6e3a1" : "#f38ba8";
+      const configResponse = await fetch("/api/config");
+      const config = await configResponse.json();
+
+      const jellyseerrUrl = config.JELLYSEERR_URL;
+      const jellyseerrApiKey = config.JELLYSEERR_API_KEY;
+
+      if (!jellyseerrUrl || !jellyseerrApiKey) {
+        jellyseerrIndicator.className = "status-dot status-disconnected";
+      } else {
+        const jellyseerrResponse = await fetch("/api/test-jellyseerr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: jellyseerrUrl, apiKey: jellyseerrApiKey })
+        });
+
+        if (jellyseerrResponse.ok) {
+          jellyseerrIndicator.className = "status-dot status-connected";
+        } else {
+          jellyseerrIndicator.className = "status-dot status-disconnected";
+        }
+      }
     } catch (error) {
-      jellyfinIndicator.style.backgroundColor = "#f38ba8";
+      console.error("Jellyseerr connection error:", error);
+      jellyseerrIndicator.className = "status-dot status-disconnected";
+    }
+
+    // Test Jellyfin - get current config values
+    try {
+      const configResponse = await fetch("/api/config");
+      const config = await configResponse.json();
+
+      const jellyfinUrl = config.JELLYFIN_BASE_URL;
+      const jellyfinApiKey = config.JELLYFIN_API_KEY;
+
+      if (!jellyfinUrl || !jellyfinApiKey) {
+        jellyfinIndicator.className = "status-dot status-disconnected";
+      } else {
+        const jellyfinResponse = await fetch("/api/test-jellyfin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: jellyfinUrl, apiKey: jellyfinApiKey })
+        });
+
+        if (jellyfinResponse.ok) {
+          jellyfinIndicator.className = "status-dot status-connected";
+        } else {
+          jellyfinIndicator.className = "status-dot status-disconnected";
+        }
+      }
+    } catch (error) {
+      console.error("Jellyfin connection error:", error);
+      jellyfinIndicator.className = "status-dot status-disconnected";
     }
   }
 
   // Update bot control button for logs page
-  function updateBotControlButtonLogs() {
-    if (isBotRunning) {
-      botControlBtnLogs.classList.remove("btn-danger");
-      botControlBtnLogs.classList.add("btn-success");
-      botControlBtnLogs.querySelector("i").className = "bi bi-stop-fill";
-      botControlTextLogs.textContent = "Stop Bot";
-    } else {
-      botControlBtnLogs.classList.remove("btn-success");
-      botControlBtnLogs.classList.add("btn-danger");
-      botControlBtnLogs.querySelector("i").className = "bi bi-play-fill";
-      botControlTextLogs.textContent = "Start Bot";
+  async function updateBotControlButtonLogs() {
+    try {
+      const response = await fetch("/api/status");
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const status = await response.json();
+
+      const isRunning = status.isBotRunning;
+
+      if (isRunning) {
+        botControlBtnLogs.classList.remove("btn-success");
+        botControlBtnLogs.classList.add("btn-danger");
+        botControlBtnLogs.querySelector("i").className = "bi bi-pause-fill";
+        botControlTextLogs.textContent = "Stop Bot";
+      } else {
+        botControlBtnLogs.classList.remove("btn-danger");
+        botControlBtnLogs.classList.add("btn-success");
+        botControlBtnLogs.querySelector("i").className = "bi bi-play-fill";
+        botControlTextLogs.textContent = "Start Bot";
+      }
+    } catch (error) {
+      console.error("Error fetching bot status:", error);
     }
   }
 
   // Bot control button for logs page
   botControlBtnLogs.addEventListener("click", async () => {
     try {
-      const endpoint = isBotRunning ? "/api/stop-bot" : "/api/start-bot";
+      // Get current status first
+      const statusResponse = await fetch("/api/status");
+      const statusData = await statusResponse.json();
+      const isRunning = statusData.isBotRunning;
+
+      const endpoint = isRunning ? "/api/stop-bot" : "/api/start-bot";
+
+      botControlBtnLogs.disabled = true;
+      const originalText = botControlTextLogs.textContent;
+      botControlTextLogs.textContent = "Processing...";
+
       const response = await fetch(endpoint, { method: "POST" });
       const data = await response.json();
-      showToast(data.message);
-      isBotRunning = !isBotRunning;
-      updateBotControlButtonLogs();
-      // Also update the configuration page button
-      if (botControlBtn) {
-        updateBotControlButton();
+
+      if (!response.ok) {
+        showToast(`Error: ${data.message}`);
+        botControlTextLogs.textContent = originalText;
+        botControlBtnLogs.disabled = false;
+      } else {
+        showToast(data.message);
+        setTimeout(async () => {
+          await updateBotControlButtonLogs();
+          await fetchStatus(); // Update main page button too
+          botControlBtnLogs.disabled = false;
+        }, 1000);
       }
     } catch (error) {
-      showToast(`Error: ${error.message}`);
+      console.error(`Error with bot control:`, error);
+      showToast(`Failed to control bot.`);
+      botControlBtnLogs.disabled = false;
     }
   });
 
@@ -1370,6 +1881,19 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     logsSection.style.display = "none";
     setupSection.style.display = "block";
+
+    // Show hero and footer again
+    document.querySelector(".hero").style.display = "block";
+    document.querySelector(".footer").style.display = "block";
+
+    logsPageActive = false;
+
+    // Stop polling
+    if (logsPollingInterval) {
+      clearInterval(logsPollingInterval);
+      logsPollingInterval = null;
+    }
+
     window.scrollTo(0, 0);
   });
 

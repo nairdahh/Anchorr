@@ -26,6 +26,7 @@ import logger from "./utils/logger.js";
 import { validateBody, configSchema, userMappingSchema } from "./utils/validation.js";
 import cache from "./utils/cache.js";
 import { COLORS, TIMEOUTS } from "./config/constants.js";
+import { jellyfinPoller } from "./jellyfinPoller.js";
 
 // --- CONFIGURATION ---
 // Use /config volume if in Docker, otherwise use current directory
@@ -117,6 +118,26 @@ function loadConfig() {
       // Normalize JELLYSEERR_URL to remove /api/v1 suffix if present
       if (config.JELLYSEERR_URL && typeof config.JELLYSEERR_URL === 'string') {
         config.JELLYSEERR_URL = config.JELLYSEERR_URL.replace(/\/api\/v1\/?$/, '');
+      }
+
+      // Auto-migrate JELLYFIN_NOTIFICATION_LIBRARIES from array to object format
+      if (Array.isArray(config.JELLYFIN_NOTIFICATION_LIBRARIES)) {
+        logger.info("🔄 Migrating JELLYFIN_NOTIFICATION_LIBRARIES from array to object format...");
+        const defaultChannel = config.JELLYFIN_CHANNEL_ID || '';
+        const migratedLibraries = {};
+        config.JELLYFIN_NOTIFICATION_LIBRARIES.forEach(libId => {
+          migratedLibraries[libId] = defaultChannel;
+        });
+        config.JELLYFIN_NOTIFICATION_LIBRARIES = migratedLibraries;
+
+        // Save migrated config back to file
+        try {
+          fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o600 });
+          logger.info("✅ Successfully migrated JELLYFIN_NOTIFICATION_LIBRARIES to object format");
+          logger.info(`   Mapped ${Object.keys(migratedLibraries).length} libraries to default channel: ${defaultChannel || '(none set)'}`);
+        } catch (error) {
+          logger.error("Failed to save migrated config:", error);
+        }
       }
 
       // Load config into process.env for compatibility with existing code
@@ -1048,9 +1069,18 @@ async function startBot() {
   });
 
   return new Promise((resolve, reject) => {
-    client.once("clientReady", () => {
+    client.once("clientReady", async () => {
       logger.info(`✅ Bot logged in as ${client.user.tag}`);
       isBotRunning = true;
+
+      // Start Jellyfin polling service
+      try {
+        await jellyfinPoller.start(client, pendingRequests);
+        logger.info("✅ Jellyfin poller started successfully");
+      } catch (error) {
+        logger.error("Failed to start Jellyfin poller:", error);
+      }
+
       resolve({ success: true, message: `Logged in as ${client.user.tag}` });
     });
 
@@ -1765,6 +1795,15 @@ function configureWebServer() {
     if (!isBotRunning || !discordClient) {
       return res.status(400).json({ message: "Bot is not running." });
     }
+
+    // Stop Jellyfin polling service
+    try {
+      jellyfinPoller.stop();
+      logger.info("Jellyfin poller stopped");
+    } catch (error) {
+      logger.error("Error stopping Jellyfin poller:", error);
+    }
+
     await discordClient.destroy();
     isBotRunning = false;
     discordClient = null;
