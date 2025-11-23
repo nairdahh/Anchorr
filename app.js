@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import express from "express";
+import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import { handleJellyfinWebhook } from "./jellyfinWebhook.js";
 import { configTemplate } from "./config/config.js";
@@ -27,6 +28,7 @@ import { validateBody, configSchema, userMappingSchema } from "./utils/validatio
 import cache from "./utils/cache.js";
 import { COLORS, TIMEOUTS } from "./config/constants.js";
 import { jellyfinPoller } from "./jellyfinPoller.js";
+import { login, register, logout, checkAuth, authenticateToken } from "./utils/auth.js";
 
 // --- CONFIGURATION ---
 // Use /config volume if in Docker, otherwise use current directory
@@ -1105,6 +1107,7 @@ async function startBot() {
 function configureWebServer() {
     // Middleware for parsing JSON bodies - MUST be before routes that use req.body
     app.use(express.json());
+    app.use(cookieParser());
 
     // Rate limiting middleware - DoS protection
     const apiLimiter = rateLimit({
@@ -1123,11 +1126,17 @@ function configureWebServer() {
       legacyHeaders: false,
     });
 
-    // Apply rate limiting to all API endpoints
+    // --- AUTH ENDPOINTS (no rate limiting for auth) ---
+    app.post("/api/auth/login", login);
+    app.post("/api/auth/register", register);
+    app.post("/api/auth/logout", logout);
+    app.get("/api/auth/check", checkAuth);
+
+    // Apply rate limiting to all API endpoints (except auth)
     app.use('/api/', apiLimiter);
 
     // Endpoint pentru lista de servere Discord (guilds)
-    app.get("/api/discord/guilds", async (req, res) => {
+    app.get("/api/discord/guilds", authenticateToken, async (req, res) => {
       try {
         if (!discordClient || !discordClient.user) {
           logger.debug("[GUILDS API] Bot not running or not logged in.");
@@ -1148,7 +1157,7 @@ function configureWebServer() {
     });
 
     // Endpoint pentru lista de canale Discord dintr-un server
-    app.get("/api/discord/channels/:guildId", async (req, res) => {
+    app.get("/api/discord/channels/:guildId", authenticateToken, async (req, res) => {
       try {
         const { guildId } = req.params;
         if (!discordClient || !discordClient.user) {
@@ -1183,7 +1192,7 @@ function configureWebServer() {
     });
 
     // Endpoint pentru membrii Discord dintr-un server
-    app.get("/api/discord-members", async (req, res) => {
+    app.get("/api/discord-members", authenticateToken, async (req, res) => {
       try {
         logger.debug("[MEMBERS API] Request received");
         if (!discordClient || !discordClient.user) {
@@ -1247,7 +1256,7 @@ function configureWebServer() {
     });
 
     // Endpoint pentru rolurile Discord dintr-un server
-    app.get("/api/discord-roles", async (req, res) => {
+    app.get("/api/discord-roles", authenticateToken, async (req, res) => {
       try {
         logger.debug("[ROLES API] Request received");
         if (!discordClient || !discordClient.user) {
@@ -1290,7 +1299,7 @@ function configureWebServer() {
     });
 
     // Endpoint pentru utilizatorii Jellyseerr
-    app.get("/api/jellyseerr-users", async (req, res) => {
+    app.get("/api/jellyseerr-users", authenticateToken, async (req, res) => {
       try {
         logger.debug("[JELLYSEERR USERS API] Request received");
         const jellyseerrUrl = process.env.JELLYSEERR_URL;
@@ -1357,7 +1366,7 @@ function configureWebServer() {
     });
 
     // Endpoint pentru mapările utilizatorilor
-    app.get("/api/user-mappings", (req, res) => {
+    app.get("/api/user-mappings", authenticateToken, (req, res) => {
       // Load from config.json
       if (fs.existsSync(CONFIG_PATH)) {
         try {
@@ -1374,7 +1383,7 @@ function configureWebServer() {
       }
     });
 
-    app.post("/api/user-mappings", validateBody(userMappingSchema), (req, res) => {
+    app.post("/api/user-mappings", authenticateToken, validateBody(userMappingSchema), (req, res) => {
       const { discordUserId, jellyseerrUserId, discordUsername, discordDisplayName, jellyseerrDisplayName } = req.body;
 
       if (!discordUserId || !jellyseerrUserId) {
@@ -1523,7 +1532,7 @@ function configureWebServer() {
     handleJellyfinWebhook(req, res, discordClient, pendingRequests);
   });
 
-  app.get("/api/config", (req, res) => {
+  app.get("/api/config", authenticateToken, (req, res) => {
     if (fs.existsSync(CONFIG_PATH)) {
       const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
       const config = JSON.parse(rawData);
@@ -1534,7 +1543,7 @@ function configureWebServer() {
     }
   });
 
-  app.post("/api/save-config", configLimiter, validateBody(configSchema), async (req, res) => {
+  app.post("/api/save-config", authenticateToken, configLimiter, validateBody(configSchema), async (req, res) => {
     const configData = req.body;
     const oldToken = process.env.DISCORD_TOKEN;
     const oldGuildId = process.env.GUILD_ID;
@@ -1603,7 +1612,7 @@ function configureWebServer() {
     }
   });
 
-  app.post("/api/test-jellyseerr", async (req, res) => {
+  app.post("/api/test-jellyseerr", authenticateToken, async (req, res) => {
     const { url, apiKey } = req.body;
     if (!url || !apiKey) {
       return res
@@ -1644,7 +1653,7 @@ function configureWebServer() {
     }
   });
 
-  app.post("/api/test-jellyfin", async (req, res) => {
+  app.post("/api/test-jellyfin", authenticateToken, async (req, res) => {
     const { url } = req.body;
     if (!url) {
       return res
@@ -1744,7 +1753,7 @@ function configureWebServer() {
   }
 
   // API endpoint for error logs
-  app.get("/api/logs/error", (req, res) => {
+  app.get("/api/logs/error", authenticateToken, (req, res) => {
     const logsDir = path.join(process.cwd(), "logs");
     const errorLogPath = path.join(logsDir, "error.log");
     const logs = parseLogFile(errorLogPath);
@@ -1756,7 +1765,7 @@ function configureWebServer() {
   });
 
   // API endpoint for all logs
-  app.get("/api/logs/all", (req, res) => {
+  app.get("/api/logs/all", authenticateToken, (req, res) => {
     const logsDir = path.join(process.cwd(), "logs");
     const combinedLogPath = path.join(logsDir, "combined.log");
     const logs = parseLogFile(combinedLogPath);
@@ -1767,7 +1776,7 @@ function configureWebServer() {
     });
   });
 
-  app.get("/api/status", (req, res) => {
+  app.get("/api/status", authenticateToken, (req, res) => {
     res.json({
       isBotRunning,
       botUsername:
@@ -1775,7 +1784,7 @@ function configureWebServer() {
     });
   });
 
-  app.post("/api/start-bot", async (req, res) => {
+  app.post("/api/start-bot", authenticateToken, async (req, res) => {
     if (isBotRunning) {
       return res.status(400).json({ message: "Bot is already running." });
     }
@@ -1791,7 +1800,7 @@ function configureWebServer() {
     }
   });
 
-  app.post("/api/stop-bot", async (req, res) => {
+  app.post("/api/stop-bot", authenticateToken, async (req, res) => {
     if (!isBotRunning || !discordClient) {
       return res.status(400).json({ message: "Bot is not running." });
     }

@@ -630,38 +630,80 @@ document.addEventListener("DOMContentLoaded", () => {
           if (libraries.length === 0) {
             librariesList.innerHTML = '<div class="libraries-empty">No libraries found.</div>';
           } else {
-            // Get currently enabled libraries (or all by default)
-            let enabledIds = [];
+            // Get currently enabled libraries (object format: { libraryId: channelId })
+            let libraryChannels = {};
             try {
               const currentValue = notificationLibrariesInput.value;
-              enabledIds = currentValue ? JSON.parse(currentValue) : [];
+              if (currentValue) {
+                const parsed = JSON.parse(currentValue);
+                // Handle both array (legacy) and object format
+                if (Array.isArray(parsed)) {
+                  // Convert array to object with default channel
+                  const defaultChannel = document.getElementById("JELLYFIN_CHANNEL_ID").value || '';
+                  parsed.forEach(libId => {
+                    libraryChannels[libId] = defaultChannel;
+                  });
+                } else {
+                  libraryChannels = parsed;
+                }
+              }
             } catch (e) {
-              enabledIds = [];
+              libraryChannels = {};
             }
 
-            // If no libraries selected yet, enable all by default
-            const allChecked = enabledIds.length === 0;
+            // If no libraries selected yet, enable all by default with default channel
+            const allEnabled = Object.keys(libraryChannels).length === 0;
+            const defaultChannel = document.getElementById("JELLYFIN_CHANNEL_ID").value || '';
 
-            librariesList.innerHTML = libraries.map(lib => `
-              <div class="library-item">
-                <label>
+            librariesList.innerHTML = libraries.map(lib => {
+              const isChecked = allEnabled || libraryChannels.hasOwnProperty(lib.id);
+              const selectedChannel = libraryChannels[lib.id] || defaultChannel;
+
+              return `
+              <div class="library-item" style="display: flex; align-items: center; padding: 1rem; border: 1px solid var(--surface0); border-radius: 8px; margin-bottom: 0.75rem;">
+                <label style="display: flex; align-items: center; flex: 1; cursor: pointer;">
                   <input
                     type="checkbox"
                     value="${lib.id}"
                     class="library-checkbox"
-                    ${allChecked || enabledIds.includes(lib.id) ? 'checked' : ''}
+                    ${isChecked ? 'checked' : ''}
+                    style="margin-right: 1rem;"
                   />
-                  <div class="library-info">
-                    <span class="library-name">${lib.name}</span>
-                    <span class="library-type">${lib.type}</span>
+                  <div class="library-info" style="flex: 1;">
+                    <span class="library-name" style="font-weight: 600; color: var(--text); font-size: 0.95rem;">${lib.name}</span>
+                    <span class="library-type" style="font-size: 0.85rem; color: var(--subtext0); text-transform: capitalize; margin-left: 0.5rem;">(${lib.type})</span>
                   </div>
                 </label>
+                <select
+                  class="library-channel-select"
+                  data-library-id="${lib.id}"
+                  style="min-width: 200px; background-color: var(--background); border: 1px solid var(--surface1); color: var(--text); padding: 0.5rem; border-radius: 6px; font-size: 0.9rem;"
+                  ${!isChecked ? 'disabled' : ''}
+                >
+                  <option value="">Use Default Channel</option>
+                </select>
               </div>
-            `).join('');
+            `;
+            }).join('');
+
+            // Populate channel dropdowns
+            populateLibraryChannelDropdowns(libraryChannels);
 
             // Add change listeners to all checkboxes
             librariesList.querySelectorAll('.library-checkbox').forEach(cb => {
-              cb.addEventListener('change', updateNotificationLibraries);
+              cb.addEventListener('change', (e) => {
+                const libraryId = e.target.value;
+                const select = librariesList.querySelector(`select[data-library-id="${libraryId}"]`);
+                if (select) {
+                  select.disabled = !e.target.checked;
+                }
+                updateNotificationLibraries();
+              });
+            });
+
+            // Add change listeners to all channel selects
+            librariesList.querySelectorAll('.library-channel-select').forEach(select => {
+              select.addEventListener('change', updateNotificationLibraries);
             });
 
             // Initial update to populate hidden input
@@ -684,11 +726,49 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Update the hidden input with selected notification libraries
+  // Populate channel dropdowns with available Discord channels
+  async function populateLibraryChannelDropdowns(libraryChannels) {
+    const guildId = document.getElementById("GUILD_ID").value;
+    if (!guildId) {
+      return; // Can't fetch channels without guild ID
+    }
+
+    try {
+      const response = await fetch(`/api/discord/channels/${guildId}`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+      if (!data.success || !data.channels) return;
+
+      const channels = data.channels;
+      const selects = librariesList.querySelectorAll('.library-channel-select');
+
+      selects.forEach(select => {
+        const libraryId = select.dataset.libraryId;
+        const currentChannel = libraryChannels[libraryId] || '';
+
+        // Clear and populate options
+        select.innerHTML = '<option value="">Use Default Channel</option>' +
+          channels.map(ch => `<option value="${ch.id}" ${currentChannel === ch.id ? 'selected' : ''}>#${ch.name}</option>`).join('');
+      });
+    } catch (error) {
+      console.error("Failed to populate library channel dropdowns:", error);
+    }
+  }
+
+  // Update the hidden input with selected notification libraries (object format)
   function updateNotificationLibraries() {
     const checkboxes = librariesList.querySelectorAll('.library-checkbox:checked');
-    const enabledIds = Array.from(checkboxes).map(cb => cb.value);
-    notificationLibrariesInput.value = JSON.stringify(enabledIds);
+    const libraryChannels = {};
+
+    checkboxes.forEach(cb => {
+      const libraryId = cb.value;
+      const select = librariesList.querySelector(`select[data-library-id="${libraryId}"]`);
+      const channelId = select ? select.value : '';
+      libraryChannels[libraryId] = channelId; // Empty string means "use default"
+    });
+
+    notificationLibrariesInput.value = JSON.stringify(libraryChannels);
   }
 
   // --- Initial Load ---
