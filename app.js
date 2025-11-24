@@ -98,7 +98,7 @@ function migrateEnvToConfig() {
         fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
       }
       
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(migratedConfig, null, 2), { mode: 0o600 });
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(migratedConfig, null, 2), { mode: 0o666 });
       logger.info("✅ Migration successful! config.json created from .env");
       logger.info(
         "📝 You can now delete the .env file as it's no longer needed."
@@ -137,7 +137,7 @@ function loadConfig() {
 
         // Save migrated config back to file
         try {
-          fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o600 });
+          fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o666 });
           logger.info("✅ Successfully migrated JELLYFIN_NOTIFICATION_LIBRARIES to object format");
           logger.info(`   Mapped ${Object.keys(migratedLibraries).length} libraries to default channel: ${defaultChannel || '(none set)'}`);
         } catch (error) {
@@ -706,11 +706,48 @@ async function startBot() {
 
       // Autocomplete
       if (interaction.isAutocomplete()) {
-        const focused = interaction.options.getFocused();
-        if (!focused) return interaction.respond([]);
+        const focusedOption = interaction.options.getFocused(true);
+        const focusedValue = focusedOption.value;
+
+        // Handle Tag Autocomplete
+        if (focusedOption.name === 'tag') {
+          try {
+            const allTags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
+            
+            // Filter tags based on user input
+            const filteredTags = allTags.filter(tag => {
+              const label = tag.label || tag.name || '';
+              return label.toLowerCase().includes(focusedValue.toLowerCase());
+            });
+
+            // Deduplicate by label/name
+            const uniqueTags = [];
+            const seenLabels = new Set();
+            
+            for (const tag of filteredTags) {
+              const label = tag.label || tag.name;
+              if (label && !seenLabels.has(label)) {
+                seenLabels.add(label);
+                uniqueTags.push({
+                  name: label,
+                  value: label // Pass the label as value, we'll map it to ID later
+                });
+              }
+            }
+
+            // Limit to 25 choices (Discord limit)
+            return await interaction.respond(uniqueTags.slice(0, 25));
+          } catch (e) {
+            logger.error('Tag autocomplete error:', e);
+            return await interaction.respond([]);
+          }
+        }
+
+        // Handle Title Autocomplete (existing logic)
+        if (!focusedValue) return interaction.respond([]);
         
         try {
-          const results = await tmdbApi.tmdbSearch(focused, TMDB_API_KEY);
+          const results = await tmdbApi.tmdbSearch(focusedValue, TMDB_API_KEY);
           const filtered = results
             .filter((r) => r.media_type === "movie" || r.media_type === "tv")
             .slice(0, 25);
@@ -799,8 +836,11 @@ async function startBot() {
         const raw = getOptionStringRobust(interaction);
         if (interaction.commandName === "search")
           return handleSearchOrRequest(interaction, raw, "search");
-        if (interaction.commandName === "request")
-          return handleSearchOrRequest(interaction, raw, "request");
+        if (interaction.commandName === "request") {
+          const tag = interaction.options.getString('tag');
+          // Pass tag as an array if present
+          return handleSearchOrRequest(interaction, raw, "request", tag ? [tag] : []);
+        }
       }
 
       // ===== REQUEST BUTTON HANDLER (NEW FLOW) =====
@@ -1168,8 +1208,8 @@ function configureWebServer() {
     });
 
     const configLimiter = rateLimit({
-      windowMs: 5 * 60 * 1000, // 5 minutes
-      max: 10, // Limit config changes to 10 per 5 minutes
+      windowMs: 1 * 60 * 1000, // 1 minute
+      max: 50, // Limit config changes to 50 per minute
       message: { success: false, error: 'Too many configuration changes, please slow down.' },
       standardHeaders: true,
       legacyHeaders: false,
@@ -1496,7 +1536,7 @@ function configureWebServer() {
         }
 
         // Save updated config
-        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o600 });
+        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o666 });
 
         res.json({ success: true, message: "Mapping saved successfully." });
       } catch (error) {
@@ -1531,7 +1571,7 @@ function configureWebServer() {
         }
 
         // Save updated config
-        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o600 });
+        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o666 });
 
         res.json({ success: true, message: "Mapping deleted successfully." });
       } catch (error) {
@@ -1636,8 +1676,12 @@ function configureWebServer() {
       const finalConfig = {
         ...existingConfig,
         ...configData,
-        // Ensure USER_MAPPINGS is preserved
-        USER_MAPPINGS: existingConfig.USER_MAPPINGS || []
+        // Ensure USER_MAPPINGS, USERS, and JWT_SECRET are preserved
+        USER_MAPPINGS: existingConfig.USER_MAPPINGS || [],
+        USERS: existingConfig.USERS || [],
+        JWT_SECRET: existingConfig.JWT_SECRET || process.env.JWT_SECRET,
+        // Safety check for library mappings - prefer new config, fallback to existing if missing in request
+        JELLYFIN_NOTIFICATION_LIBRARIES: configData.JELLYFIN_NOTIFICATION_LIBRARIES || existingConfig.JELLYFIN_NOTIFICATION_LIBRARIES || {},
       };
 
 
@@ -1648,7 +1692,7 @@ function configureWebServer() {
         fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
       }
       
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(finalConfig, null, 2), { mode: 0o600 });
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(finalConfig, null, 2), { mode: 0o666 });
       logger.info('✅ Configuration saved successfully');
     } catch (writeErr) {
       logger.error('Error saving config.json:', writeErr);

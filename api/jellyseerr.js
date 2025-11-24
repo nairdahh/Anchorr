@@ -345,8 +345,22 @@ export async function sendRequest({
         ? JSON.parse(userMappings)
         : userMappings;
 
-      if (mappings[discordUserId]) {
-        payload.userId = parseInt(mappings[discordUserId], 10);
+      let jellyseerrUserId = null;
+
+      // Handle array format (current standard)
+      if (Array.isArray(mappings)) {
+        const mapping = mappings.find(m => m.discordUserId === discordUserId);
+        if (mapping) {
+          jellyseerrUserId = mapping.jellyseerrUserId;
+        }
+      } 
+      // Handle object format (legacy/fallback)
+      else if (mappings && typeof mappings === 'object' && mappings[discordUserId]) {
+        jellyseerrUserId = mappings[discordUserId];
+      }
+
+      if (jellyseerrUserId) {
+        payload.userId = parseInt(jellyseerrUserId, 10);
         logger.debug(`Using Jellyseerr user ID ${payload.userId} for Discord user ${discordUserId}`);
       }
     } catch (e) {

@@ -471,6 +471,10 @@ document.addEventListener("DOMContentLoaded", () => {
           if (logsSection.style.display !== "none") {
             updateBotControlButtonLogs();
           }
+          // If we just started the bot, refresh the guilds list
+          if (action === "start") {
+             loadDiscordGuilds();
+          }
         }, 1000); // Fetch status after a short delay to get the new state
       }
     } catch (error) {

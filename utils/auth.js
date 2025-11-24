@@ -48,7 +48,7 @@ function getOrGenerateJwtSecret() {
       fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
     }
 
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o600 });
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o666 });
     logger.info("JWT_SECRET generated and saved to config.json successfully");
   } catch (error) {
     logger.error("Failed to save JWT_SECRET to config:", error);
@@ -103,7 +103,7 @@ function saveUser(username, passwordHash) {
       fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
     }
     
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o600 });
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o666 });
     return newUser;
   } catch (error) {
     logger.error("Error saving user:", error);
@@ -148,11 +148,11 @@ export const login = async (req, res) => {
 
   const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
 
-  res.cookie('auth_token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-  });
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
 
   res.json({ success: true, message: "Logged in successfully", username: user.username });
 };
@@ -183,7 +183,7 @@ export const register = async (req, res) => {
 
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 

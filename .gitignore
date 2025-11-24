@@ -5,6 +5,13 @@
 .env
 config.json
 config.json
+# Dependencies
+/node_modules
+
+# Environment variables
+.env
+config.json
+config.json
 
 # Logs
 npm-debug.log*
@@ -13,3 +20,9 @@ yarn-error.log*
 
 # System files
 .DS_Store
+
+# App specific
+logs/
+.claude
+.idea/
+.vscode/
