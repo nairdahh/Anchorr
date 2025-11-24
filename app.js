@@ -232,6 +232,20 @@ async function startBot() {
     interaction,
     possibleNames = ["title", "query", "name"]
   ) {
+    JELLYSEERR_URL += '/api/v1';
+  }
+  const JELLYSEERR_API_KEY = process.env.JELLYSEERR_API_KEY;
+  const TMDB_API_KEY = process.env.TMDB_API_KEY;
+
+  // ----------------- HELPERS -----------------
+  function pad2(n) {
+    return String(n).padStart(2, "0");
+  }
+
+  function getOptionStringRobust(
+    interaction,
+    possibleNames = ["title", "query", "name"]
+  ) {
     for (const n of possibleNames) {
       try {
         const v = interaction.options.getString(n);

@@ -258,3 +258,111 @@
 {"level":"info","message":"ℹ️ Jellyfin notifications will be received via webhooks.","timestamp":"2025-11-24 19:40:20"}
 {"level":"info","message":"✅ Bot auto-started successfully.","timestamp":"2025-11-24 19:40:20"}
 {"level":"info","message":"Jellyseerr request successful!","timestamp":"2025-11-24 19:40:28"}
+{"level":"info","message":"Initializing web server...","timestamp":"2025-11-24 19:46:54"}
+{"level":"info","message":"Web server configured successfully","timestamp":"2025-11-24 19:46:54"}
+{"level":"info","message":"Attempting to start server on port 8282...","timestamp":"2025-11-24 19:46:54"}
+{"level":"info","message":"✅ Anchorr web server is running on port 8282.","timestamp":"2025-11-24 19:46:54"}
+{"level":"info","message":"📝 Access it at:","timestamp":"2025-11-24 19:46:54"}
+{"level":"info","message":"   - Local: http://127.0.0.1:8282","timestamp":"2025-11-24 19:46:54"}
+{"level":"info","message":"   - Network: http://<your-server-ip>:8282","timestamp":"2025-11-24 19:46:54"}
+{"level":"info","message":"   - Docker: http://<host-ip>:8282","timestamp":"2025-11-24 19:46:54"}
+{"level":"info","message":"🚀 Detected existing config.json with Discord credentials. Auto-starting bot...","timestamp":"2025-11-24 19:46:54"}
+{"level":"info","message":"✅ Global commands registered successfully!","timestamp":"2025-11-24 19:46:54"}
+{"level":"info","message":"✅ Bot logged in as Anchorr - DEV#4592","timestamp":"2025-11-24 19:46:55"}
+{"level":"info","message":"ℹ️ Jellyfin notifications will be received via webhooks.","timestamp":"2025-11-24 19:46:55"}
+{"level":"info","message":"✅ Bot auto-started successfully.","timestamp":"2025-11-24 19:46:55"}
+{"level":"info","message":"✅ Fetched 5 tags from Jellyseerr","timestamp":"2025-11-24 19:47:16"}
+{"level":"info","message":"Jellyseerr request successful!","timestamp":"2025-11-24 19:47:18"}
+{"level":"info","message":"Jellyseerr request successful!","timestamp":"2025-11-24 19:48:20"}
+{"level":"info","message":"Jellyseerr request successful!","timestamp":"2025-11-24 19:52:12"}
+{"level":"info","message":"SIGINT signal received: closing HTTP server","timestamp":"2025-11-24 19:52:18"}
+{"level":"info","message":"Initializing web server...","timestamp":"2025-11-24 19:52:19"}
+{"level":"info","message":"Web server configured successfully","timestamp":"2025-11-24 19:52:19"}
+{"level":"info","message":"Attempting to start server on port 8282...","timestamp":"2025-11-24 19:52:19"}
+{"level":"info","message":"✅ Anchorr web server is running on port 8282.","timestamp":"2025-11-24 19:52:19"}
+{"level":"info","message":"📝 Access it at:","timestamp":"2025-11-24 19:52:19"}
+{"level":"info","message":"   - Local: http://127.0.0.1:8282","timestamp":"2025-11-24 19:52:19"}
+{"level":"info","message":"   - Network: http://<your-server-ip>:8282","timestamp":"2025-11-24 19:52:19"}
+{"level":"info","message":"   - Docker: http://<host-ip>:8282","timestamp":"2025-11-24 19:52:19"}
+{"level":"info","message":"🚀 Detected existing config.json with Discord credentials. Auto-starting bot...","timestamp":"2025-11-24 19:52:19"}
+{"level":"info","message":"✅ Global commands registered successfully!","timestamp":"2025-11-24 19:52:20"}
+{"level":"info","message":"✅ Bot logged in as Anchorr - DEV#4592","timestamp":"2025-11-24 19:52:20"}
+{"level":"info","message":"ℹ️ Jellyfin notifications will be received via webhooks.","timestamp":"2025-11-24 19:52:20"}
+{"level":"info","message":"✅ Bot auto-started successfully.","timestamp":"2025-11-24 19:52:20"}
+{"level":"info","message":"✅ Fetched 5 tags from Jellyseerr","timestamp":"2025-11-24 19:52:39"}
+{"level":"info","message":"Jellyseerr request successful!","timestamp":"2025-11-24 19:52:46"}
+{"level":"info","message":"Jellyseerr request successful!","timestamp":"2025-11-24 19:53:26"}
+{"level":"info","message":"SIGINT signal received: closing HTTP server","timestamp":"2025-11-24 19:57:23"}
+{"level":"info","message":"Initializing web server...","timestamp":"2025-11-24 19:57:24"}
+{"level":"info","message":"Web server configured successfully","timestamp":"2025-11-24 19:57:24"}
+{"level":"info","message":"Attempting to start server on port 8282...","timestamp":"2025-11-24 19:57:24"}
+{"level":"info","message":"✅ Anchorr web server is running on port 8282.","timestamp":"2025-11-24 19:57:24"}
+{"level":"info","message":"📝 Access it at:","timestamp":"2025-11-24 19:57:24"}
+{"level":"info","message":"   - Local: http://127.0.0.1:8282","timestamp":"2025-11-24 19:57:24"}
+{"level":"info","message":"   - Network: http://<your-server-ip>:8282","timestamp":"2025-11-24 19:57:24"}
+{"level":"info","message":"   - Docker: http://<host-ip>:8282","timestamp":"2025-11-24 19:57:24"}
+{"level":"info","message":"🚀 Detected existing config.json with Discord credentials. Auto-starting bot...","timestamp":"2025-11-24 19:57:24"}
+{"level":"info","message":"✅ Global commands registered successfully!","timestamp":"2025-11-24 19:57:25"}
+{"level":"info","message":"✅ Bot logged in as Anchorr - DEV#4592","timestamp":"2025-11-24 19:57:25"}
+{"level":"info","message":"ℹ️ Jellyfin notifications will be received via webhooks.","timestamp":"2025-11-24 19:57:25"}
+{"level":"info","message":"✅ Bot auto-started successfully.","timestamp":"2025-11-24 19:57:25"}
+{"level":"info","message":"✅ Fetched 5 tags from Jellyseerr","timestamp":"2025-11-24 19:57:43"}
+{"level":"info","message":"SIGINT signal received: closing HTTP server","timestamp":"2025-11-24 19:59:15"}
+{"level":"info","message":"Initializing web server...","timestamp":"2025-11-24 19:59:16"}
+{"level":"info","message":"Web server configured successfully","timestamp":"2025-11-24 19:59:16"}
+{"level":"info","message":"Attempting to start server on port 8282...","timestamp":"2025-11-24 19:59:16"}
+{"level":"info","message":"✅ Anchorr web server is running on port 8282.","timestamp":"2025-11-24 19:59:16"}
+{"level":"info","message":"📝 Access it at:","timestamp":"2025-11-24 19:59:16"}
+{"level":"info","message":"   - Local: http://127.0.0.1:8282","timestamp":"2025-11-24 19:59:16"}
+{"level":"info","message":"   - Network: http://<your-server-ip>:8282","timestamp":"2025-11-24 19:59:16"}
+{"level":"info","message":"   - Docker: http://<host-ip>:8282","timestamp":"2025-11-24 19:59:16"}
+{"level":"info","message":"🚀 Detected existing config.json with Discord credentials. Auto-starting bot...","timestamp":"2025-11-24 19:59:16"}
+{"level":"info","message":"✅ Global commands registered successfully!","timestamp":"2025-11-24 19:59:17"}
+{"level":"info","message":"✅ Bot logged in as Anchorr - DEV#4592","timestamp":"2025-11-24 19:59:18"}
+{"level":"info","message":"ℹ️ Jellyfin notifications will be received via webhooks.","timestamp":"2025-11-24 19:59:18"}
+{"level":"info","message":"✅ Bot auto-started successfully.","timestamp":"2025-11-24 19:59:18"}
+{"level":"info","message":"✅ Fetched 5 tags from Jellyseerr","timestamp":"2025-11-24 20:00:11"}
+{"level":"info","message":"SIGINT signal received: closing HTTP server","timestamp":"2025-11-24 20:01:26"}
+{"level":"info","message":"Initializing web server...","timestamp":"2025-11-24 20:01:27"}
+{"level":"info","message":"Web server configured successfully","timestamp":"2025-11-24 20:01:27"}
+{"level":"info","message":"Attempting to start server on port 8282...","timestamp":"2025-11-24 20:01:27"}
+{"level":"info","message":"✅ Anchorr web server is running on port 8282.","timestamp":"2025-11-24 20:01:27"}
+{"level":"info","message":"📝 Access it at:","timestamp":"2025-11-24 20:01:27"}
+{"level":"info","message":"   - Local: http://127.0.0.1:8282","timestamp":"2025-11-24 20:01:27"}
+{"level":"info","message":"   - Network: http://<your-server-ip>:8282","timestamp":"2025-11-24 20:01:27"}
+{"level":"info","message":"   - Docker: http://<host-ip>:8282","timestamp":"2025-11-24 20:01:27"}
+{"level":"info","message":"🚀 Detected existing config.json with Discord credentials. Auto-starting bot...","timestamp":"2025-11-24 20:01:27"}
+{"level":"info","message":"✅ Global commands registered successfully!","timestamp":"2025-11-24 20:01:27"}
+{"level":"info","message":"✅ Bot logged in as Anchorr - DEV#4592","timestamp":"2025-11-24 20:01:28"}
+{"level":"info","message":"ℹ️ Jellyfin notifications will be received via webhooks.","timestamp":"2025-11-24 20:01:28"}
+{"level":"info","message":"✅ Bot auto-started successfully.","timestamp":"2025-11-24 20:01:28"}
+{"level":"info","message":"✅ Fetched 5 tags from Jellyseerr","timestamp":"2025-11-24 20:01:39"}
+{"level":"info","message":"Jellyseerr request successful!","timestamp":"2025-11-24 20:01:54"}
+{"level":"info","message":"Jellyseerr request successful!","timestamp":"2025-11-24 20:02:28"}
+{"level":"info","message":"Initializing web server...","timestamp":"2025-11-24 20:06:47"}
+{"level":"info","message":"Web server configured successfully","timestamp":"2025-11-24 20:06:47"}
+{"level":"info","message":"Attempting to start server on port 8282...","timestamp":"2025-11-24 20:06:47"}
+{"level":"info","message":"✅ Anchorr web server is running on port 8282.","timestamp":"2025-11-24 20:06:47"}
+{"level":"info","message":"📝 Access it at:","timestamp":"2025-11-24 20:06:47"}
+{"level":"info","message":"   - Local: http://127.0.0.1:8282","timestamp":"2025-11-24 20:06:47"}
+{"level":"info","message":"   - Network: http://<your-server-ip>:8282","timestamp":"2025-11-24 20:06:47"}
+{"level":"info","message":"   - Docker: http://<host-ip>:8282","timestamp":"2025-11-24 20:06:47"}
+{"level":"info","message":"🚀 Detected existing config.json with Discord credentials. Auto-starting bot...","timestamp":"2025-11-24 20:06:47"}
+{"level":"info","message":"✅ Global commands registered successfully!","timestamp":"2025-11-24 20:06:48"}
+{"level":"info","message":"✅ Bot logged in as Anchorr - DEV#4592","timestamp":"2025-11-24 20:06:49"}
+{"level":"info","message":"ℹ️ Jellyfin notifications will be received via webhooks.","timestamp":"2025-11-24 20:06:49"}
+{"level":"info","message":"✅ Bot auto-started successfully.","timestamp":"2025-11-24 20:06:49"}
+{"level":"info","message":"✅ Fetched 5 tags from Jellyseerr","timestamp":"2025-11-24 20:07:25"}
+{"level":"info","message":"Jellyseerr request successful!","timestamp":"2025-11-24 20:07:28"}
+{"level":"info","message":"Jellyseerr request successful!","timestamp":"2025-11-24 20:08:24"}
+{"level":"info","message":"Jellyseerr request successful!","timestamp":"2025-11-24 20:09:31"}
+{"level":"info","message":"Jellyseerr request successful!","timestamp":"2025-11-24 20:09:52"}
+{"level":"info","message":"✅ Configuration saved successfully","timestamp":"2025-11-24 20:10:30"}
+{"level":"info","message":"⏹️ Jellyfin polling service stopped","timestamp":"2025-11-24 20:10:50"}
+{"level":"info","message":"Jellyfin poller stopped","timestamp":"2025-11-24 20:10:50"}
+{"level":"info","message":"Bot has been stopped.","timestamp":"2025-11-24 20:10:50"}
+{"level":"info","message":"✅ Global commands registered successfully!","timestamp":"2025-11-24 20:10:52"}
+{"level":"info","message":"✅ Bot logged in as Anchorr - DEV#4592","timestamp":"2025-11-24 20:10:53"}
+{"level":"info","message":"ℹ️ Jellyfin notifications will be received via webhooks.","timestamp":"2025-11-24 20:10:53"}
+{"level":"info","message":"✅ Configuration saved successfully","timestamp":"2025-11-24 20:12:20"}
+{"level":"info","message":"SIGINT signal received: closing HTTP server","timestamp":"2025-11-24 20:19:56"}
