@@ -20,16 +20,8 @@ export const configSchema = Joi.object({
   JELLYFIN_CHANNEL_ID: Joi.string().allow('').optional(),
   JELLYFIN_NOTIFICATION_LIBRARIES: Joi.alternatives(
     Joi.array().items(Joi.string()),  // Legacy array format
-    Joi.object().pattern(Joi.string(), Joi.string())  // New object format: { libraryId: channelId }
+    Joi.object().pattern(Joi.string(), Joi.string().allow(''))  // New object format: { libraryId: channelId }, allow empty channel IDs
   ).optional(),
-  JELLYFIN_POLLING_ENABLED: Joi.string().valid('true', 'false').optional(),
-  JELLYFIN_POLLING_INTERVAL: Joi.string().pattern(/^\d+$/).custom((value, helpers) => {
-    const num = parseInt(value, 10);
-    if (num < 60000) {
-      return helpers.error('any.invalid', { message: 'Polling interval must be at least 60000ms (1 minute)' });
-    }
-    return value;
-  }).optional(),
   JELLYFIN_NOTIFY_MOVIES: Joi.string().valid('true', 'false').optional(),
   JELLYFIN_NOTIFY_SERIES: Joi.string().valid('true', 'false').optional(),
   JELLYFIN_NOTIFY_SEASONS: Joi.string().valid('true', 'false').optional(),
@@ -91,7 +83,8 @@ export function validateBody(schema) {
   return (req, res, next) => {
     const { error, value } = schema.validate(req.body, {
       abortEarly: false, // Get all errors, not just first
-      stripUnknown: true // Remove unknown fields
+      stripUnknown: false, // Keep unknown fields for debugging
+      allowUnknown: true // Allow unknown fields
     });
 
     if (error) {
@@ -99,6 +92,10 @@ export function validateBody(schema) {
         field: detail.path.join('.'),
         message: detail.message
       }));
+
+      // Log validation errors for debugging
+      console.error('Validation failed:', JSON.stringify(errors, null, 2));
+      console.error('Received body:', JSON.stringify(req.body, null, 2));
 
       return res.status(400).json({
         success: false,

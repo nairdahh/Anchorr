@@ -19,17 +19,25 @@
 ## 🌟 Features
 
 - **🔍 Media Search**: Search for movies and TV shows with `/search` command - you can then request it later within the message embed
+- **🔥 Trending Content**: Browse weekly trending movies and TV shows with `/trending` command
 - **📤 One-Click Requests**: Directly request media to Jellyseerr with `/request` command
 - **📺 Smart TV Handling**: Choose specific seasons when searching for TV series using `/search`, or request all the seasons at once with `/request`
+- **🚫 Duplicate Detection**: Automatically checks if content already exists in Jellyseerr before allowing requests
+- **🏷️ Tag Selection**: Select Radarr/Sonarr tags when requesting media for better organization and categorization
 - **📬 Jellyfin Notifications**: Automatic Discord notifications when new media is added to your library
+- **📚 Library Filtering**: Choose which Jellyfin libraries send Discord notifications
+- **👤 User Mapping**: Map Discord users to Jellyseerr accounts so requests appear from the correct user
+- **🔐 Role-Based Permissions**: Control who can use bot commands through Discord roles (allowlist/blocklist)
+- **🔔 Private Notifications**: Optional PM when your requested content becomes available on Jellyfin
+- **👻 Ephemeral Mode**: Make bot responses visible only to the command user
 - **🎨 Rich Embeds**: Beautiful, detailed embeds with:
   - Movie/TV show posters and backdrops
   - Director/Creator information
   - IMDb ratings and links
   - Runtime, genres, and synopsis
   - Quick action buttons (IMDb, Letterboxd, Watch Now)
-- **🔗 Autocomplete Support**: Intelligent autocomplete for search queries
-- **⚙️ Web Dashboard**: User-friendly web interface for configuration
+- **🔗 Autocomplete Support**: Intelligent autocomplete for search queries with rich metadata
+- **⚙️ Web Dashboard**: User-friendly web interface for configuration with auto-detection
 
 ## 📋 Prerequisites
 
@@ -113,6 +121,44 @@ If you're upgrading from an older version with a `.env` file:
 - The app will automatically detect and migrate your `.env` variables to `config.json`
 - You can then safely delete the `.env` file
 
+### 🔐 Role-Based Permissions
+
+Control who can use bot commands through Discord roles:
+
+| Variable           | Description                                    | Example                              |
+| ------------------ | ---------------------------------------------- | ------------------------------------ |
+| `ROLE_ALLOWLIST`   | Only these roles can use commands (empty = all)| `["Member", "VIP"]`                  |
+| `ROLE_BLOCKLIST`   | These roles cannot use commands                | `["Banned", "Guest"]`                |
+
+Configure in the web dashboard (Configuration → Step 6: Role Mapping).
+
+### 👤 User Mapping
+
+Map Discord users to Jellyseerr accounts so requests appear from the correct user:
+
+1. Enable **SERVER MEMBERS INTENT** in Discord Developer Portal → Bot → Privileged Gateway Intents
+2. Configure mappings in web dashboard (Configuration → Step 5: User Mapping)
+3. Requests will now appear from the mapped Jellyseerr user
+
+### 🔔 Notification Settings
+
+| Variable              | Description                                           | Default |
+| --------------------- | ----------------------------------------------------- | ------- |
+| `NOTIFY_ON_AVAILABLE` | Send PM to users when their requested content is ready| `false` |
+| `PRIVATE_MESSAGE_MODE`| Make all bot responses visible only to command user   | `false` |
+
+Configure in the web dashboard (Configuration → Step 7: Miscellaneous Settings).
+
+### 📚 Library-Specific Notifications
+
+Choose which Jellyfin libraries send Discord notifications:
+
+1. Configure Jellyfin connection in web dashboard
+2. Load available libraries (Configuration → Step 4: Jellyfin)
+3. Select which libraries should trigger notifications
+4. By default, all libraries are enabled
+5. Uncheck a library to exclude its content from Discord notifications
+
 ## 💬 Commands
 
 ### `/search <title>`
@@ -122,17 +168,27 @@ Search for a movie or TV show and view detailed information.
 - Shows poster, backdrop, ratings, genres, and synopsis
 - Interactive buttons to request directly or view on IMDb/Letterboxd
 - For TV shows: Choose specific seasons to request
+- Optional tag selection when making requests
 
-### `/request <title>`
+### `/request <title> [tag]`
 
 Instantly request a movie or TV show (all seasons for TV).
 
 - Automatically sends to Jellyseerr
 - Shows confirmation with media details
+- Optional tag parameter for better organization
+
+### `/trending`
+
+Browse weekly trending movies and TV shows.
+
+- Shows top trending content from TMDB
+- Interactive autocomplete with real-time suggestions
+- Same action buttons and workflows as `/search`
 
 ### Autocomplete
 
-Start typing in either command to see real-time suggestions with release year and the director/creator.
+Start typing in any command to see real-time suggestions with release year and the director/creator information.
 
 ## 🔔 Jellyfin Notifications
 

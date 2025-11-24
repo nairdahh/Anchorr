@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "C:\\Users\\neacs\\Documents\\Anchorr\\logs\\.a36ca7a66b601260757146113419fe3142188aef-audit.json",
+    "files": [
+        {
+            "date": 1764001854442,
+            "name": "C:\\Users\\neacs\\Documents\\Anchorr\\logs\\combined-2025-11-24.log",
+            "hash": "11f003886f4739fc2b603f60d31d41bede0f91d9ea2503b02c932d8069262dd1"
+        }
+    ],
+    "hashType": "sha256"
+}

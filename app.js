@@ -27,8 +27,11 @@ import logger from "./utils/logger.js";
 import { validateBody, configSchema, userMappingSchema } from "./utils/validation.js";
 import cache from "./utils/cache.js";
 import { COLORS, TIMEOUTS } from "./config/constants.js";
-import { jellyfinPoller } from "./jellyfinPoller.js";
 import { login, register, logout, checkAuth, authenticateToken } from "./utils/auth.js";
+import { jellyfinPoller } from "./jellyfinPoller.js";
+import JellyfinWebSocketClient from "./jellyfinWebSocket.js";
+import { minutesToHhMm } from "./utils/time.js";
+import { fetchOMDbData } from "./api/omdb.js";
 
 // --- CONFIGURATION ---
 // Use /config volume if in Docker, otherwise use current directory
@@ -164,6 +167,7 @@ let port = process.env.WEBHOOK_PORT || 8282;
 // --- BOT STATE MANAGEMENT ---
 let discordClient = null;
 let isBotRunning = false;
+let jellyfinWebSocketClient = null;
 
 // --- PENDING REQUESTS TRACKING ---
 // Map to track user requests: key = "tmdbId-mediaType", value = Set of Discord user IDs
@@ -224,32 +228,6 @@ async function startBot() {
     return String(n).padStart(2, "0");
   }
 
-  // runtime Xh Ym
-  function minutesToHhMm(mins) {
-    if (typeof mins !== "number" || isNaN(mins) || mins <= 0) return "Unknown";
-    const h = Math.floor(mins / 60);
-    const m = Math.floor(mins % 60);
-    let result = "";
-    if (h > 0) result += `${h}h `;
-    result += `${m}m`;
-    return result;
-  }
-
-  // OMDb fetch (used to get Director / Actors / imdbRating / Runtime fallback)
-  async function fetchOMDbData(imdbId) {
-    if (!imdbId || !process.env.OMDB_API_KEY) return null;
-    try {
-      const res = await axios.get("http://www.omdbapi.com/", {
-        params: { i: imdbId, apikey: process.env.OMDB_API_KEY },
-        timeout: TIMEOUTS.OMDB_API,
-      });
-      return res.data;
-    } catch (err) {
-      logger.warn("OMDb fetch failed:", err?.message || err);
-      return null;
-    }
-  }
-
   function getOptionStringRobust(
     interaction,
     possibleNames = ["title", "query", "name"]
@@ -278,7 +256,8 @@ async function startBot() {
     mediaType,
     imdbId,
     status = "search",
-    omdb = null
+    omdb = null,
+    tmdbId = null
   ) {
     const titleName = details.title || details.name || "Unknown";
     const releaseDate = details.release_date || details.first_air_date || "";
@@ -291,6 +270,16 @@ async function startBot() {
         : mediaType === "movie"
         ? "🎬 Movie found:"
         : "📺 TV show found:";
+
+    // Generate Jellyseerr URL for the author link
+    // Remove /api/v1 from JELLYSEERR_URL to get the base domain
+    // Add ?manage=1 only for success status
+    let jellyseerrMediaUrl;
+    if (tmdbId && JELLYSEERR_URL) {
+      const jellyseerrDomain = JELLYSEERR_URL.replace(/\/api\/v1\/?$/, '');
+      const baseUrl = `${jellyseerrDomain}/${mediaType}/${tmdbId}`;
+      jellyseerrMediaUrl = status === "success" ? `${baseUrl}?manage=1` : baseUrl;
+    }
 
     const genres =
       (details.genres || []).map((g) => g.name).join(", ") || "Unknown";
@@ -323,11 +312,6 @@ async function startBot() {
         ? omdb.Plot
         : "No description available.");
 
-    // Add "stay tuned!" for successful requests
-    if (status === "success") {
-      overview = overview + "\n\n🎬 Stay tuned!";
-    }
-
     let headerLine = "Summary";
     if (omdb) {
       if (mediaType === "movie" && omdb.Director && omdb.Director !== "N/A") {
@@ -340,7 +324,10 @@ async function startBot() {
     }
 
     const embed = new EmbedBuilder()
-      .setAuthor({ name: authorName })
+      .setAuthor({
+        name: authorName,
+        url: jellyseerrMediaUrl
+      })
       .setTitle(titleWithYear)
       .setURL(imdbId ? `https://www.imdb.com/title/${imdbId}/` : undefined)
       .setColor(
@@ -381,10 +368,15 @@ async function startBot() {
     requested = false,
     mediaType = "movie",
     details = null,
-    requestedSeasons = []
+    requestedSeasons = [],
+    requestedTags = [],
+    selectedSeasons = [],
+    selectedTags = []
   ) {
+    const rows = [];
     const buttons = [];
 
+    // Always add IMDB and Letterboxd buttons if available
     if (imdbId) {
       buttons.push(
         new ButtonBuilder()
@@ -398,70 +390,110 @@ async function startBot() {
       );
     }
 
-    const rows = [];
-    if (
-      mediaType === "tv" &&
-      details?.seasons?.length > 0 &&
-      requestedSeasons.length === 0 &&
-      !requested // Don't show selector if it's an instant request
-    ) {
+    // Add Request button (dynamic label based on selections)
+    if (requested) {
+      // Show success state with full info
+      let successLabel = "Requested";
+      if (requestedSeasons.length > 0) {
+        if (requestedSeasons.includes("all")) {
+          successLabel = "Requested all seasons";
+        } else if (requestedSeasons.length === 1) {
+          successLabel = `Requested season ${requestedSeasons[0]}`;
+        } else {
+          const seasons = [...requestedSeasons];
+          const lastSeason = seasons.pop();
+          successLabel = `Requested seasons ${seasons.join(", ")} and ${lastSeason}`;
+        }
+      }
+      if (requestedTags.length > 0) {
+        // requestedTags contains tag names when coming from request_btn handler
+        const tagLabel = requestedTags.length === 1 ? requestedTags[0] : requestedTags.join(", ");
+        successLabel += ` with ${tagLabel} tag${requestedTags.length > 1 ? 's' : ''}`;
+      }
+      successLabel += ", stay tuned!";
+
+      buttons.push(
+        new ButtonBuilder()
+          .setCustomId(`requested|${tmdbId}|${mediaType}`)
+          .setLabel(successLabel)
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(true)
+      );
+    } else {
+      // Show Request button with dynamic label
+      let requestLabel = "Request";
+
+      if (mediaType === "tv" && selectedSeasons.length > 0) {
+        if (selectedSeasons.includes("all")) {
+          requestLabel = "Request all seasons";
+        } else if (selectedSeasons.length === 1) {
+          requestLabel = `Request season ${selectedSeasons[0]}`;
+        } else {
+          const seasons = [...selectedSeasons];
+          const lastSeason = seasons.pop();
+          requestLabel = `Request seasons ${seasons.join(", ")} and ${lastSeason}`;
+        }
+      }
+
+      if (selectedTags.length > 0) {
+        // selectedTags contains tag names (not IDs) when coming from select_tags handler
+        const tagLabel = selectedTags.length === 1 ? selectedTags[0] : selectedTags.join(", ");
+        requestLabel += ` with ${tagLabel} tag${selectedTags.length > 1 ? 's' : ''}`;
+      }
+
+      const seasonsParam = selectedSeasons.length > 0 ? selectedSeasons.join(',') : '';
+      const tagsParam = selectedTags.length > 0 ? selectedTags.join(',') : '';
+
+      buttons.push(
+        new ButtonBuilder()
+          .setCustomId(`request_btn|${tmdbId}|${mediaType}|${seasonsParam}|${tagsParam}`)
+          .setLabel(requestLabel)
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(mediaType === "tv" && selectedSeasons.length === 0)
+      );
+    }
+
+    // Add first row with all buttons (IMDB + Letterboxd + Request)
+    if (buttons.length > 0) {
+      rows.push(new ActionRowBuilder().addComponents(...buttons.slice(0, 5)));
+    }
+
+    // Add season selector for TV shows (if not requested, has seasons, and seasons not yet selected)
+    if (mediaType === "tv" && details?.seasons?.length > 0 && !requested && selectedSeasons.length === 0) {
+      const seenSeasons = new Set();
+      const uniqueSeasons = details.seasons.filter((s) => {
+        if (s.season_number <= 0) return false;
+        if (seenSeasons.has(s.season_number)) return false;
+        seenSeasons.add(s.season_number);
+        return true;
+      });
+
       const seasonOptions = [
         { label: "All Seasons", value: "all" },
-        ...details.seasons
-          .filter((s) => s.season_number > 0)
-          .map((s) => ({
-            label: `Season ${s.season_number} (${s.episode_count} episodes)`,
-            value: String(s.season_number),
-          })),
+        ...uniqueSeasons.map((s) => ({
+          label: `Season ${s.season_number} (${s.episode_count} episodes)`,
+          value: String(s.season_number),
+        })),
       ];
 
+      const tagsParam = selectedTags.length > 0 ? selectedTags.join(',') : '';
       const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId(`request_seasons|${tmdbId}`)
+        .setCustomId(`select_seasons|${tmdbId}|${tagsParam}`)
         .setPlaceholder("Select seasons to request...")
         .setMinValues(1)
         .setMaxValues(seasonOptions.length)
-        .addOptions(seasonOptions.slice(0, 25)); // Max 25 options
+        .addOptions(seasonOptions.slice(0, 25));
 
-      if (buttons.length > 0) {
-        rows.push(new ActionRowBuilder().addComponents(buttons));
-      }
       rows.push(new ActionRowBuilder().addComponents(selectMenu));
-    } else {
-      if (requested) {
-        buttons.push(
-          new ButtonBuilder()
-            .setCustomId(`requested|${tmdbId}|${mediaType}`)
-            .setLabel("Requested, stay tuned!")
-            .setStyle(ButtonStyle.Success)
-            .setDisabled(true)
-        );
-        if (requestedSeasons.length > 0) {
-          let seasonLabel;
-          if (requestedSeasons.includes("all")) {
-            seasonLabel = "All Seasons";
-          } else if (requestedSeasons.length === 1) {
-            seasonLabel = `Season ${requestedSeasons[0]}`;
-          } else {
-            const lastSeason = requestedSeasons.pop();
-            seasonLabel = `Seasons ${requestedSeasons.join(
-              ", "
-            )} and ${lastSeason}`;
-          }
-          buttons[buttons.length - 1].setLabel(`Requested ${seasonLabel}`);
-        } else {
-          buttons[buttons.length - 1].setLabel("Requested, stay tuned!");
-        }
-      } else {
-        buttons.push(
-          new ButtonBuilder()
-            .setCustomId(`request_btn|${tmdbId}|${mediaType}`)
-            .setLabel("Request")
-            .setStyle(ButtonStyle.Primary)
-        );
-      }
-      if (buttons.length > 0) {
-        rows.push(new ActionRowBuilder().addComponents(...buttons.slice(0, 5)));
-      }
+    }
+
+    // Add tag selector for movies (if not requested and has available tags)
+    // For movies, show tags row directly (no season selection needed)
+    if (mediaType === "movie" && !requested && selectedTags.length === 0) {
+      // Note: Tags are fetched and added dynamically when building components
+      // This is a placeholder row that will be populated by the calling code
+      // The actual tag options need to be fetched from Jellyseerr
+      // This is handled in the search/request handlers
     }
 
     return rows;
@@ -513,6 +545,7 @@ async function startBot() {
             content: "✅ This content is already available in your library!",
             components: [],
             embeds: [],
+            flags: 64,
           });
           return;
         }
@@ -546,7 +579,8 @@ async function startBot() {
         mediaType,
         imdbId,
         mode === "request" ? "success" : "search",
-        omdb
+        omdb,
+        tmdbId
       );
 
       const components = buildButtons(
@@ -556,6 +590,47 @@ async function startBot() {
         mediaType,
         details
       );
+
+      // Add tag selector for movies (if in search mode and not already requested)
+      if (mediaType === "movie" && mode === "search") {
+        try {
+          const allTags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
+
+          // Filter to only Radarr tags for movies
+          const radarrTags = allTags.filter(tag => tag.type === "radarr");
+
+          if (radarrTags && radarrTags.length > 0) {
+            // Deduplicate tags by ID
+            const uniqueTags = [];
+            const seenIds = new Set();
+
+            for (const tag of radarrTags) {
+              if (!seenIds.has(tag.id)) {
+                seenIds.add(tag.id);
+                uniqueTags.push(tag);
+              }
+            }
+
+            const tagOptions = uniqueTags.slice(0, 25).map(tag => ({
+              label: tag.label || tag.name || `Tag ${tag.id}`,
+              value: tag.id.toString(),
+            }));
+
+            const tagMenu = new StringSelectMenuBuilder()
+              .setCustomId(`select_tags|${tmdbId}|`)
+              .setPlaceholder("Select tags (optional)")
+              .addOptions(tagOptions)
+              .setMinValues(0)
+              .setMaxValues(Math.min(5, tagOptions.length));
+
+            const tagRow = new ActionRowBuilder().addComponents(tagMenu);
+            components.push(tagRow);
+          }
+        } catch (err) {
+          logger.debug("Failed to fetch tags for movie tag selector:", err?.message);
+          // Continue without tag selector if fetch fails
+        }
+      }
 
       await interaction.editReply({ embeds: [embed], components });
     } catch (err) {
@@ -579,7 +654,7 @@ async function startBot() {
   logger.debug(`[REGISTER COMMANDS] REST token value: ${rest.token ? rest.token.slice(0, 10) + '...' : 'UNDEFINED'}`);
 
   try {
-    await registerCommands(rest, BOT_ID, GUILD_ID || null, console);
+    await registerCommands(rest, BOT_ID, GUILD_ID || null, logger);
   } catch (err) {
     logger.error(`[REGISTER COMMANDS] Failed to register Discord commands:`, err);
     throw new Error(`Failed to register Discord commands: ${err.message}`);
@@ -724,28 +799,60 @@ async function startBot() {
           return handleSearchOrRequest(interaction, raw, "request");
       }
 
-      // Button: request
+      // ===== REQUEST BUTTON HANDLER (NEW FLOW) =====
+      // customId format: request_btn|tmdbId|mediaType|seasonsParam|tagsParam
       if (
         interaction.isButton() &&
         interaction.customId.startsWith("request_btn|")
       ) {
         const parts = interaction.customId.split("|");
-        const tmdbIdStr = parts[1];
+        const tmdbId = parseInt(parts[1], 10);
         const mediaType = parts[2] || "movie";
-        const tmdbId = parseInt(tmdbIdStr, 10);
-        if (!tmdbId)
+        const seasonsParam = parts[3] || "";
+        const tagsParam = parts[4] || "";
+
+        if (!tmdbId) {
           return interaction.reply({ content: "⚠️ ID invalid.", flags: 64 });
+        }
 
         await interaction.deferUpdate();
 
         try {
           const details = await tmdbApi.tmdbGetDetails(tmdbId, mediaType, TMDB_API_KEY);
 
+          // Parse seasons and tags from customId
+          const selectedSeasons = seasonsParam ? seasonsParam.split(",") : (mediaType === "tv" ? [] : ["all"]);
+          const selectedTagNames = tagsParam ? tagsParam.split(",") : [];
+
+          // Convert tag names to IDs for API call
+          let selectedTagIds = [];
+          if (selectedTagNames.length > 0) {
+            try {
+              const allTags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
+
+              // Filter by type: Radarr for movies, Sonarr for TV
+              const filteredTags = mediaType === "movie"
+                ? allTags.filter(tag => tag.type === "radarr")
+                : allTags.filter(tag => tag.type === "sonarr");
+
+              selectedTagIds = selectedTagNames
+                .map(tagName => {
+                  const tag = filteredTags.find(t => (t.label || t.name) === tagName);
+                  return tag ? tag.id : null;
+                })
+                .filter(id => id !== null);
+            } catch (err) {
+              logger.debug("Failed to fetch tags for API call:", err?.message);
+              // Continue without tags if fetch fails
+            }
+          }
+
           // Check if media already exists in Jellyseerr
+          const checkSeasons = selectedSeasons.length > 0 ? selectedSeasons : ["all"];
           const status = await jellyseerrApi.checkMediaStatus(
             tmdbId,
             mediaType,
-            ["all"],
+            checkSeasons,
             JELLYSEERR_URL,
             JELLYSEERR_API_KEY
           );
@@ -759,10 +866,12 @@ async function startBot() {
             return;
           }
 
+          // Send the request with selected seasons and tags
           await jellyseerrApi.sendRequest({
             tmdbId,
             mediaType,
-            seasons: ["all"],
+            seasons: selectedSeasons.length > 0 ? selectedSeasons : ["all"],
+            tags: selectedTagIds.length > 0 ? selectedTagIds : undefined,
             jellyseerrUrl: JELLYSEERR_URL,
             apiKey: JELLYSEERR_API_KEY,
             discordUserId: interaction.user.id,
@@ -786,9 +895,20 @@ async function startBot() {
             mediaType,
             imdbId,
             "success",
-            omdb
+            omdb,
+            tmdbId
           );
-          const components = buildButtons(tmdbId, imdbId, true, mediaType);
+
+          // Build final buttons with requested seasons and tag names (for display)
+          const components = buildButtons(
+            tmdbId,
+            imdbId,
+            true,
+            mediaType,
+            details,
+            selectedSeasons.length > 0 ? selectedSeasons : ["all"],
+            selectedTagNames
+          );
 
           await interaction.editReply({ embeds: [embed], components });
         } catch (err) {
@@ -804,12 +924,15 @@ async function startBot() {
         }
       }
 
-      // Select Menu: request seasons
+      // ===== SELECT SEASONS HANDLER (NEW FLOW) =====
+      // customId format: select_seasons|tmdbId|selectedTagsParam
       if (
         interaction.isStringSelectMenu() &&
-        interaction.customId.startsWith("request_seasons|")
+        interaction.customId.startsWith("select_seasons|")
       ) {
-        const tmdbId = parseInt(interaction.customId.split("|")[1], 10);
+        const parts = interaction.customId.split("|");
+        const tmdbId = parseInt(parts[1], 10);
+        const selectedTagsParam = parts[2] || "";
         const selectedSeasons = interaction.values;
 
         if (!tmdbId || !selectedSeasons.length) {
@@ -822,103 +945,74 @@ async function startBot() {
         await interaction.deferUpdate();
 
         try {
-          // Check if requested seasons already exist in Jellyseerr
-          const status = await jellyseerrApi.checkMediaStatus(
-            tmdbId,
-            "tv",
-            selectedSeasons,
-            JELLYSEERR_URL,
-            JELLYSEERR_API_KEY
-          );
+          // Parse existing tags from customId if any
+          const selectedTags = selectedTagsParam ? selectedTagsParam.split(",") : [];
 
-          if (status.exists && status.available) {
-            // Requested seasons already available
-            await interaction.followUp({
-              content: "✅ The requested seasons are already available in your library!",
-              flags: 64,
-            });
-            return;
+          // Fetch available tags for tag selector (only if not already selected)
+          let tags = [];
+          if (selectedTags.length === 0) {
+            tags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
           }
 
-          // Fetch available tags for selection
-          const tags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
+          // Get TMDB details and IMDb ID for building updated components
+          const details = await tmdbApi.tmdbGetDetails(tmdbId, "tv", TMDB_API_KEY);
+          const imdbId = await tmdbApi.tmdbGetExternalImdb(tmdbId, "tv", TMDB_API_KEY);
 
-          // If tags are available, show tag selection menu; otherwise proceed with request
-          if (tags && tags.length > 0) {
-            const tagOptions = tags.slice(0, 25).map(tag => ({
+          // Build updated components with selected seasons
+          const components = buildButtons(
+            tmdbId,
+            imdbId,
+            false,
+            "tv",
+            details,
+            [],
+            [],
+            selectedSeasons,
+            selectedTags
+          );
+
+          // If tags are available and not yet selected, add tag selector
+          if (tags && tags.length > 0 && selectedTags.length === 0) {
+            // Deduplicate tags by ID
+            const uniqueTags = [];
+            const seenIds = new Set();
+
+            for (const tag of tags) {
+              if (!seenIds.has(tag.id)) {
+                seenIds.add(tag.id);
+                uniqueTags.push(tag);
+              }
+            }
+
+            const tagOptions = uniqueTags.slice(0, 25).map(tag => ({
               label: tag.label || tag.name || `Tag ${tag.id}`,
               value: tag.id.toString(),
             }));
 
             const tagMenu = new StringSelectMenuBuilder()
-              .setCustomId(`request_with_tags|${tmdbId}|${selectedSeasons.join(',')}`)
+              .setCustomId(`select_tags|${tmdbId}|${selectedSeasons.join(',')}`)
               .setPlaceholder("Select tags (optional)")
               .addOptions(tagOptions)
               .setMinValues(0)
               .setMaxValues(Math.min(5, tagOptions.length));
 
             const tagRow = new ActionRowBuilder().addComponents(tagMenu);
-
-            await interaction.editReply({
-              content: "Select tags for this request (optional):",
-              components: [tagRow],
-            });
-            return;
+            components.push(tagRow);
           }
-
-          // No tags available, proceed directly with request
-          await jellyseerrApi.sendRequest({
-            tmdbId,
-            mediaType: "tv",
-            seasons: selectedSeasons,
-            jellyseerrUrl: JELLYSEERR_URL,
-            apiKey: JELLYSEERR_API_KEY,
-            discordUserId: interaction.user.id,
-            userMappings: process.env.USER_MAPPINGS || {},
-          });
-
-          // Track request for notifications if enabled
-          if (process.env.NOTIFY_ON_AVAILABLE === "true") {
-            const requestKey = `${tmdbId}-tv`;
-            if (!pendingRequests.has(requestKey)) {
-              pendingRequests.set(requestKey, new Set());
-            }
-            pendingRequests.get(requestKey).add(interaction.user.id);
-          }
-
-          const details = await tmdbApi.tmdbGetDetails(tmdbId, "tv", TMDB_API_KEY);
-          const imdbId = await tmdbApi.tmdbGetExternalImdb(tmdbId, "tv", TMDB_API_KEY);
-          const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
-
-          const embed = buildNotificationEmbed(
-            details,
-            "tv",
-            imdbId,
-            "success",
-            omdb
-          );
-
-          // Disable the select menu after successful request
-          const components = buildButtons(
-            tmdbId,
-            imdbId,
-            true,
-            "tv",
-            details,
-            selectedSeasons
-          );
 
           await interaction.editReply({
-            embeds: [embed],
-            components: components,
+            components,
           });
         } catch (err) {
-          logger.error("Season request error:", err);
-          await interaction.followUp({
-            content:
-              "⚠️ I could not send the request for the selected seasons.",
-            ephemeral: true,
-          });
+          logger.error("Season selection error:", err);
+          try {
+            await interaction.followUp({
+              content: "⚠️ Error processing season selection.",
+              flags: 64,
+            });
+          } catch (followUpErr) {
+            logger.error("Failed to send follow-up message:", followUpErr);
+          }
         }
       }
 
@@ -936,15 +1030,18 @@ async function startBot() {
         }
       }
 
-      // Select Menu: tags for request
+      // ===== SELECT TAGS HANDLER (NEW FLOW) =====
+      // customId format: select_tags|tmdbId|selectedSeasonsParam (for TV) or select_tags|tmdbId| (for movies)
+      // This handler only updates the buttons with tag selection - does NOT send the request
       if (
         interaction.isStringSelectMenu() &&
-        interaction.customId.startsWith("request_with_tags|")
+        interaction.customId.startsWith("select_tags|")
       ) {
         const parts = interaction.customId.split("|");
         const tmdbId = parseInt(parts[1], 10);
-        const selectedSeasons = parts[2].split(",");
-        const selectedTags = interaction.values.map(v => parseInt(v, 10));
+        const selectedSeasonsParam = parts[2] || "";
+        const selectedSeasons = selectedSeasonsParam ? selectedSeasonsParam.split(",") : [];
+        const selectedTagIds = interaction.values.map(v => v.toString());
 
         if (!tmdbId) {
           return interaction.reply({
@@ -956,113 +1053,67 @@ async function startBot() {
         await interaction.deferUpdate();
 
         try {
-          // Get tag names from Jellyseerr for display
-          const allTags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
-          const tagNames = selectedTags
-            .map(tagId => allTags.find(t => t.id === tagId)?.label || allTags.find(t => t.id === tagId)?.name || `Tag ${tagId}`)
-            .join(", ");
+          // Determine if this is for TV or movie based on presence of seasons
+          const mediaType = selectedSeasons.length > 0 ? "tv" : "movie";
 
-          // Build button label
-          const seasonLabel = selectedSeasons.length === 1 ? `season ${selectedSeasons[0]}` : `seasons ${selectedSeasons.join(", ")}`;
-          const buttonLabel = tagNames
-            ? `Request ${seasonLabel} with ${tagNames}`
-            : `Request ${seasonLabel}`;
+          // Get TMDB details for building updated buttons
+          const details = await tmdbApi.tmdbGetDetails(tmdbId, mediaType, TMDB_API_KEY);
+          const imdbId = await tmdbApi.tmdbGetExternalImdb(tmdbId, mediaType, TMDB_API_KEY);
 
-          // Trim to 80 chars max (Discord button limit)
-          const trimmedLabel = buttonLabel.length > 80 ? buttonLabel.substring(0, 77) + "..." : buttonLabel;
+          // Fetch all tags to map IDs to names
+          let selectedTagNames = [];
+          if (selectedTagIds.length > 0) {
+            try {
+              const allTags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
 
-          // Create button to confirm request with tags
-          const confirmButton = new ButtonBuilder()
-            .setCustomId(`confirm_request_with_tags|${tmdbId}|${selectedSeasons.join(',')}|${selectedTags.join(',')}`)
-            .setLabel(trimmedLabel)
-            .setStyle(ButtonStyle.Success);
+              // Filter by type: Radarr for movies, Sonarr for TV
+              const filteredTags = mediaType === "movie"
+                ? allTags.filter(tag => tag.type === "radarr")
+                : allTags.filter(tag => tag.type === "sonarr");
 
-          const buttonRow = new ActionRowBuilder().addComponents(confirmButton);
-
-          await interaction.editReply({
-            content: `Confirm your request:`,
-            components: [buttonRow],
-          });
-        } catch (err) {
-          logger.error("Tags display error:", err);
-          await interaction.followUp({
-            content: "⚠️ Could not display tags.",
-            ephemeral: true,
-          });
-        }
-      }
-
-      // Button: confirm request with tags
-      if (
-        interaction.isButton() &&
-        interaction.customId.startsWith("confirm_request_with_tags|")
-      ) {
-        const parts = interaction.customId.split("|");
-        const tmdbId = parseInt(parts[1], 10);
-        const selectedSeasons = parts[2].split(",");
-        const selectedTags = parts[3].split(",").map(v => parseInt(v, 10));
-
-        if (!tmdbId) {
-          return interaction.reply({
-            content: "⚠️ Invalid request data.",
-            flags: 64,
-          });
-        }
-
-        await interaction.deferUpdate();
-
-        try {
-          await jellyseerrApi.sendRequest({
-            tmdbId,
-            mediaType: "tv",
-            seasons: selectedSeasons,
-            tags: selectedTags.length > 0 ? selectedTags : undefined,
-            jellyseerrUrl: JELLYSEERR_URL,
-            apiKey: JELLYSEERR_API_KEY,
-            discordUserId: interaction.user.id,
-            userMappings: process.env.USER_MAPPINGS || {},
-          });
-
-          // Track request for notifications if enabled
-          if (process.env.NOTIFY_ON_AVAILABLE === "true") {
-            const requestKey = `${tmdbId}-tv`;
-            if (!pendingRequests.has(requestKey)) {
-              pendingRequests.set(requestKey, new Set());
+              selectedTagNames = selectedTagIds
+                .map(tagId => {
+                  const tag = filteredTags.find(t => t.id.toString() === tagId);
+                  return tag ? (tag.label || tag.name) : null;
+                })
+                .filter(name => name !== null);
+            } catch (err) {
+              logger.debug("Failed to fetch tag names:", err?.message);
+              // Continue with tag IDs if names can't be fetched
+              selectedTagNames = selectedTagIds;
             }
-            pendingRequests.get(requestKey).add(interaction.user.id);
           }
 
-          const details = await tmdbApi.tmdbGetDetails(tmdbId, "tv", TMDB_API_KEY);
-          const imdbId = await tmdbApi.tmdbGetExternalImdb(tmdbId, "tv", TMDB_API_KEY);
-          const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
-
-          const embed = buildNotificationEmbed(
-            details,
-            "tv",
-            imdbId,
-            "success",
-            omdb
-          );
-
+          // Build updated buttons with selected seasons and tags
+          // Pass selectedSeasons and selectedTagNames to show them in the Request button label
           const components = buildButtons(
             tmdbId,
             imdbId,
-            true,
-            "tv",
+            false,
+            mediaType,
             details,
-            selectedSeasons
+            [],
+            [],
+            selectedSeasons,
+            selectedTagNames
           );
 
+          // Remove tag selector after selection - user now sees updated Request button
+          // and can click it to send the request
+
           await interaction.editReply({
-            embeds: [embed],
-            components: components,
+            components,
           });
         } catch (err) {
-          logger.error("Request with tags error:", err);
-          await interaction.followUp({
-            content: "⚠️ I could not send the request with tags.",
-            ephemeral: true,
-          });
+          logger.error("Tag selection error:", err);
+          try {
+            await interaction.followUp({
+              content: "⚠️ Error updating selection.",
+              flags: 64,
+            });
+          } catch (followUpErr) {
+            logger.error("Failed to send follow-up message:", followUpErr);
+          }
         }
       }
     } catch (outerErr) {
@@ -1075,13 +1126,7 @@ async function startBot() {
       logger.info(`✅ Bot logged in as ${client.user.tag}`);
       isBotRunning = true;
 
-      // Start Jellyfin polling service
-      try {
-        await jellyfinPoller.start(client, pendingRequests);
-        logger.info("✅ Jellyfin poller started successfully");
-      } catch (error) {
-        logger.error("Failed to start Jellyfin poller:", error);
-      }
+      logger.info("ℹ️ Jellyfin notifications will be received via webhooks.");
 
       resolve({ success: true, message: `Logged in as ${client.user.tag}` });
     });
@@ -1132,7 +1177,28 @@ function configureWebServer() {
     app.post("/api/auth/logout", logout);
     app.get("/api/auth/check", checkAuth);
 
-    // Apply rate limiting to all API endpoints (except auth)
+    // --- JELLYFIN WEBHOOK ENDPOINT (no rate limiting for webhooks) ---
+    app.post("/jellyfin/webhook", express.json(), async (req, res) => {
+      try {
+        logger.info("📥 Received Jellyfin webhook");
+        logger.debug("Webhook payload:", JSON.stringify(req.body, null, 2));
+
+        // Acknowledge receipt immediately
+        res.status(200).json({ success: true, message: "Webhook received" });
+
+        // Process webhook asynchronously
+        if (discordClient && isBotRunning) {
+          await handleJellyfinWebhook(req, res, discordClient, pendingRequests);
+        } else {
+          logger.warn("⚠️ Jellyfin webhook received but Discord bot is not running");
+        }
+      } catch (error) {
+        logger.error("❌ Error processing Jellyfin webhook:", error);
+        // Don't send error response since we already sent 200
+      }
+    });
+
+    // Apply rate limiting to all API endpoints (except auth and webhooks)
     app.use('/api/', apiLimiter);
 
     // Endpoint pentru lista de servere Discord (guilds)
@@ -1435,7 +1501,7 @@ function configureWebServer() {
       }
     });
 
-    app.delete("/api/user-mappings/:discordUserId", (req, res) => {
+    app.delete("/api/user-mappings/:discordUserId", authenticateToken, (req, res) => {
       const { discordUserId } = req.params;
 
       try {
@@ -1482,7 +1548,7 @@ function configureWebServer() {
         const response = await axios.get(
           `${url.replace(/\/$/, "")}/Library/MediaFolders`,
           {
-            headers: { "X-Emby-Token": apiKey },
+            headers: { "X-MediaBrowser-Token": apiKey },
             timeout: TIMEOUTS.JELLYFIN_API,
           }
         );
@@ -1547,6 +1613,7 @@ function configureWebServer() {
     const configData = req.body;
     const oldToken = process.env.DISCORD_TOKEN;
     const oldGuildId = process.env.GUILD_ID;
+    const oldJellyfinApiKey = process.env.JELLYFIN_API_KEY;
 
     // Normalize JELLYSEERR_URL to remove /api/v1 suffix if present
     if (configData.JELLYSEERR_URL && typeof configData.JELLYSEERR_URL === 'string') {
@@ -1569,6 +1636,8 @@ function configureWebServer() {
         USER_MAPPINGS: existingConfig.USER_MAPPINGS || []
       };
 
+
+
       // Ensure /config directory exists with proper permissions
       const configDir = path.dirname(CONFIG_PATH);
       if (!fs.existsSync(configDir)) {
@@ -1588,12 +1657,15 @@ function configureWebServer() {
     loadConfig(); // Reload config into process.env
 
     // If bot is running and critical settings changed, restart the bot logic
-    if (
-      isBotRunning &&
-      (oldToken !== process.env.DISCORD_TOKEN ||
-        oldGuildId !== process.env.GUILD_ID)
-    ) {
+    const jellyfinApiKeyChanged = oldJellyfinApiKey !== process.env.JELLYFIN_API_KEY;
+    const needsRestart =
+      oldToken !== process.env.DISCORD_TOKEN ||
+      oldGuildId !== process.env.GUILD_ID ||
+      jellyfinApiKeyChanged;
+
+    if (isBotRunning && needsRestart) {
       logger.warn("Critical Discord settings changed. Restarting bot logic...");
+
       await discordClient.destroy();
       isBotRunning = false;
       discordClient = null;
@@ -1669,6 +1741,7 @@ function configureWebServer() {
         return res.json({
           success: true,
           message: `Connected to ${response.data.ServerName} (v${response.data.Version})`,
+          serverId: response.data.Id
         });
       }
       throw new Error("Invalid response from Jellyfin server.");
@@ -1677,6 +1750,40 @@ function configureWebServer() {
       res.status(500).json({
         success: false,
         message: "Connection failed. Check URL and network.",
+      });
+    }
+  });
+
+  app.get("/api/jellyfin/libraries", authenticateToken, async (req, res) => {
+    try {
+      const apiKey = process.env.JELLYFIN_API_KEY;
+      const baseUrl = process.env.JELLYFIN_URL;
+
+      if (!apiKey || !baseUrl) {
+        return res.status(400).json({
+          success: false,
+          message: "Jellyfin API key and URL are required in configuration.",
+        });
+      }
+
+      // Import fetchLibraries dynamically
+      const { fetchLibraries } = await import("./api/jellyfin.js");
+      const libraries = await fetchLibraries(apiKey, baseUrl);
+
+      res.json({
+        success: true,
+        libraries: libraries.map(lib => ({
+          id: lib.ItemId,
+          collectionId: lib.CollectionId,
+          name: lib.Name,
+          type: lib.CollectionType
+        }))
+      });
+    } catch (error) {
+      logger.error("Failed to fetch Jellyfin libraries:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch libraries. Check Jellyfin configuration.",
       });
     }
   });
@@ -1712,15 +1819,19 @@ function configureWebServer() {
   });
 
   // Parse log file and return formatted entries
-  function parseLogFile(filePath) {
+  function parseLogFile(filePath, limit = 1000) {
     try {
       if (!fs.existsSync(filePath)) {
-        return [];
+        return { entries: [], truncated: false };
       }
       const content = fs.readFileSync(filePath, "utf-8");
       const lines = content.split("\n").filter(line => line.trim());
 
-      return lines.map(line => {
+      // Keep only the last 'limit' entries
+      const truncated = lines.length > limit;
+      const relevantLines = lines.slice(-limit);
+
+      const entries = relevantLines.map(line => {
         // Parse Winston JSON logs
         try {
           const logEntry = JSON.parse(line);
@@ -1746,33 +1857,67 @@ function configureWebServer() {
           };
         }
       });
+
+      return { entries, truncated };
     } catch (error) {
       logger.error("Error parsing log file:", error);
-      return [];
+      return { entries: [], truncated: false };
     }
   }
 
   // API endpoint for error logs
   app.get("/api/logs/error", authenticateToken, (req, res) => {
     const logsDir = path.join(process.cwd(), "logs");
-    const errorLogPath = path.join(logsDir, "error.log");
-    const logs = parseLogFile(errorLogPath);
+    // Find the current error log file (error-YYYY-MM-DD.log)
+    let errorLogPath = path.join(logsDir, "error.log");
+
+    // Try to find the latest rotated error log file
+    try {
+      const files = fs.readdirSync(logsDir);
+      const errorFiles = files.filter(f => f.startsWith('error-') && f.endsWith('.log'));
+      if (errorFiles.length > 0) {
+        errorFiles.sort().reverse();
+        errorLogPath = path.join(logsDir, errorFiles[0]);
+      }
+    } catch (e) {
+      // Fallback to default path
+    }
+
+    const { entries, truncated } = parseLogFile(errorLogPath);
     res.json({
-      file: "error.log",
-      count: logs.length,
-      entries: logs
+      file: path.basename(errorLogPath),
+      count: entries.length,
+      total: truncated ? "1000+" : entries.length,
+      truncated,
+      entries
     });
   });
 
   // API endpoint for all logs
   app.get("/api/logs/all", authenticateToken, (req, res) => {
     const logsDir = path.join(process.cwd(), "logs");
-    const combinedLogPath = path.join(logsDir, "combined.log");
-    const logs = parseLogFile(combinedLogPath);
+    // Find the current combined log file (combined-YYYY-MM-DD.log)
+    let combinedLogPath = path.join(logsDir, "combined.log");
+
+    // Try to find the latest rotated combined log file
+    try {
+      const files = fs.readdirSync(logsDir);
+      const combinedFiles = files.filter(f => f.startsWith('combined-') && f.endsWith('.log'));
+      if (combinedFiles.length > 0) {
+        combinedFiles.sort().reverse();
+        combinedLogPath = path.join(logsDir, combinedFiles[0]);
+      }
+    } catch (e) {
+      // Fallback to default path
+    }
+
+    const { entries, truncated } = parseLogFile(combinedLogPath);
     res.json({
-      file: "combined.log",
-      count: logs.length,
-      entries: logs
+      file: path.basename(combinedLogPath),
+      count: entries.length,
+      total: truncated ? "1000+" : entries.length,
+      truncated,
+      entries
     });
   });
 
@@ -1805,7 +1950,17 @@ function configureWebServer() {
       return res.status(400).json({ message: "Bot is not running." });
     }
 
-    // Stop Jellyfin polling service
+    // Stop Jellyfin notification services
+    try {
+      if (jellyfinWebSocketClient) {
+        jellyfinWebSocketClient.stop();
+        jellyfinWebSocketClient = null;
+        logger.info("Jellyfin WebSocket client stopped");
+      }
+    } catch (error) {
+      logger.error("Error stopping Jellyfin WebSocket client:", error);
+    }
+
     try {
       jellyfinPoller.stop();
       logger.info("Jellyfin poller stopped");

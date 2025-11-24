@@ -19,7 +19,28 @@ document.addEventListener("DOMContentLoaded", () => {
   toast.className = "toast";
   document.body.appendChild(toast);
 
+  // Global status polling interval to prevent duplicates
+  let statusPollingInterval = null;
+
   // --- Functions ---
+
+  function startStatusPolling() {
+    // Only start if not already running
+    if (statusPollingInterval !== null) return;
+
+    // Immediately fetch status
+    fetchStatus();
+
+    // Then set up polling every 30 seconds (increased from 10s to reduce load)
+    statusPollingInterval = setInterval(fetchStatus, 30000);
+  }
+
+  function stopStatusPolling() {
+    if (statusPollingInterval !== null) {
+      clearInterval(statusPollingInterval);
+      statusPollingInterval = null;
+    }
+  }
 
   function showToast(message, duration = 3000) {
     toast.textContent = message;
@@ -42,11 +63,19 @@ document.addEventListener("DOMContentLoaded", () => {
           const val = String(config[key]).trim().toLowerCase();
           input.checked = val === "true" || val === "1" || val === "yes";
         } else {
-          // Special handling for polling interval: convert milliseconds to minutes
-          if (key === "JELLYFIN_POLLING_INTERVAL" && config[key]) {
-            const ms = parseInt(config[key], 10);
-            if (!isNaN(ms)) {
-              input.value = Math.round(ms / 60000); // Convert to minutes
+          // Special handling for library configuration - must stringify object
+          if (key === "JELLYFIN_NOTIFICATION_LIBRARIES") {
+            // Special handling for library configuration - must stringify object
+            const value = config[key];
+            if (typeof value === 'object' && value !== null) {
+              input.value = JSON.stringify(value);
+              console.log('Loaded library config from server:', input.value);
+            } else if (typeof value === 'string') {
+              input.value = value;
+              console.log('Loaded library config (already string) from server:', input.value);
+            } else {
+              input.value = '{}';
+              console.log('No library config found, using empty object');
             }
           } else if (input.tagName === "SELECT") {
             // For select elements, save the value to restore later (after options are loaded)
@@ -132,8 +161,7 @@ document.addEventListener("DOMContentLoaded", () => {
           loadDiscordGuilds();
           checkAndLoadMappingsTab();
         });
-        fetchStatus();
-        setInterval(fetchStatus, 10000);
+        startStatusPolling();
       } else {
         showAuth(data.hasUsers);
       }
@@ -300,8 +328,7 @@ document.addEventListener("DOMContentLoaded", () => {
             loadDiscordGuilds();
             checkAndLoadMappingsTab();
           });
-          fetchStatus();
-          setInterval(fetchStatus, 10000);
+          startStatusPolling();
         } else {
           authError.textContent = data.message;
         }
@@ -332,8 +359,7 @@ document.addEventListener("DOMContentLoaded", () => {
             loadDiscordGuilds();
             checkAndLoadMappingsTab();
           });
-          fetchStatus();
-          setInterval(fetchStatus, 10000);
+          startStatusPolling();
         } else {
           authError.textContent = data.message;
         }
@@ -347,6 +373,7 @@ document.addEventListener("DOMContentLoaded", () => {
     logoutBtn.addEventListener("click", async (e) => {
       e.preventDefault();
       try {
+        stopStatusPolling();
         await fetch("/api/auth/logout", { method: "POST" });
         location.reload();
       } catch (error) {
@@ -360,11 +387,23 @@ document.addEventListener("DOMContentLoaded", () => {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const formData = new FormData(form);
-    const config = Object.fromEntries(formData.entries());
-    
+
+    // Filter out empty keys and log what we're getting
+    const filteredEntries = Array.from(formData.entries()).filter(([key, value]) => {
+      const isValid = key.trim() !== '';
+      if (!isValid) {
+        console.warn('Filtered out empty key with value:', value);
+      }
+      return isValid;
+    });
+
+    const config = Object.fromEntries(filteredEntries);
+
     // Explicitly capture checkbox values as "true"/"false" (except role checkboxes)
     document.querySelectorAll('input[type="checkbox"]:not([name="ROLE_ALLOWLIST"]):not([name="ROLE_BLOCKLIST"])').forEach((cb) => {
-      config[cb.id] = cb.checked ? "true" : "false";
+      if (cb.id && cb.id.trim() !== '') {
+        config[cb.id] = cb.checked ? "true" : "false";
+      }
     });
     
     // Handle role allowlist/blocklist as arrays
@@ -376,29 +415,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Handle Jellyfin notification libraries (can be array or object)
     try {
-      config.JELLYFIN_NOTIFICATION_LIBRARIES = config.JELLYFIN_NOTIFICATION_LIBRARIES
-        ? JSON.parse(config.JELLYFIN_NOTIFICATION_LIBRARIES)
+      const libConfigString = config.JELLYFIN_NOTIFICATION_LIBRARIES;
+      console.log('Library config before parse:', libConfigString);
+      config.JELLYFIN_NOTIFICATION_LIBRARIES = libConfigString
+        ? JSON.parse(libConfigString)
         : {};
+      console.log('Library config after parse (will send to server):', config.JELLYFIN_NOTIFICATION_LIBRARIES);
     } catch (e) {
+      console.error('Failed to parse library config, using empty object:', e);
       config.JELLYFIN_NOTIFICATION_LIBRARIES = {};
     }
 
-    // Convert polling interval from minutes to milliseconds
-    if (config.JELLYFIN_POLLING_INTERVAL) {
-      const minutes = parseInt(config.JELLYFIN_POLLING_INTERVAL, 10);
-      if (!isNaN(minutes) && minutes >= 1) {
-        config.JELLYFIN_POLLING_INTERVAL = String(minutes * 60000); // Convert to milliseconds
-      }
-    }
-
     try {
+      console.log("Sending config (full):", JSON.stringify(config, null, 2));
+      console.log("Config keys:", Object.keys(config));
       const response = await fetch("/api/save-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
       });
       const result = await response.json();
-      showToast(result.message);
+      if (!response.ok) {
+        console.error("Validation errors:", result.errors);
+        const errorMsg = result.errors?.map(e => `${e.field}: ${e.message}`).join(', ') || result.message;
+        showToast(`Error: ${errorMsg}`);
+      } else {
+        showToast(result.message);
+      }
     } catch (error) {
       console.error("Error saving config:", error);
       showToast("Error saving configuration.");
@@ -476,7 +519,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Only load mappings (with saved metadata), not members/users yet
         loadMappings();
       }
-      
+
       // Load roles when role mapping tab is opened
       if (targetId === "roles") {
         loadRoles();
@@ -577,6 +620,22 @@ document.addEventListener("DOMContentLoaded", () => {
         if (response.ok) {
           testJellyfinStatus.textContent = result.message;
           testJellyfinStatus.style.color = "var(--green)";
+          
+          // Auto-fill Server ID if returned
+          if (result.serverId) {
+            const serverIdInput = document.getElementById("JELLYFIN_SERVER_ID");
+            if (serverIdInput) {
+              serverIdInput.value = result.serverId;
+              // Flash the input to show it was updated
+              serverIdInput.style.transition = "background-color 0.5s";
+              const originalBg = serverIdInput.style.backgroundColor;
+              serverIdInput.style.backgroundColor = "rgba(166, 227, 161, 0.2)"; // Green tint
+              setTimeout(() => {
+                serverIdInput.style.backgroundColor = originalBg;
+              }, 1000);
+              console.log(`Auto-filled Jellyfin Server ID: ${result.serverId}`);
+            }
+          }
         } else {
           throw new Error(result.message);
         }
@@ -612,8 +671,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       fetchLibrariesBtn.disabled = true;
-      fetchLibrariesStatus.textContent = "Loading...";
-      fetchLibrariesStatus.style.color = "var(--text)";
+      librariesList.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--subtext0);"><i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: 0.5rem;"></i>Loading libraries...</div>';
 
       try {
         const response = await fetch("/api/jellyfin-libraries", {
@@ -634,7 +692,9 @@ document.addEventListener("DOMContentLoaded", () => {
             let libraryChannels = {};
             try {
               const currentValue = notificationLibrariesInput.value;
-              if (currentValue) {
+              console.log('Reading saved library config:', currentValue);
+
+              if (currentValue && currentValue.trim() !== '') {
                 const parsed = JSON.parse(currentValue);
                 // Handle both array (legacy) and object format
                 if (Array.isArray(parsed)) {
@@ -643,11 +703,14 @@ document.addEventListener("DOMContentLoaded", () => {
                   parsed.forEach(libId => {
                     libraryChannels[libId] = defaultChannel;
                   });
-                } else {
+                  console.log('Converted array to object format:', libraryChannels);
+                } else if (typeof parsed === 'object') {
                   libraryChannels = parsed;
+                  console.log('Using saved object format:', libraryChannels);
                 }
               }
             } catch (e) {
+              console.error('Failed to parse library config:', e);
               libraryChannels = {};
             }
 
@@ -655,29 +718,33 @@ document.addEventListener("DOMContentLoaded", () => {
             const allEnabled = Object.keys(libraryChannels).length === 0;
             const defaultChannel = document.getElementById("JELLYFIN_CHANNEL_ID").value || '';
 
+            console.log(`Libraries config - allEnabled: ${allEnabled}, libraryChannels:`, libraryChannels);
+
             librariesList.innerHTML = libraries.map(lib => {
+              // Library is checked ONLY if:
+              // 1. No libraries configured yet (allEnabled = true), OR
+              // 2. This library ID exists as a key in libraryChannels object
               const isChecked = allEnabled || libraryChannels.hasOwnProperty(lib.id);
-              const selectedChannel = libraryChannels[lib.id] || defaultChannel;
+              const selectedChannel = isChecked ? (libraryChannels[lib.id] || defaultChannel) : '';
+
+              console.log(`Library ${lib.name} (${lib.id}): checked=${isChecked}, channel=${selectedChannel}`);
 
               return `
-              <div class="library-item" style="display: flex; align-items: center; padding: 1rem; border: 1px solid var(--surface0); border-radius: 8px; margin-bottom: 0.75rem;">
-                <label style="display: flex; align-items: center; flex: 1; cursor: pointer;">
+              <div class="library-item">
+                <label class="library-label">
                   <input
                     type="checkbox"
                     value="${lib.id}"
                     class="library-checkbox"
                     ${isChecked ? 'checked' : ''}
-                    style="margin-right: 1rem;"
                   />
-                  <div class="library-info" style="flex: 1;">
-                    <span class="library-name" style="font-weight: 600; color: var(--text); font-size: 0.95rem;">${lib.name}</span>
-                    <span class="library-type" style="font-size: 0.85rem; color: var(--subtext0); text-transform: capitalize; margin-left: 0.5rem;">(${lib.type})</span>
+                  <div class="library-info">
+                    <span class="library-name">${lib.name}</span>
                   </div>
                 </label>
                 <select
                   class="library-channel-select"
                   data-library-id="${lib.id}"
-                  style="min-width: 200px; background-color: var(--background); border: 1px solid var(--surface1); color: var(--text); padding: 0.5rem; border-radius: 6px; font-size: 0.9rem;"
                   ${!isChecked ? 'disabled' : ''}
                 >
                   <option value="">Use Default Channel</option>
@@ -706,20 +773,20 @@ document.addEventListener("DOMContentLoaded", () => {
               select.addEventListener('change', updateNotificationLibraries);
             });
 
-            // Initial update to populate hidden input
-            updateNotificationLibraries();
+            // DON'T call updateNotificationLibraries() here - it would overwrite the saved config
+            // The hidden input already has the correct value from fetchConfig()
+            console.log('Libraries loaded. Hidden input value:', notificationLibrariesInput.value);
           }
 
-          librariesList.style.display = 'block';
-          fetchLibrariesStatus.textContent = `Found ${libraries.length} ${libraries.length === 1 ? 'library' : 'libraries'}`;
-          fetchLibrariesStatus.style.color = "var(--green)";
+          // Libraries loaded successfully
         } else {
           throw new Error(result.message || "Failed to fetch libraries");
         }
       } catch (error) {
-        fetchLibrariesStatus.textContent = error.message || "Failed to load libraries.";
-        fetchLibrariesStatus.style.color = "#f38ba8"; // Red
-        librariesList.style.display = 'none';
+        console.error("Failed to load libraries:", error);
+        librariesList.innerHTML = `<div style="padding: 1rem; color: var(--red); background: var(--surface0); border-radius: 6px;">
+          <i class="bi bi-exclamation-triangle" style="margin-right: 0.5rem;"></i>${error.message || "Failed to load libraries. Please check your Jellyfin URL and API Key."}
+        </div>`;
       } finally {
         fetchLibrariesBtn.disabled = false;
       }
@@ -750,6 +817,13 @@ document.addEventListener("DOMContentLoaded", () => {
         // Clear and populate options
         select.innerHTML = '<option value="">Use Default Channel</option>' +
           channels.map(ch => `<option value="${ch.id}" ${currentChannel === ch.id ? 'selected' : ''}>#${ch.name}</option>`).join('');
+
+        // Ensure the value is set (in case the selected attribute didn't work)
+        if (currentChannel) {
+          select.value = currentChannel;
+        }
+
+        console.log(`Library ${libraryId} channel set to: ${select.value} (expected: ${currentChannel})`);
       });
     } catch (error) {
       console.error("Failed to populate library channel dropdowns:", error);
@@ -763,12 +837,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     checkboxes.forEach(cb => {
       const libraryId = cb.value;
+      if (!libraryId || libraryId.trim() === '') {
+        console.warn('Skipping library checkbox with empty value');
+        return;
+      }
       const select = librariesList.querySelector(`select[data-library-id="${libraryId}"]`);
       const channelId = select ? select.value : '';
       libraryChannels[libraryId] = channelId; // Empty string means "use default"
     });
 
-    notificationLibrariesInput.value = JSON.stringify(libraryChannels);
+    const jsonValue = JSON.stringify(libraryChannels);
+    console.log('Updating JELLYFIN_NOTIFICATION_LIBRARIES:', jsonValue);
+    notificationLibrariesInput.value = jsonValue;
   }
 
   // --- Initial Load ---
@@ -1805,13 +1885,24 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      logsContainer.innerHTML = data.entries.map(entry => `
+      // Build log entries HTML
+      const logsHtml = data.entries.map(entry => `
         <div class="log-entry">
           <span class="log-timestamp">${entry.timestamp}</span>
           <span class="log-level ${entry.level}">${entry.level.toUpperCase()}</span>
           <span class="log-message">${escapeHtml(entry.message)}</span>
         </div>
       `).join('');
+
+      // Add truncation notice if needed
+      let truncationNotice = '';
+      if (data.truncated) {
+        truncationNotice = `<div style="padding: 1rem; background-color: var(--surface1); border-bottom: 1px solid var(--border); text-align: center; color: var(--text); font-size: 0.9rem;">
+          <i class="bi bi-info-circle" style="margin-right: 0.5rem;"></i>Showing last 1,000 entries. Older logs are archived for space efficiency.
+        </div>`;
+      }
+
+      logsContainer.innerHTML = truncationNotice + logsHtml;
     } catch (error) {
       logsContainer.innerHTML = `<div class="logs-empty">Error loading logs: ${error.message}</div>`;
     }

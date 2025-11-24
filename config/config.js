@@ -11,8 +11,6 @@ export const configTemplate = {
   JELLYFIN_SERVER_ID: "",
   JELLYFIN_CHANNEL_ID: "",
   JELLYFIN_NOTIFICATION_LIBRARIES: {}, // Changed from array to object: { libraryId: channelId }
-  JELLYFIN_POLLING_ENABLED: "false",
-  JELLYFIN_POLLING_INTERVAL: "300000", // 5 minutes in milliseconds
   JELLYFIN_NOTIFY_MOVIES: "true",
   JELLYFIN_NOTIFY_SERIES: "true",
   JELLYFIN_NOTIFY_SEASONS: "false",
@@ -22,6 +20,7 @@ export const configTemplate = {
   NOTIFY_ON_AVAILABLE: "false",
   PRIVATE_MESSAGE_MODE: "false",
   DEBUG: "false",
+  JWT_SECRET: "", // Required for web dashboard authentication - generate a secure random string
   USER_MAPPINGS: [],
   ROLE_ALLOWLIST: [],
   ROLE_BLOCKLIST: [],

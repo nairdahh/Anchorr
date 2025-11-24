@@ -254,11 +254,10 @@
                           type="text"
                           id="JELLYSEERR_URL"
                           name="JELLYSEERR_URL"
-                          placeholder="http://localhost:5055/api/v1"
+                          placeholder="http://localhost:5055"
                         />
                         <div class="form-text">
-                          The full URL of your Jellyseerr instance, including
-                          <code>/api/v1</code> at the end.
+                          The full URL of your Jellyseerr instance.
                         </div>
                       </div>
                       <div class="form-group">
@@ -399,7 +398,31 @@
                         </div>
                       </div>
 
-                      <div id="webhook-section" class="webhook-box" style="margin-top: 1rem;">
+                      <!-- Library Notifications Section -->
+                      <div class="form-group" style="margin-top: 2rem;">
+                        <label style="font-size: 1.2rem; font-weight: 600; color: var(--mauve);">
+                          Library Channel Mapping
+                        </label>
+                        <div class="form-text" style="margin-bottom: 1rem;">
+                          Map specific Jellyfin libraries to different Discord channels.
+                          <br>
+                          <small style="color: var(--subtext0);">
+                            Click "Fetch Libraries" to load your libraries, then select a channel for each one.
+                          </small>
+                        </div>
+                        <button type="button" id="fetch-libraries-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem; margin: 0 0 1rem 0; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                          <i class="bi bi-arrow-clockwise"></i> Fetch Libraries
+                        </button>
+                        <span id="fetch-libraries-status" style="margin-left: 1rem;"></span>
+                        
+                        <div id="libraries-list" class="libraries-container">
+                          <!-- Populated dynamically -->
+                        </div>
+                        <input type="hidden" id="JELLYFIN_NOTIFICATION_LIBRARIES" name="JELLYFIN_NOTIFICATION_LIBRARIES" />
+                      </div>
+
+                      <!-- Webhook Section -->
+                      <div id="webhook-section" class="webhook-box" style="margin-top: 2rem;">
                         <h3 class="webhook-title">Your Jellyfin Webhook URL</h3>
                         <div class="webhook-content">
                           <p>
@@ -428,115 +451,6 @@
                             <li><strong class="emphasis-mauve">Save</strong>.</li>
                           </ol>
                         </div>
-                      </div>
-
-                      <!-- Polling Settings Section -->
-                      <div class="form-group" style="margin-top: 2rem;">
-                        <label>Jellyfin API Polling</label>
-                        <div class="form-text" style="margin-bottom: 1rem;">
-                          Enable API polling to automatically detect new content added to Jellyfin. This is an alternative or supplement to webhooks.
-                          <br><strong>Note:</strong> You can use webhooks, polling, or both simultaneously.
-                        </div>
-
-                        <div class="form-group">
-                          <label class="checkbox-label">
-                            <input
-                              type="checkbox"
-                              id="JELLYFIN_POLLING_ENABLED"
-                              name="JELLYFIN_POLLING_ENABLED"
-                              value="true"
-                            />
-                            <span>Enable API Polling</span>
-                          </label>
-                        </div>
-
-                        <div class="form-group">
-                          <label for="JELLYFIN_POLLING_INTERVAL">Polling Interval (minutes)</label>
-                          <input
-                            type="number"
-                            id="JELLYFIN_POLLING_INTERVAL"
-                            name="JELLYFIN_POLLING_INTERVAL"
-                            min="1"
-                            step="1"
-                            placeholder="5"
-                          />
-                          <div class="form-text">
-                            How often to check for new content (minimum: 1 minute). Default: 5 minutes.
-                          </div>
-                        </div>
-
-                        <label style="margin-top: 1rem;">Notification Types</label>
-                        <div class="form-text" style="margin-bottom: 0.75rem;">
-                          Choose which types of content should trigger notifications.
-                        </div>
-
-                        <div class="form-group">
-                          <label class="checkbox-label">
-                            <input
-                              type="checkbox"
-                              id="JELLYFIN_NOTIFY_MOVIES"
-                              name="JELLYFIN_NOTIFY_MOVIES"
-                              value="true"
-                            />
-                            <span>Notify on Movies</span>
-                          </label>
-                        </div>
-
-                        <div class="form-group">
-                          <label class="checkbox-label">
-                            <input
-                              type="checkbox"
-                              id="JELLYFIN_NOTIFY_SERIES"
-                              name="JELLYFIN_NOTIFY_SERIES"
-                              value="true"
-                            />
-                            <span>Notify on TV Series</span>
-                          </label>
-                        </div>
-
-                        <div class="form-group">
-                          <label class="checkbox-label">
-                            <input
-                              type="checkbox"
-                              id="JELLYFIN_NOTIFY_SEASONS"
-                              name="JELLYFIN_NOTIFY_SEASONS"
-                              value="true"
-                            />
-                            <span>Notify on New Seasons</span>
-                          </label>
-                        </div>
-
-                        <div class="form-group">
-                          <label class="checkbox-label">
-                            <input
-                              type="checkbox"
-                              id="JELLYFIN_NOTIFY_EPISODES"
-                              name="JELLYFIN_NOTIFY_EPISODES"
-                              value="true"
-                            />
-                            <span>Notify on Episodes</span>
-                          </label>
-                        </div>
-                      </div>
-
-                      <!-- Library Notifications Section -->
-                      <div class="form-group" style="margin-top: 2rem;">
-                        <label>Library Notifications & Channel Mapping</label>
-                        <div class="form-text" style="margin-bottom: 0.75rem;">
-                          Select which Jellyfin libraries should send Discord notifications.
-                          By default, all libraries are enabled. Uncheck a library to stop receiving notifications from it.
-                          <br><strong>Note:</strong> Enter Jellyfin URL and API Key above before loading libraries.
-                        </div>
-                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
-                          <button type="button" id="fetch-libraries-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem;">
-                            Load Libraries
-                          </button>
-                          <span id="fetch-libraries-status" style="line-height: 2.5; opacity: 0.8;"></span>
-                        </div>
-                        <div id="libraries-list" class="libraries-container" style="display: none;">
-                          <!-- Populated dynamically -->
-                        </div>
-                        <input type="hidden" id="JELLYFIN_NOTIFICATION_LIBRARIES" name="JELLYFIN_NOTIFICATION_LIBRARIES" />
                       </div>
                     </fieldset>
                   </div>
@@ -682,11 +596,9 @@
                   <li><i class="bi bi-send-fill"></i><div><code>/request &lt;title&gt;</code> Instantly send a request for your chosen movie or show directly to Jellyseerr. For TV shows, this automatically requests all seasons.</div></li>
                   <li><i class="bi bi-bell-fill"></i><div>Receive beautifully formatted notifications on your selected Discord channel whenever new media is added to your Jellyfin library.</div></li>
                   <li><i class="bi bi-film"></i><div>Using the TMDB and OMDb databases, Discord messages get a beautiful and well-structured look, with essential information about the requested or added media content.</div></li>
+                  <li><i class="bi bi-sliders"></i><div>Control permissions with role-based access (allowlist/blocklist), route notifications to different channels by Jellyfin library, and link users to Jellyseerr accounts for accurate request tracking.</div></li>
+                  <li><i class="bi bi-chat-left-dots"></i><div>Get direct messages on Discord when requested content becomes available in your library. Never miss when your requests are ready!</div></li>
                 </ul>
-                <div class="tagline-container">
-                  <p class="tagline">Self-hosted, full control.</p>
-                  <p class="tagline-description">This version of Anchorr is open-source and self-hosted by users, allowing full control over how Anchorr works and what it does. In parallel, I am working on a direct bot implementation for Discord, which is much easier to configure and doesn't require a self-hosted server. You can find the link in the header.</p>
-                </div>
               </div>
 
               <div class="about-cards">
