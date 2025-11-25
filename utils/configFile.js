@@ -5,11 +5,11 @@ import logger from './logger.js';
 /**
  * CONFIG_PATH determines where config.json is saved:
  * - Docker: /config/config.json (volume mount)
- * - Local: ./config.json (root folder)
+ * - Local (Windows/Linux): ./config/config.json (config folder)
  */
 export const CONFIG_PATH = fs.existsSync("/config")
   ? path.join("/config", "config.json")
-  : path.join(process.cwd(), "config.json");
+  : path.join(process.cwd(), "config", "config.json");
 
 /**
  * Reads config.json and returns the parsed object
@@ -33,6 +33,29 @@ export function readConfig() {
 }
 
 /**
+ * Creates a backup of the current config.json
+ * @returns {string|null} Backup file path or null if failed
+ */
+function createConfigBackup() {
+  try {
+    if (!fs.existsSync(CONFIG_PATH)) {
+      return null; // Nothing to backup
+    }
+
+    const configDir = path.dirname(CONFIG_PATH);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const backupPath = path.join(configDir, `config.backup.${timestamp}.json`);
+
+    fs.copyFileSync(CONFIG_PATH, backupPath);
+    logger.debug(`Config backup created at ${backupPath}`);
+    return backupPath;
+  } catch (error) {
+    logger.warn(`Failed to create config backup: ${error.message}`);
+    return null;
+  }
+}
+
+/**
  * Writes entire config object to config.json with robust error handling
  * @param {Object} config - Config object to save
  * @returns {boolean} True if save succeeded
@@ -45,6 +68,9 @@ export function writeConfig(config) {
       logger.info(`Creating config directory: ${configDir}`);
       fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
     }
+
+    // Create backup before writing (in case of corruption)
+    createConfigBackup();
 
     // Write with explicit permissions
     fs.writeFileSync(

@@ -122,6 +122,42 @@ function loadConfig() {
   return success;
 }
 
+/**
+ * Verify volume persistence configuration for Docker deployments
+ * Detects if /config is mounted as a proper volume and warns if misconfigured
+ */
+function verifyVolumeConfiguration() {
+  // Check if running in Docker (Docker always has /config directory created)
+  const isDocker = fs.existsSync("/config");
+
+  if (!isDocker) {
+    logger.debug("Running in local mode (not Docker) - config will be stored in ./config/");
+    return;
+  }
+
+  // In Docker - verify /config is writable
+  try {
+    const testFile = path.join("/config", ".volume-test");
+    fs.writeFileSync(testFile, "test", { mode: 0o666 });
+    fs.unlinkSync(testFile);
+    logger.info("✅ Volume /config is properly configured and writable");
+  } catch (error) {
+    if (error.code === 'EACCES') {
+      logger.error("❌ CRITICAL: /config directory exists but is NOT writable!");
+      logger.error("   For UNRAID users: Ensure container volume mapping is correctly configured:");
+      logger.error("   1. Go to Docker tab → Edit container");
+      logger.error("   2. Add volume mapping: Container Path=/config → Host Path=/mnt/user/appdata/anchorr");
+      logger.error("   3. Set Access Mode to RW (Read-Write)");
+      logger.error("   4. Save and restart container");
+    } else if (error.code === 'EROFS') {
+      logger.error("❌ CRITICAL: /config is on a read-only file system!");
+      logger.error("   Check your Docker volume configuration - /config should be writable");
+    } else {
+      logger.warn("⚠️  Could not verify /config writability:", error.message);
+    }
+  }
+}
+
 const app = express();
 let port = process.env.WEBHOOK_PORT || 8282;
 
@@ -1964,6 +2000,9 @@ logger.info("Web server configured successfully");
 let server;
 
 function startServer() {
+  // Check volume configuration early
+  verifyVolumeConfiguration();
+
   loadConfig();
   port = process.env.WEBHOOK_PORT || 8282;
   logger.info(`Attempting to start server on port ${port}...`);

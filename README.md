@@ -159,7 +159,6 @@ docker run -d \
   --restart unless-stopped \
   nairdah/anchorr:latest
 ```
-
 Then access at: `http://localhost:9000`
 
 ## 📸 Screenshots (a bit outdated for now)

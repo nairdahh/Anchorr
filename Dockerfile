@@ -37,6 +37,15 @@ LABEL org.opencontainers.image.title="Anchorr" \
       webui.port="8282" \
       webui.protocol="http"
 
-# set production mode and start app
+# set production mode
 ENV NODE_ENV=production
+
+# Create /config directory for persistent config storage
+# Must exist at startup so CONFIG_PATH detection works correctly
+RUN mkdir -p /config && chmod 777 /config
+
+# Declare /config as a persistent volume for config.json storage
+# This ensures data persists when container is recreated/updated on Docker registries
+VOLUME ["/config"]
+
 CMD ["node", "app.js"]
