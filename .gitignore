@@ -4,16 +4,10 @@
 # Environment variables
 .env
 config.json
-config.json
-# Dependencies
-/node_modules
-
-# Environment variables
-.env
-config.json
-config.json
 
 # Logs
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -21,8 +15,11 @@ yarn-error.log*
 # System files
 .DS_Store
 
-# App specific
-logs/
+# IDE
 .claude
 .idea/
 .vscode/
+
+# Testing
+coverage/
+.nyc_output/

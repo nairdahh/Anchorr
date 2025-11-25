@@ -32,12 +32,17 @@ import { jellyfinPoller } from "./jellyfinPoller.js";
 import JellyfinWebSocketClient from "./jellyfinWebSocket.js";
 import { minutesToHhMm } from "./utils/time.js";
 import { fetchOMDbData } from "./api/omdb.js";
+import {
+  CONFIG_PATH,
+  readConfig,
+  writeConfig,
+  loadConfigToEnv,
+  getUserMappings,
+  saveUserMapping,
+  deleteUserMapping
+} from "./utils/configFile.js";
 
 // --- CONFIGURATION ---
-// Use /config volume if in Docker, otherwise use current directory
-const CONFIG_PATH = fs.existsSync("/config")
-  ? path.join("/config", "config.json")
-  : path.join(process.cwd(), "config.json");
 const ENV_PATH = path.join(process.cwd(), ".env");
 
 function parseEnvFile(filePath) {
@@ -90,22 +95,12 @@ function migrateEnvToConfig() {
       }
     }
 
-    // Save migrated config
-    try {
-      // Ensure /config directory exists with proper permissions
-      const configDir = path.dirname(CONFIG_PATH);
-      if (!fs.existsSync(configDir)) {
-        fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
-      }
-      
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(migratedConfig, null, 2), { mode: 0o666 });
+    // Save migrated config using centralized writeConfig
+    if (writeConfig(migratedConfig)) {
       logger.info("✅ Migration successful! config.json created from .env");
-      logger.info(
-        "📝 You can now delete the .env file as it's no longer needed."
-      );
-    } catch (error) {
-      logger.error("❌ Error saving migrated config:", error);
-      logger.error("Check that /config directory has write permissions");
+      logger.info("📝 You can now delete the .env file as it's no longer needed.");
+    } else {
+      logger.error("❌ Error saving migrated config - check permissions");
     }
   }
 }
@@ -113,52 +108,18 @@ function migrateEnvToConfig() {
 function loadConfig() {
   logger.debug("[LOADCONFIG] Checking CONFIG_PATH:", CONFIG_PATH);
   logger.debug("[LOADCONFIG] File exists:", fs.existsSync(CONFIG_PATH));
-  if (fs.existsSync(CONFIG_PATH)) {
-    try {
-      const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
-      const config = JSON.parse(rawData);
-      logger.debug("[LOADCONFIG] Config keys:", Object.keys(config));
-      logger.debug("[LOADCONFIG] DISCORD_TOKEN in config:", config.DISCORD_TOKEN ? config.DISCORD_TOKEN.slice(0, 6) + '...' : 'UNDEFINED IN CONFIG');
 
-      // Normalize JELLYSEERR_URL to remove /api/v1 suffix if present
-      if (config.JELLYSEERR_URL && typeof config.JELLYSEERR_URL === 'string') {
-        config.JELLYSEERR_URL = config.JELLYSEERR_URL.replace(/\/api\/v1\/?$/, '');
-      }
+  // Use centralized loadConfigToEnv (includes all migrations)
+  const success = loadConfigToEnv();
 
-      // Auto-migrate JELLYFIN_NOTIFICATION_LIBRARIES from array to object format
-      if (Array.isArray(config.JELLYFIN_NOTIFICATION_LIBRARIES)) {
-        logger.info("🔄 Migrating JELLYFIN_NOTIFICATION_LIBRARIES from array to object format...");
-        const defaultChannel = config.JELLYFIN_CHANNEL_ID || '';
-        const migratedLibraries = {};
-        config.JELLYFIN_NOTIFICATION_LIBRARIES.forEach(libId => {
-          migratedLibraries[libId] = defaultChannel;
-        });
-        config.JELLYFIN_NOTIFICATION_LIBRARIES = migratedLibraries;
-
-        // Save migrated config back to file
-        try {
-          fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o666 });
-          logger.info("✅ Successfully migrated JELLYFIN_NOTIFICATION_LIBRARIES to object format");
-          logger.info(`   Mapped ${Object.keys(migratedLibraries).length} libraries to default channel: ${defaultChannel || '(none set)'}`);
-        } catch (error) {
-          logger.error("Failed to save migrated config:", error);
-        }
-      }
-
-      // Load config into process.env for compatibility with existing code
-      for (const [key, value] of Object.entries(config)) {
-        // Convert objects to JSON strings to avoid "[object Object]" conversion
-        process.env[key] = typeof value === 'object' ? JSON.stringify(value) : value;
-      }
-      logger.debug("[LOADCONFIG] Loaded DISCORD_TOKEN into process.env:", process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.slice(0, 6) + '...' : 'UNDEFINED AFTER SET');
-      return true;
-    } catch (error) {
-      logger.error("Error reading or parsing config.json:", error);
-      return false;
-    }
+  if (success) {
+    logger.debug("[LOADCONFIG] Config keys loaded:", Object.keys(process.env).filter(k => k.startsWith('DISCORD') || k.startsWith('JELLYFIN') || k.startsWith('JELLYSEERR')).length);
+    logger.debug("[LOADCONFIG] DISCORD_TOKEN in process.env:", process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.slice(0, 6) + '...' : 'UNDEFINED');
+  } else {
+    logger.debug("[LOADCONFIG] Config file does not exist or failed to load");
   }
-  logger.debug("[LOADCONFIG] Config file does not exist");
-  return false;
+
+  return success;
 }
 
 const app = express();
@@ -503,15 +464,16 @@ async function startBot() {
   }
 
   // ----------------- COMMON SEARCH LOGIC -----------------
-  async function handleSearchOrRequest(interaction, raw, mode = "search") {
-    let tmdbId = null;
-    let mediaType = null;
-
-    if (raw?.includes("|")) {
-      [tmdbId, mediaType] = raw.split("|");
-      tmdbId = parseInt(tmdbId, 10);
-    } else if (raw) {
-      const found = (await tmdbApi.tmdbSearch(raw, TMDB_API_KEY)).filter(
+  async function handleSearchOrRequest(interaction, rawInput, mode, tags = []) {
+    let tmdbId, mediaType;
+    
+    // Check if input is direct ID (format: "12345|movie")
+    if (rawInput.includes("|")) {
+      [tmdbId, mediaType] = rawInput.split("|");
+    } else {
+      // Fallback search if raw text was passed
+      const results = await tmdbApi.tmdbSearch(rawInput, TMDB_API_KEY);
+      const found = results.filter(
         (r) => r.media_type === "movie" || r.media_type === "tv"
       );
       if (found.length) {
@@ -554,10 +516,35 @@ async function startBot() {
           return;
         }
 
+        // Convert tag labels to IDs if tags were provided
+        let tagIds = [];
+        if (tags && tags.length > 0) {
+          try {
+            const allTags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
+            // Filter to appropriate type (Sonarr for TV, Radarr for movies)
+            const relevantTags = allTags.filter(tag => 
+              mediaType === 'tv' ? tag.type === 'sonarr' : tag.type === 'radarr'
+            );
+            
+            // Map tag labels to IDs
+            tagIds = tags
+              .map(tagLabel => {
+                const tag = relevantTags.find(t => (t.label || t.name) === tagLabel);
+                return tag ? tag.id : null;
+              })
+              .filter(id => id !== null);
+            
+            logger.debug(`Converted tag labels ${tags.join(', ')} to IDs: ${tagIds.join(', ')}`);
+          } catch (err) {
+            logger.warn('Failed to convert tag labels to IDs:', err?.message);
+          }
+        }
+
         await jellyseerrApi.sendRequest({
           tmdbId,
           mediaType,
           seasons: ["all"],
+          tags: tagIds,
           jellyseerrUrl: JELLYSEERR_URL,
           apiKey: JELLYSEERR_API_KEY,
           discordUserId: interaction.user.id,
@@ -1245,7 +1232,7 @@ function configureWebServer() {
     // Apply rate limiting to all API endpoints (except auth and webhooks)
     app.use('/api/', apiLimiter);
 
-    // Endpoint pentru lista de servere Discord (guilds)
+    // Endpoint for Discord servers list (guilds)
     app.get("/api/discord/guilds", authenticateToken, async (req, res) => {
       try {
         if (!discordClient || !discordClient.user) {
@@ -1266,7 +1253,7 @@ function configureWebServer() {
       }
     });
 
-    // Endpoint pentru lista de canale Discord dintr-un server
+    // Endpoint for Discord channels list from a server
     app.get("/api/discord/channels/:guildId", authenticateToken, async (req, res) => {
       try {
         const { guildId } = req.params;
@@ -1301,7 +1288,7 @@ function configureWebServer() {
       }
     });
 
-    // Endpoint pentru membrii Discord dintr-un server
+    // Endpoint for Discord members from a server
     app.get("/api/discord-members", authenticateToken, async (req, res) => {
       try {
         logger.debug("[MEMBERS API] Request received");
@@ -1365,7 +1352,7 @@ function configureWebServer() {
       }
     });
 
-    // Endpoint pentru rolurile Discord dintr-un server
+    // Endpoint for Discord roles from a server
     app.get("/api/discord-roles", authenticateToken, async (req, res) => {
       try {
         logger.debug("[ROLES API] Request received");
@@ -1408,7 +1395,7 @@ function configureWebServer() {
       }
     });
 
-    // Endpoint pentru utilizatorii Jellyseerr
+    // Endpoint for Jellyseerr users
     app.get("/api/jellyseerr-users", authenticateToken, async (req, res) => {
       try {
         logger.debug("[JELLYSEERR USERS API] Request received");
@@ -1475,22 +1462,11 @@ function configureWebServer() {
       }
     });
 
-    // Endpoint pentru mapările utilizatorilor
+    // Endpoint for user mappings
     app.get("/api/user-mappings", authenticateToken, (req, res) => {
-      // Load from config.json
-      if (fs.existsSync(CONFIG_PATH)) {
-        try {
-          const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
-          const config = JSON.parse(rawData);
-          const mappings = config.USER_MAPPINGS || [];
-          res.json(mappings);
-        } catch (error) {
-          logger.error("Error reading config for mappings:", error);
-          res.json([]);
-        }
-      } else {
-        res.json([]);
-      }
+      // Load from config.json using centralized helper
+      const mappings = getUserMappings();
+      res.json(mappings);
     });
 
     app.post("/api/user-mappings", authenticateToken, validateBody(userMappingSchema), (req, res) => {
@@ -1501,47 +1477,21 @@ function configureWebServer() {
       }
 
       try {
-        // Load current config
-        let config = {};
-        if (fs.existsSync(CONFIG_PATH)) {
-          const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
-          config = JSON.parse(rawData);
-        }
-
-        // Initialize USER_MAPPINGS if it doesn't exist
-        if (!config.USER_MAPPINGS) {
-          config.USER_MAPPINGS = [];
-        }
-
-        // Check if mapping already exists
-        const existingIndex = config.USER_MAPPINGS.findIndex(
-          mapping => mapping.discordUserId === discordUserId
-        );
-
         const mapping = {
           discordUserId,
           jellyseerrUserId,
           discordUsername: discordUsername || null,
           discordDisplayName: discordDisplayName || null,
-          jellyseerrDisplayName: jellyseerrDisplayName || null,
-          createdAt: new Date().toISOString()
+          jellyseerrDisplayName: jellyseerrDisplayName || null
         };
 
-        if (existingIndex >= 0) {
-          // Update existing mapping
-          config.USER_MAPPINGS[existingIndex] = mapping;
-        } else {
-          // Add new mapping
-          config.USER_MAPPINGS.push(mapping);
-        }
-
-        // Save updated config
-        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o666 });
+        // Use centralized saveUserMapping helper
+        saveUserMapping(mapping);
 
         res.json({ success: true, message: "Mapping saved successfully." });
       } catch (error) {
         logger.error("Error saving user mapping:", error);
-        res.status(500).json({ success: false, message: "Failed to save mapping." });
+        res.status(500).json({ success: false, message: "Failed to save mapping - check server logs." });
       }
     });
 
@@ -1549,38 +1499,21 @@ function configureWebServer() {
       const { discordUserId } = req.params;
 
       try {
-        // Load current config
-        let config = {};
-        if (fs.existsSync(CONFIG_PATH)) {
-          const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
-          config = JSON.parse(rawData);
-        }
+        // Use centralized deleteUserMapping helper
+        const deleted = deleteUserMapping(discordUserId);
 
-        if (!config.USER_MAPPINGS) {
-          return res.status(404).json({ success: false, message: "No mappings found." });
-        }
-
-        // Find and remove the mapping
-        const initialLength = config.USER_MAPPINGS.length;
-        config.USER_MAPPINGS = config.USER_MAPPINGS.filter(
-          mapping => mapping.discordUserId !== discordUserId
-        );
-
-        if (config.USER_MAPPINGS.length === initialLength) {
+        if (!deleted) {
           return res.status(404).json({ success: false, message: "Mapping not found." });
         }
-
-        // Save updated config
-        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o666 });
 
         res.json({ success: true, message: "Mapping deleted successfully." });
       } catch (error) {
         logger.error("Error deleting user mapping:", error);
-        res.status(500).json({ success: false, message: "Failed to delete mapping." });
+        res.status(500).json({ success: false, message: "Failed to delete mapping - check server logs." });
       }
     });
 
-    // Endpoint pentru bibliotecile Jellyfin
+    // Endpoint for Jellyfin libraries
     app.post("/api/jellyfin-libraries", async (req, res) => {
       try {
         const { url, apiKey } = req.body;
@@ -1643,9 +1576,8 @@ function configureWebServer() {
   });
 
   app.get("/api/config", authenticateToken, (req, res) => {
-    if (fs.existsSync(CONFIG_PATH)) {
-      const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
-      const config = JSON.parse(rawData);
+    const config = readConfig();
+    if (config) {
       res.json(config);
     } else {
       // If no config file, return the template from config/config.js
@@ -1666,11 +1598,7 @@ function configureWebServer() {
 
     try {
       // Load existing config to preserve USER_MAPPINGS and other non-form fields
-      let existingConfig = {};
-      if (fs.existsSync(CONFIG_PATH)) {
-        const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
-        existingConfig = JSON.parse(rawData);
-      }
+      const existingConfig = readConfig() || {};
 
       // Merge with existing config, preserving USER_MAPPINGS and other fields not in the form
       const finalConfig = {
@@ -1684,15 +1612,14 @@ function configureWebServer() {
         JELLYFIN_NOTIFICATION_LIBRARIES: configData.JELLYFIN_NOTIFICATION_LIBRARIES || existingConfig.JELLYFIN_NOTIFICATION_LIBRARIES || {},
       };
 
-
-
-      // Ensure /config directory exists with proper permissions
-      const configDir = path.dirname(CONFIG_PATH);
-      if (!fs.existsSync(configDir)) {
-        fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
+      // Use centralized writeConfig with robust error handling
+      if (!writeConfig(finalConfig)) {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to save configuration file. Check Docker volume permissions and server logs.'
+        });
       }
-      
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(finalConfig, null, 2), { mode: 0o666 });
+
       logger.info('✅ Configuration saved successfully');
     } catch (writeErr) {
       logger.error('Error saving config.json:', writeErr);
@@ -1701,7 +1628,7 @@ function configureWebServer() {
         error: 'Failed to save configuration file. Check Docker volume permissions.'
       });
     }
-    
+
     loadConfig(); // Reload config into process.env
 
     // If bot is running and critical settings changed, restart the bot logic
