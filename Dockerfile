@@ -32,8 +32,14 @@ LABEL org.opencontainers.image.title="Anchorr" \
       org.opencontainers.image.source="https://github.com/nairdahh/anchorr" \
       org.opencontainers.image.version="1.2.0" \
       org.opencontainers.image.icon="https://raw.githubusercontent.com/nairdahh/anchorr/main/assets/logo.png" \
+      org.opencontainers.image.volumes="/config" \
       com.example.webui="http://localhost:8282" \
       org.unraid.icon="https://raw.githubusercontent.com/nairdahh/anchorr/main/assets/logo.png" \
+      org.unraid.category="MediaServer:Other" \
+      org.unraid.support="https://github.com/nairdahh/anchorr/issues" \
+      org.unraid.webui="http://[IP]:[PORT:8282]" \
+      org.unraid.volume.config="/config" \
+      org.unraid.volume.config.description="Configuration files (REQUIRED for persistence)" \
       webui.port="8282" \
       webui.protocol="http"
 

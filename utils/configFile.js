@@ -4,7 +4,7 @@ import logger from './logger.js';
 
 /**
  * CONFIG_PATH determines where config.json is saved:
- * - Docker: /config/config.json (volume mount)
+ * - Docker: /config/config.json (volume mount - user must configure)
  * - Local (Windows/Linux): ./config/config.json (config folder)
  */
 export const CONFIG_PATH = fs.existsSync("/config")
@@ -12,44 +12,58 @@ export const CONFIG_PATH = fs.existsSync("/config")
   : path.join(process.cwd(), "config", "config.json");
 
 /**
- * Attempt to restore config from UNRAID appdata backup if available
- * @returns {boolean} True if restored
+ * Attempt to restore from latest backup if config is missing
+ * Checks both config directory and app root for backups
+ * @returns {boolean} True if restored successfully
  */
-function restoreFromUnraidBackup() {
-  const isUnraid = process.env.HOST_OS === 'Unraid' || fs.existsSync('/mnt/user');
-  if (!isUnraid || !fs.existsSync('/mnt/user/appdata/anchorr')) {
-    return false;
-  }
-
+function restoreFromLatestBackup() {
   try {
-    const backupDir = '/mnt/user/appdata/anchorr';
-    const files = fs.readdirSync(backupDir);
-    const backupFiles = files
-      .filter(f => f.startsWith('config.backup.') && f.endsWith('.json'))
-      .sort()
-      .reverse(); // Latest first
+    let allBackups = [];
 
-    if (backupFiles.length === 0) {
+    // Check config directory for backups
+    const configDir = path.dirname(CONFIG_PATH);
+    if (fs.existsSync(configDir)) {
+      const configDirFiles = fs.readdirSync(configDir);
+      const configBackups = configDirFiles
+        .filter(f => f.startsWith('config.backup.') && f.endsWith('.json'))
+        .map(f => ({ name: f, path: path.join(configDir, f) }));
+      allBackups.push(...configBackups);
+    }
+
+    // Also check app root for backups (fallback from Docker updates)
+    const appRoot = process.cwd();
+    if (appRoot !== configDir && fs.existsSync(appRoot)) {
+      const rootFiles = fs.readdirSync(appRoot);
+      const rootBackups = rootFiles
+        .filter(f => f.startsWith('config.backup.') && f.endsWith('.json'))
+        .map(f => ({ name: f, path: path.join(appRoot, f) }));
+      allBackups.push(...rootBackups);
+    }
+
+    // Sort by name (timestamp) descending to get latest
+    allBackups.sort((a, b) => b.name.localeCompare(a.name));
+
+    if (allBackups.length === 0) {
       return false;
     }
 
-    const latestBackup = path.join(backupDir, backupFiles[0]);
-    const configContent = fs.readFileSync(latestBackup, 'utf-8');
+    const latestBackup = allBackups[0];
+    const backupContent = fs.readFileSync(latestBackup.path, 'utf-8');
 
-    // Validate it's valid JSON
-    JSON.parse(configContent);
+    // Validate JSON
+    JSON.parse(backupContent);
 
-    // Restore to CONFIG_PATH
-    const configDir = path.dirname(CONFIG_PATH);
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
+    // Restore to main config path
+    const configDirPath = path.dirname(CONFIG_PATH);
+    if (!fs.existsSync(configDirPath)) {
+      fs.mkdirSync(configDirPath, { recursive: true, mode: 0o777 });
     }
 
-    fs.writeFileSync(CONFIG_PATH, configContent, { mode: 0o666 });
-    logger.info(`✅ CONFIG RESTORED from UNRAID backup: ${backupFiles[0]}`);
+    fs.writeFileSync(CONFIG_PATH, backupContent, { mode: 0o666, encoding: 'utf-8' });
+    logger.info(`✅ CONFIG RESTORED from backup: ${latestBackup.name}`);
     return true;
   } catch (error) {
-    logger.warn(`Could not restore from UNRAID backup: ${error.message}`);
+    logger.warn(`Could not restore from backup: ${error.message}`);
     return false;
   }
 }
@@ -62,13 +76,20 @@ export function readConfig() {
   if (!fs.existsSync(CONFIG_PATH)) {
     logger.debug(`Config file not found at ${CONFIG_PATH}`);
 
-    // Try to restore from UNRAID appdata backup
-    restoreFromUnraidBackup();
-
-    // Check again after restore attempt
-    if (!fs.existsSync(CONFIG_PATH)) {
-      return null;
+    // Try to restore from latest backup
+    if (restoreFromLatestBackup()) {
+      // Successfully restored, read it
+      try {
+        const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
+        const config = JSON.parse(rawData);
+        return config;
+      } catch (error) {
+        logger.error(`Error reading restored config: ${error.message}`);
+        return null;
+      }
     }
+
+    return null;
   }
 
   try {
@@ -84,7 +105,7 @@ export function readConfig() {
 
 /**
  * Creates a backup of the current config.json
- * On UNRAID, also saves to host appdata directory for safety
+ * Saves in config directory AND in app root for extra redundancy
  * @returns {string|null} Backup file path or null if failed
  */
 function createConfigBackup() {
@@ -100,24 +121,16 @@ function createConfigBackup() {
     fs.copyFileSync(CONFIG_PATH, backupPath);
     logger.debug(`Config backup created at ${backupPath}`);
 
-    // On UNRAID, also save a copy to host appdata for extra safety
-    // This survives container recreation without volume mapping
-    const isUnraid = process.env.HOST_OS === 'Unraid' || fs.existsSync('/mnt/user');
-    if (isUnraid && fs.existsSync('/mnt/user/appdata')) {
-      try {
-        const unraidBackupPath = path.join('/mnt/user/appdata/anchorr', `config.backup.${timestamp}.json`);
-        const unraidBackupDir = path.dirname(unraidBackupPath);
+    // Also save backup in app root (fallback location for Docker updates)
+    try {
+      const appRoot = process.cwd();
+      const rootBackupPath = path.join(appRoot, `config.backup.${timestamp}.json`);
 
-        if (!fs.existsSync(unraidBackupDir)) {
-          fs.mkdirSync(unraidBackupDir, { recursive: true, mode: 0o777 });
-        }
-
-        const configContent = fs.readFileSync(CONFIG_PATH, 'utf-8');
-        fs.writeFileSync(unraidBackupPath, configContent, { mode: 0o666 });
-        logger.debug(`UNRAID appdata backup created at ${unraidBackupPath}`);
-      } catch (unraidError) {
-        logger.debug(`Could not create UNRAID appdata backup: ${unraidError.message}`);
-      }
+      const configContent = fs.readFileSync(CONFIG_PATH, 'utf-8');
+      fs.writeFileSync(rootBackupPath, configContent, { mode: 0o666, encoding: 'utf-8' });
+      logger.debug(`Backup also saved to app root: ${rootBackupPath}`);
+    } catch (rootError) {
+      logger.debug(`Could not save backup to app root: ${rootError.message}`);
     }
 
     return backupPath;

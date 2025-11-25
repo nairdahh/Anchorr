@@ -144,11 +144,11 @@ function verifyVolumeConfiguration() {
   } catch (error) {
     if (error.code === 'EACCES') {
       logger.error("❌ CRITICAL: /config directory exists but is NOT writable!");
-      logger.error("   For UNRAID users: Ensure container volume mapping is correctly configured:");
-      logger.error("   1. Go to Docker tab → Edit container");
-      logger.error("   2. Add volume mapping: Container Path=/config → Host Path=/mnt/user/appdata/anchorr");
-      logger.error("   3. Set Access Mode to RW (Read-Write)");
-      logger.error("   4. Save and restart container");
+      logger.error("   Ensure container volume mapping is correctly configured:");
+      logger.error("   - Container Path: /config");
+      logger.error("   - Host Path: [your-host-directory]");
+      logger.error("   - Access Mode: Read-Write (RW)");
+      logger.error("   Restart the container after fixing the volume mapping");
     } else if (error.code === 'EROFS') {
       logger.error("❌ CRITICAL: /config is on a read-only file system!");
       logger.error("   Check your Docker volume configuration - /config should be writable");

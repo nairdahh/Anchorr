@@ -140,6 +140,12 @@ docker run -d \
 - `-v $(pwd)/anchorr-data:/config` - Persistent data storage
 - `--restart unless-stopped` - Auto-restart on failure
 
+**Example for Unraid:**
+When adding the container in Unraid Community Apps, add this volume mapping in the "Path" section:
+- **Container Path**: `/config`
+- **Host Path**: `/mnt/user/appdata/anchorr`
+- **Access Mode**: `RW` (Read-Write)
+
 ### Using a Different Port
 
 If port 8282 is already in use:
