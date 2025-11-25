@@ -12,13 +12,63 @@ export const CONFIG_PATH = fs.existsSync("/config")
   : path.join(process.cwd(), "config", "config.json");
 
 /**
+ * Attempt to restore config from UNRAID appdata backup if available
+ * @returns {boolean} True if restored
+ */
+function restoreFromUnraidBackup() {
+  const isUnraid = process.env.HOST_OS === 'Unraid' || fs.existsSync('/mnt/user');
+  if (!isUnraid || !fs.existsSync('/mnt/user/appdata/anchorr')) {
+    return false;
+  }
+
+  try {
+    const backupDir = '/mnt/user/appdata/anchorr';
+    const files = fs.readdirSync(backupDir);
+    const backupFiles = files
+      .filter(f => f.startsWith('config.backup.') && f.endsWith('.json'))
+      .sort()
+      .reverse(); // Latest first
+
+    if (backupFiles.length === 0) {
+      return false;
+    }
+
+    const latestBackup = path.join(backupDir, backupFiles[0]);
+    const configContent = fs.readFileSync(latestBackup, 'utf-8');
+
+    // Validate it's valid JSON
+    JSON.parse(configContent);
+
+    // Restore to CONFIG_PATH
+    const configDir = path.dirname(CONFIG_PATH);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
+    }
+
+    fs.writeFileSync(CONFIG_PATH, configContent, { mode: 0o666 });
+    logger.info(`✅ CONFIG RESTORED from UNRAID backup: ${backupFiles[0]}`);
+    return true;
+  } catch (error) {
+    logger.warn(`Could not restore from UNRAID backup: ${error.message}`);
+    return false;
+  }
+}
+
+/**
  * Reads config.json and returns the parsed object
  * @returns {Object|null} Config object or null if doesn't exist
  */
 export function readConfig() {
   if (!fs.existsSync(CONFIG_PATH)) {
     logger.debug(`Config file not found at ${CONFIG_PATH}`);
-    return null;
+
+    // Try to restore from UNRAID appdata backup
+    restoreFromUnraidBackup();
+
+    // Check again after restore attempt
+    if (!fs.existsSync(CONFIG_PATH)) {
+      return null;
+    }
   }
 
   try {
@@ -34,6 +84,7 @@ export function readConfig() {
 
 /**
  * Creates a backup of the current config.json
+ * On UNRAID, also saves to host appdata directory for safety
  * @returns {string|null} Backup file path or null if failed
  */
 function createConfigBackup() {
@@ -48,6 +99,27 @@ function createConfigBackup() {
 
     fs.copyFileSync(CONFIG_PATH, backupPath);
     logger.debug(`Config backup created at ${backupPath}`);
+
+    // On UNRAID, also save a copy to host appdata for extra safety
+    // This survives container recreation without volume mapping
+    const isUnraid = process.env.HOST_OS === 'Unraid' || fs.existsSync('/mnt/user');
+    if (isUnraid && fs.existsSync('/mnt/user/appdata')) {
+      try {
+        const unraidBackupPath = path.join('/mnt/user/appdata/anchorr', `config.backup.${timestamp}.json`);
+        const unraidBackupDir = path.dirname(unraidBackupPath);
+
+        if (!fs.existsSync(unraidBackupDir)) {
+          fs.mkdirSync(unraidBackupDir, { recursive: true, mode: 0o777 });
+        }
+
+        const configContent = fs.readFileSync(CONFIG_PATH, 'utf-8');
+        fs.writeFileSync(unraidBackupPath, configContent, { mode: 0o666 });
+        logger.debug(`UNRAID appdata backup created at ${unraidBackupPath}`);
+      } catch (unraidError) {
+        logger.debug(`Could not create UNRAID appdata backup: ${unraidError.message}`);
+      }
+    }
+
     return backupPath;
   } catch (error) {
     logger.warn(`Failed to create config backup: ${error.message}`);
