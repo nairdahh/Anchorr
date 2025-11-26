@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.0] - 2025-11-26
 
+### ℹ️ Important
+
+- **New Requirement**: Please enable **SERVER MEMBERS INTENT** in your Discord bot configuration. Go to [Discord Developer Portal](https://discord.com/developers/applications) → Select your application → Bot section → Privileged Gateway Intents → Enable "SERVER MEMBERS INTENT". Without this, the bot will fail to start with "Used disallowed intents" error. I will make this optional for the bot to start in the future so you can set it up afterwards.
+
 ### ✨ Added
 
 - **Trending Command**: New `/trending` command to browse weekly trending movies and TV shows from TMDB with rich autocomplete
