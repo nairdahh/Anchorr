@@ -17,7 +17,6 @@ import {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
-  MessageFlags,
 } from "discord.js";
 
 // --- MODULE IMPORTS ---
@@ -25,10 +24,20 @@ import * as tmdbApi from "./api/tmdb.js";
 import * as jellyseerrApi from "./api/jellyseerr.js";
 import { registerCommands } from "./discord/commands.js";
 import logger from "./utils/logger.js";
-import { validateBody, configSchema, userMappingSchema } from "./utils/validation.js";
+import {
+  validateBody,
+  configSchema,
+  userMappingSchema,
+} from "./utils/validation.js";
 import cache from "./utils/cache.js";
 import { COLORS, TIMEOUTS } from "./config/constants.js";
-import { login, register, logout, checkAuth, authenticateToken } from "./utils/auth.js";
+import {
+  login,
+  register,
+  logout,
+  checkAuth,
+  authenticateToken,
+} from "./utils/auth.js";
 import { jellyfinPoller } from "./jellyfinPoller.js";
 import JellyfinWebSocketClient from "./jellyfinWebSocket.js";
 import { minutesToHhMm } from "./utils/time.js";
@@ -40,7 +49,7 @@ import {
   loadConfigToEnv,
   getUserMappings,
   saveUserMapping,
-  deleteUserMapping
+  deleteUserMapping,
 } from "./utils/configFile.js";
 
 // --- CONFIGURATION ---
@@ -99,7 +108,9 @@ function migrateEnvToConfig() {
     // Save migrated config using centralized writeConfig
     if (writeConfig(migratedConfig)) {
       logger.info("✅ Migration successful! config.json created from .env");
-      logger.info("📝 You can now delete the .env file as it's no longer needed.");
+      logger.info(
+        "📝 You can now delete the .env file as it's no longer needed."
+      );
     } else {
       logger.error("❌ Error saving migrated config - check permissions");
     }
@@ -114,8 +125,21 @@ function loadConfig() {
   const success = loadConfigToEnv();
 
   if (success) {
-    logger.debug("[LOADCONFIG] Config keys loaded:", Object.keys(process.env).filter(k => k.startsWith('DISCORD') || k.startsWith('JELLYFIN') || k.startsWith('JELLYSEERR')).length);
-    logger.debug("[LOADCONFIG] DISCORD_TOKEN in process.env:", process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.slice(0, 6) + '...' : 'UNDEFINED');
+    logger.debug(
+      "[LOADCONFIG] Config keys loaded:",
+      Object.keys(process.env).filter(
+        (k) =>
+          k.startsWith("DISCORD") ||
+          k.startsWith("JELLYFIN") ||
+          k.startsWith("JELLYSEERR")
+      ).length
+    );
+    logger.debug(
+      "[LOADCONFIG] DISCORD_TOKEN in process.env:",
+      process.env.DISCORD_TOKEN
+        ? process.env.DISCORD_TOKEN.slice(0, 6) + "..."
+        : "UNDEFINED"
+    );
   } else {
     logger.debug("[LOADCONFIG] Config file does not exist or failed to load");
   }
@@ -132,7 +156,9 @@ function verifyVolumeConfiguration() {
   const isDocker = fs.existsSync("/config");
 
   if (!isDocker) {
-    logger.debug("Running in local mode (not Docker) - config will be stored in ./config/");
+    logger.debug(
+      "Running in local mode (not Docker) - config will be stored in ./config/"
+    );
     return;
   }
 
@@ -143,16 +169,22 @@ function verifyVolumeConfiguration() {
     fs.unlinkSync(testFile);
     logger.info("✅ Volume /config is properly configured and writable");
   } catch (error) {
-    if (error.code === 'EACCES') {
-      logger.error("❌ CRITICAL: /config directory exists but is NOT writable!");
-      logger.error("   Ensure container volume mapping is correctly configured:");
+    if (error.code === "EACCES") {
+      logger.error(
+        "❌ CRITICAL: /config directory exists but is NOT writable!"
+      );
+      logger.error(
+        "   Ensure container volume mapping is correctly configured:"
+      );
       logger.error("   - Container Path: /config");
       logger.error("   - Host Path: [your-host-directory]");
       logger.error("   - Access Mode: Read-Write (RW)");
       logger.error("   Restart the container after fixing the volume mapping");
-    } else if (error.code === 'EROFS') {
+    } else if (error.code === "EROFS") {
       logger.error("❌ CRITICAL: /config is on a read-only file system!");
-      logger.error("   Check your Docker volume configuration - /config should be writable");
+      logger.error(
+        "   Check your Docker volume configuration - /config should be writable"
+      );
     } else {
       logger.warn("⚠️  Could not verify /config writability:", error.message);
     }
@@ -177,11 +209,15 @@ async function startBot() {
     return { success: true, message: "Bot is already running." };
   }
 
-
   // DEBUG: Log Discord credentials (partial)
   logger.debug("[DEBUG] BOT_ID:", process.env.BOT_ID);
   logger.debug("[DEBUG] GUILD_ID:", process.env.GUILD_ID);
-  logger.debug("[DEBUG] DISCORD_TOKEN:", process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.slice(0, 6) + '...' : undefined);
+  logger.debug(
+    "[DEBUG] DISCORD_TOKEN:",
+    process.env.DISCORD_TOKEN
+      ? process.env.DISCORD_TOKEN.slice(0, 6) + "..."
+      : undefined
+  );
 
   // Load the latest config from file
   const configLoaded = loadConfig();
@@ -195,14 +231,21 @@ async function startBot() {
   // DEBUG: Log Discord credentials after loadConfig
   logger.debug("[DEBUG AFTER LOAD] BOT_ID:", process.env.BOT_ID);
   logger.debug("[DEBUG AFTER LOAD] GUILD_ID:", process.env.GUILD_ID);
-  logger.debug("[DEBUG AFTER LOAD] DISCORD_TOKEN:", process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.slice(0, 6) + '...' : 'UNDEFINED AFTER LOAD');
+  logger.debug(
+    "[DEBUG AFTER LOAD] DISCORD_TOKEN:",
+    process.env.DISCORD_TOKEN
+      ? process.env.DISCORD_TOKEN.slice(0, 6) + "..."
+      : "UNDEFINED AFTER LOAD"
+  );
 
   // ----------------- VALIDATE ENV -----------------
   const REQUIRED_DISCORD = ["DISCORD_TOKEN", "BOT_ID"];
   const missing = REQUIRED_DISCORD.filter((k) => !process.env[k]);
   if (missing.length) {
     throw new Error(
-      `Bot cannot start. Missing required Discord variables: ${missing.join(", ")}`
+      `Bot cannot start. Missing required Discord variables: ${missing.join(
+        ", "
+      )}`
     );
   }
 
@@ -215,14 +258,13 @@ async function startBot() {
   const BOT_ID = process.env.BOT_ID;
   const GUILD_ID = process.env.GUILD_ID;
   let JELLYSEERR_URL = process.env.JELLYSEERR_URL?.replace(/\/$/, "");
-  if (JELLYSEERR_URL && !JELLYSEERR_URL.endsWith('/api/v1')) {
-    JELLYSEERR_URL += '/api/v1';
+  if (JELLYSEERR_URL && !JELLYSEERR_URL.endsWith("/api/v1")) {
+    JELLYSEERR_URL += "/api/v1";
   }
   const JELLYSEERR_API_KEY = process.env.JELLYSEERR_API_KEY;
   const TMDB_API_KEY = process.env.TMDB_API_KEY;
 
   // ----------------- HELPERS -----------------
-
 
   // ----------------- HELPERS -----------------
   function pad2(n) {
@@ -277,9 +319,10 @@ async function startBot() {
     // Add ?manage=1 only for success status
     let jellyseerrMediaUrl;
     if (tmdbId && JELLYSEERR_URL) {
-      const jellyseerrDomain = JELLYSEERR_URL.replace(/\/api\/v1\/?$/, '');
+      const jellyseerrDomain = JELLYSEERR_URL.replace(/\/api\/v1\/?$/, "");
       const baseUrl = `${jellyseerrDomain}/${mediaType}/${tmdbId}`;
-      jellyseerrMediaUrl = status === "success" ? `${baseUrl}?manage=1` : baseUrl;
+      jellyseerrMediaUrl =
+        status === "success" ? `${baseUrl}?manage=1` : baseUrl;
     }
 
     const genres =
@@ -327,7 +370,7 @@ async function startBot() {
     const embed = new EmbedBuilder()
       .setAuthor({
         name: authorName,
-        url: jellyseerrMediaUrl
+        url: jellyseerrMediaUrl,
       })
       .setTitle(titleWithYear)
       .setURL(imdbId ? `https://www.imdb.com/title/${imdbId}/` : undefined)
@@ -403,13 +446,20 @@ async function startBot() {
         } else {
           const seasons = [...requestedSeasons];
           const lastSeason = seasons.pop();
-          successLabel = `Requested seasons ${seasons.join(", ")} and ${lastSeason}`;
+          successLabel = `Requested seasons ${seasons.join(
+            ", "
+          )} and ${lastSeason}`;
         }
       }
       if (requestedTags.length > 0) {
         // requestedTags contains tag names when coming from request_btn handler
-        const tagLabel = requestedTags.length === 1 ? requestedTags[0] : requestedTags.join(", ");
-        successLabel += ` with ${tagLabel} tag${requestedTags.length > 1 ? 's' : ''}`;
+        const tagLabel =
+          requestedTags.length === 1
+            ? requestedTags[0]
+            : requestedTags.join(", ");
+        successLabel += ` with ${tagLabel} tag${
+          requestedTags.length > 1 ? "s" : ""
+        }`;
       }
       successLabel += ", stay tuned!";
 
@@ -432,22 +482,30 @@ async function startBot() {
         } else {
           const seasons = [...selectedSeasons];
           const lastSeason = seasons.pop();
-          requestLabel = `Request seasons ${seasons.join(", ")} and ${lastSeason}`;
+          requestLabel = `Request seasons ${seasons.join(
+            ", "
+          )} and ${lastSeason}`;
         }
       }
 
       if (selectedTags.length > 0) {
         // selectedTags contains tag names (not IDs) when coming from select_tags handler
-        const tagLabel = selectedTags.length === 1 ? selectedTags[0] : selectedTags.join(", ");
-        requestLabel += ` with ${tagLabel} tag${selectedTags.length > 1 ? 's' : ''}`;
+        const tagLabel =
+          selectedTags.length === 1 ? selectedTags[0] : selectedTags.join(", ");
+        requestLabel += ` with ${tagLabel} tag${
+          selectedTags.length > 1 ? "s" : ""
+        }`;
       }
 
-      const seasonsParam = selectedSeasons.length > 0 ? selectedSeasons.join(',') : '';
-      const tagsParam = selectedTags.length > 0 ? selectedTags.join(',') : '';
+      const seasonsParam =
+        selectedSeasons.length > 0 ? selectedSeasons.join(",") : "";
+      const tagsParam = selectedTags.length > 0 ? selectedTags.join(",") : "";
 
       buttons.push(
         new ButtonBuilder()
-          .setCustomId(`request_btn|${tmdbId}|${mediaType}|${seasonsParam}|${tagsParam}`)
+          .setCustomId(
+            `request_btn|${tmdbId}|${mediaType}|${seasonsParam}|${tagsParam}`
+          )
           .setLabel(requestLabel)
           .setStyle(ButtonStyle.Primary)
           .setDisabled(mediaType === "tv" && selectedSeasons.length === 0)
@@ -460,7 +518,12 @@ async function startBot() {
     }
 
     // Add season selector for TV shows (if not requested, has seasons, and seasons not yet selected)
-    if (mediaType === "tv" && details?.seasons?.length > 0 && !requested && selectedSeasons.length === 0) {
+    if (
+      mediaType === "tv" &&
+      details?.seasons?.length > 0 &&
+      !requested &&
+      selectedSeasons.length === 0
+    ) {
       const seenSeasons = new Set();
       const uniqueSeasons = details.seasons.filter((s) => {
         if (s.season_number <= 0) return false;
@@ -477,7 +540,7 @@ async function startBot() {
         })),
       ];
 
-      const tagsParam = selectedTags.length > 0 ? selectedTags.join(',') : '';
+      const tagsParam = selectedTags.length > 0 ? selectedTags.join(",") : "";
       const selectMenu = new StringSelectMenuBuilder()
         .setCustomId(`select_seasons|${tmdbId}|${tagsParam}`)
         .setPlaceholder("Select seasons to request...")
@@ -503,7 +566,7 @@ async function startBot() {
   // ----------------- COMMON SEARCH LOGIC -----------------
   async function handleSearchOrRequest(interaction, rawInput, mode, tags = []) {
     let tmdbId, mediaType;
-    
+
     // Check if input is direct ID (format: "12345|movie")
     if (rawInput.includes("|")) {
       [tmdbId, mediaType] = rawInput.split("|");
@@ -526,14 +589,15 @@ async function startBot() {
       });
     }
 
-    const isEphemeral = process.env.PRIVATE_MESSAGE_MODE === 'true';
+    const isEphemeral = process.env.PRIVATE_MESSAGE_MODE === "true";
     await interaction.deferReply({ ephemeral: isEphemeral });
-    // Use MessageFlags.Ephemeral based on configuration
-    const isEphemeral = String(process.env.EPHEMERAL_INTERACTIONS || 'false').toLowerCase() === 'true';
-    await interaction.deferReply({ flags: isEphemeral ? MessageFlags.Ephemeral : undefined });
 
     try {
-      const details = await tmdbApi.tmdbGetDetails(tmdbId, mediaType, TMDB_API_KEY);
+      const details = await tmdbApi.tmdbGetDetails(
+        tmdbId,
+        mediaType,
+        TMDB_API_KEY
+      );
 
       if (mode === "request") {
         // Check if media already exists in Jellyseerr
@@ -560,23 +624,32 @@ async function startBot() {
         let tagIds = [];
         if (tags && tags.length > 0) {
           try {
-            const allTags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
-            // Filter to appropriate type (Sonarr for TV, Radarr for movies)
-            const relevantTags = allTags.filter(tag => 
-              mediaType === 'tv' ? tag.type === 'sonarr' : tag.type === 'radarr'
+            const allTags = await jellyseerrApi.fetchTags(
+              JELLYSEERR_URL,
+              JELLYSEERR_API_KEY
             );
-            
+            // Filter to appropriate type (Sonarr for TV, Radarr for movies)
+            const relevantTags = allTags.filter((tag) =>
+              mediaType === "tv" ? tag.type === "sonarr" : tag.type === "radarr"
+            );
+
             // Map tag labels to IDs
             tagIds = tags
-              .map(tagLabel => {
-                const tag = relevantTags.find(t => (t.label || t.name) === tagLabel);
+              .map((tagLabel) => {
+                const tag = relevantTags.find(
+                  (t) => (t.label || t.name) === tagLabel
+                );
                 return tag ? tag.id : null;
               })
-              .filter(id => id !== null);
-            
-            logger.debug(`Converted tag labels ${tags.join(', ')} to IDs: ${tagIds.join(', ')}`);
+              .filter((id) => id !== null);
+
+            logger.debug(
+              `Converted tag labels ${tags.join(", ")} to IDs: ${tagIds.join(
+                ", "
+              )}`
+            );
           } catch (err) {
-            logger.warn('Failed to convert tag labels to IDs:', err?.message);
+            logger.warn("Failed to convert tag labels to IDs:", err?.message);
           }
         }
 
@@ -601,7 +674,11 @@ async function startBot() {
         }
       }
 
-      const imdbId = await tmdbApi.tmdbGetExternalImdb(tmdbId, mediaType, TMDB_API_KEY);
+      const imdbId = await tmdbApi.tmdbGetExternalImdb(
+        tmdbId,
+        mediaType,
+        TMDB_API_KEY
+      );
 
       const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
 
@@ -625,10 +702,13 @@ async function startBot() {
       // Add tag selector for movies (if in search mode and not already requested)
       if (mediaType === "movie" && mode === "search") {
         try {
-          const allTags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
+          const allTags = await jellyseerrApi.fetchTags(
+            JELLYSEERR_URL,
+            JELLYSEERR_API_KEY
+          );
 
           // Filter to only Radarr tags for movies
-          const radarrTags = allTags.filter(tag => tag.type === "radarr");
+          const radarrTags = allTags.filter((tag) => tag.type === "radarr");
 
           if (radarrTags && radarrTags.length > 0) {
             // Deduplicate tags by ID
@@ -642,7 +722,7 @@ async function startBot() {
               }
             }
 
-            const tagOptions = uniqueTags.slice(0, 25).map(tag => ({
+            const tagOptions = uniqueTags.slice(0, 25).map((tag) => ({
               label: tag.label || tag.name || `Tag ${tag.id}`,
               value: tag.id.toString(),
             }));
@@ -658,15 +738,15 @@ async function startBot() {
             components.push(tagRow);
           }
         } catch (err) {
-          logger.debug("Failed to fetch tags for movie tag selector:", err?.message);
+          logger.debug(
+            "Failed to fetch tags for movie tag selector:",
+            err?.message
+          );
           // Continue without tag selector if fetch fails
         }
       }
 
       await interaction.editReply({ embeds: [embed], components });
-      // For both search & request: check if interactions should be ephemeral.
-      const isEphemeral = String(process.env.EPHEMERAL_INTERACTIONS || 'false').toLowerCase() === 'true';
-      await interaction.editReply({ embeds: [embed], components, ephemeral: isEphemeral });
     } catch (err) {
       logger.error("Error in handleSearchOrRequest:", err);
       await interaction.editReply({
@@ -679,18 +759,36 @@ async function startBot() {
 
   // ----------------- REGISTER COMMANDS -----------------
   // Înregistrează comenzile global sau guild-specific
-  logger.debug(`[REGISTER COMMANDS] Attempting to register commands for BOT_ID: ${BOT_ID}`);
-  logger.debug(`[REGISTER COMMANDS] DISCORD_TOKEN available: ${!!process.env.DISCORD_TOKEN}`);
-  logger.debug(`[REGISTER COMMANDS] DISCORD_TOKEN value: ${process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.slice(0, 10) + '...' : 'UNDEFINED'}`);
+  logger.debug(
+    `[REGISTER COMMANDS] Attempting to register commands for BOT_ID: ${BOT_ID}`
+  );
+  logger.debug(
+    `[REGISTER COMMANDS] DISCORD_TOKEN available: ${!!process.env
+      .DISCORD_TOKEN}`
+  );
+  logger.debug(
+    `[REGISTER COMMANDS] DISCORD_TOKEN value: ${
+      process.env.DISCORD_TOKEN
+        ? process.env.DISCORD_TOKEN.slice(0, 10) + "..."
+        : "UNDEFINED"
+    }`
+  );
 
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
   logger.debug(`[REGISTER COMMANDS] REST token set: ${!!rest.token}`);
-  logger.debug(`[REGISTER COMMANDS] REST token value: ${rest.token ? rest.token.slice(0, 10) + '...' : 'UNDEFINED'}`);
+  logger.debug(
+    `[REGISTER COMMANDS] REST token value: ${
+      rest.token ? rest.token.slice(0, 10) + "..." : "UNDEFINED"
+    }`
+  );
 
   try {
     await registerCommands(rest, BOT_ID, GUILD_ID || null, logger);
   } catch (err) {
-    logger.error(`[REGISTER COMMANDS] Failed to register Discord commands:`, err);
+    logger.error(
+      `[REGISTER COMMANDS] Failed to register Discord commands:`,
+      err
+    );
     throw new Error(`Failed to register Discord commands: ${err.message}`);
   }
 
@@ -707,15 +805,15 @@ async function startBot() {
       ? JSON.parse(process.env.ROLE_BLOCKLIST)
       : [];
 
-    const userRoles = member.roles.cache.map(r => r.id);
+    const userRoles = member.roles.cache.map((r) => r.id);
 
     // If allowlist exists and user doesn't have any of those roles, deny
-    if (allowlist.length > 0 && !userRoles.some(r => allowlist.includes(r))) {
+    if (allowlist.length > 0 && !userRoles.some((r) => allowlist.includes(r))) {
       return false;
     }
 
     // If user has any blocklisted role, deny
-    if (blocklist.length > 0 && userRoles.some(r => blocklist.includes(r))) {
+    if (blocklist.length > 0 && userRoles.some((r) => blocklist.includes(r))) {
       return false;
     }
 
@@ -725,7 +823,12 @@ async function startBot() {
   client.on("interactionCreate", async (interaction) => {
     try {
       // Check role permissions for all commands
-      if (interaction.isCommand() || interaction.isStringSelectMenu() && !interaction.customId.startsWith("request_seasons|") && !interaction.customId.startsWith("request_with_tags|")) {
+      if (
+        interaction.isCommand() ||
+        (interaction.isStringSelectMenu() &&
+          !interaction.customId.startsWith("request_seasons|") &&
+          !interaction.customId.startsWith("request_with_tags|"))
+      ) {
         if (!checkRolePermission(interaction.member)) {
           return interaction.reply({
             content: "❌ You don't have permission to use this command.",
@@ -740,27 +843,30 @@ async function startBot() {
         const focusedValue = focusedOption.value;
 
         // Handle Tag Autocomplete
-        if (focusedOption.name === 'tag') {
+        if (focusedOption.name === "tag") {
           try {
-            const allTags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
-            
+            const allTags = await jellyseerrApi.fetchTags(
+              JELLYSEERR_URL,
+              JELLYSEERR_API_KEY
+            );
+
             // Filter tags based on user input
-            const filteredTags = allTags.filter(tag => {
-              const label = tag.label || tag.name || '';
+            const filteredTags = allTags.filter((tag) => {
+              const label = tag.label || tag.name || "";
               return label.toLowerCase().includes(focusedValue.toLowerCase());
             });
 
             // Deduplicate by label/name
             const uniqueTags = [];
             const seenLabels = new Set();
-            
+
             for (const tag of filteredTags) {
               const label = tag.label || tag.name;
               if (label && !seenLabels.has(label)) {
                 seenLabels.add(label);
                 uniqueTags.push({
                   name: label,
-                  value: label // Pass the label as value, we'll map it to ID later
+                  value: label, // Pass the label as value, we'll map it to ID later
                 });
               }
             }
@@ -768,14 +874,14 @@ async function startBot() {
             // Limit to 25 choices (Discord limit)
             return await interaction.respond(uniqueTags.slice(0, 25));
           } catch (e) {
-            logger.error('Tag autocomplete error:', e);
+            logger.error("Tag autocomplete error:", e);
             return await interaction.respond([]);
           }
         }
 
         // Handle Title Autocomplete (existing logic)
         if (!focusedValue) return interaction.respond([]);
-        
+
         try {
           const results = await tmdbApi.tmdbSearch(focusedValue, TMDB_API_KEY);
           const filtered = results
@@ -789,13 +895,19 @@ async function startBot() {
               const year = date ? ` (${date.slice(0, 4)})` : "";
 
               // Fetch detailed info from TMDB
-              const details = await tmdbApi.tmdbGetDetails(item.id, item.media_type, TMDB_API_KEY);
-              
+              const details = await tmdbApi.tmdbGetDetails(
+                item.id,
+                item.media_type,
+                TMDB_API_KEY
+              );
+
               let extraInfo = "";
-              
+
               if (item.media_type === "movie") {
                 // Get director
-                const director = details.credits?.crew?.find(c => c.job === "Director")?.name;
+                const director = details.credits?.crew?.find(
+                  (c) => c.job === "Director"
+                )?.name;
                 if (director) {
                   extraInfo += ` — directed by ${director}`;
                 }
@@ -815,18 +927,20 @@ async function startBot() {
                 // Get seasons count
                 if (details.number_of_seasons) {
                   const seasons = details.number_of_seasons;
-                  extraInfo += ` — ${seasons} season${seasons > 1 ? 's' : ''}`;
+                  extraInfo += ` — ${seasons} season${seasons > 1 ? "s" : ""}`;
                 }
               }
-              
-              let fullName = `${emoji} ${item.title || item.name}${year}${extraInfo}`;
-              
+
+              let fullName = `${emoji} ${
+                item.title || item.name
+              }${year}${extraInfo}`;
+
               // Discord requires choice names to be 1-100 characters
               // Keep it safe at 98 and add ... within that limit if needed
               if (fullName.length > 98) {
-                fullName = fullName.substring(0, 95) + '...';
+                fullName = fullName.substring(0, 95) + "...";
               }
-              
+
               return {
                 name: fullName,
                 value: `${item.id}|${item.media_type}`,
@@ -837,7 +951,8 @@ async function startBot() {
               const date = item.release_date || item.first_air_date || "";
               const year = date ? ` (${date.slice(0, 4)})` : "";
               let fallback = `${emoji} ${item.title || item.name}${year}`;
-              if (fallback.length > 98) fallback = fallback.substring(0, 95) + '...';
+              if (fallback.length > 98)
+                fallback = fallback.substring(0, 95) + "...";
               return {
                 name: fallback,
                 value: `${item.id}|${item.media_type}`,
@@ -848,7 +963,7 @@ async function startBot() {
           const choices = await Promise.all(choicePromises);
           return await interaction.respond(choices);
         } catch (e) {
-          logger.error('Autocomplete error:', e);
+          logger.error("Autocomplete error:", e);
           return await interaction.respond([]);
         }
       }
@@ -860,16 +975,21 @@ async function startBot() {
           return interaction.reply({
             content:
               "⚠️ This command is disabled because Jellyseerr or TMDB configuration is missing.",
-            flags: MessageFlags.Ephemeral,
+            ephemeral: true,
           });
         }
         const raw = getOptionStringRobust(interaction);
         if (interaction.commandName === "search")
           return handleSearchOrRequest(interaction, raw, "search");
         if (interaction.commandName === "request") {
-          const tag = interaction.options.getString('tag');
+          const tag = interaction.options.getString("tag");
           // Pass tag as an array if present
-          return handleSearchOrRequest(interaction, raw, "request", tag ? [tag] : []);
+          return handleSearchOrRequest(
+            interaction,
+            raw,
+            "request",
+            tag ? [tag] : []
+          );
         }
       }
 
@@ -892,29 +1012,43 @@ async function startBot() {
         await interaction.deferUpdate();
 
         try {
-          const details = await tmdbApi.tmdbGetDetails(tmdbId, mediaType, TMDB_API_KEY);
+          const details = await tmdbApi.tmdbGetDetails(
+            tmdbId,
+            mediaType,
+            TMDB_API_KEY
+          );
 
           // Parse seasons and tags from customId
-          const selectedSeasons = seasonsParam ? seasonsParam.split(",") : (mediaType === "tv" ? [] : ["all"]);
+          const selectedSeasons = seasonsParam
+            ? seasonsParam.split(",")
+            : mediaType === "tv"
+            ? []
+            : ["all"];
           const selectedTagNames = tagsParam ? tagsParam.split(",") : [];
 
           // Convert tag names to IDs for API call
           let selectedTagIds = [];
           if (selectedTagNames.length > 0) {
             try {
-              const allTags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
+              const allTags = await jellyseerrApi.fetchTags(
+                JELLYSEERR_URL,
+                JELLYSEERR_API_KEY
+              );
 
               // Filter by type: Radarr for movies, Sonarr for TV
-              const filteredTags = mediaType === "movie"
-                ? allTags.filter(tag => tag.type === "radarr")
-                : allTags.filter(tag => tag.type === "sonarr");
+              const filteredTags =
+                mediaType === "movie"
+                  ? allTags.filter((tag) => tag.type === "radarr")
+                  : allTags.filter((tag) => tag.type === "sonarr");
 
               selectedTagIds = selectedTagNames
-                .map(tagName => {
-                  const tag = filteredTags.find(t => (t.label || t.name) === tagName);
+                .map((tagName) => {
+                  const tag = filteredTags.find(
+                    (t) => (t.label || t.name) === tagName
+                  );
                   return tag ? tag.id : null;
                 })
-                .filter(id => id !== null);
+                .filter((id) => id !== null);
             } catch (err) {
               logger.debug("Failed to fetch tags for API call:", err?.message);
               // Continue without tags if fetch fails
@@ -922,7 +1056,8 @@ async function startBot() {
           }
 
           // Check if media already exists in Jellyseerr
-          const checkSeasons = selectedSeasons.length > 0 ? selectedSeasons : ["all"];
+          const checkSeasons =
+            selectedSeasons.length > 0 ? selectedSeasons : ["all"];
           const status = await jellyseerrApi.checkMediaStatus(
             tmdbId,
             mediaType,
@@ -961,7 +1096,11 @@ async function startBot() {
             pendingRequests.get(requestKey).add(interaction.user.id);
           }
 
-          const imdbId = await tmdbApi.tmdbGetExternalImdb(tmdbId, mediaType, TMDB_API_KEY);
+          const imdbId = await tmdbApi.tmdbGetExternalImdb(
+            tmdbId,
+            mediaType,
+            TMDB_API_KEY
+          );
           const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
 
           const embed = buildNotificationEmbed(
@@ -983,12 +1122,8 @@ async function startBot() {
             selectedSeasons.length > 0 ? selectedSeasons : ["all"],
             selectedTagNames
           );
-          const originalEmbeds = interaction.message.embeds;
-          const disabledComponents = buildButtons(tmdbId, imdbId, true, mediaType);
 
-          await interaction.editReply({ embeds: originalEmbeds, components: disabledComponents });
-          const isEphemeral = String(process.env.EPHEMERAL_INTERACTIONS || 'false').toLowerCase() === 'true';
-          await interaction.followUp({ embeds: [embed], flags: isEphemeral ? MessageFlags.Ephemeral : undefined });
+          await interaction.editReply({ embeds: [embed], components });
         } catch (err) {
           logger.error("Button request error:", err);
           try {
@@ -1016,7 +1151,7 @@ async function startBot() {
         if (!tmdbId || !selectedSeasons.length) {
           return interaction.reply({
             content: "⚠️ Invalid selection.",
-            flags: MessageFlags.Ephemeral,
+            ephemeral: true,
           });
         }
 
@@ -1024,23 +1159,33 @@ async function startBot() {
 
         try {
           // Parse existing tags from customId if any
-          const selectedTags = selectedTagsParam ? selectedTagsParam.split(",") : [];
+          const selectedTags = selectedTagsParam
+            ? selectedTagsParam.split(",")
+            : [];
 
           // Fetch available tags for tag selector (only if not already selected)
           let tags = [];
           if (selectedTags.length === 0) {
-            tags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
+            tags = await jellyseerrApi.fetchTags(
+              JELLYSEERR_URL,
+              JELLYSEERR_API_KEY
+            );
           }
 
           // Get TMDB details and IMDb ID for building updated components
-          const details = await tmdbApi.tmdbGetDetails(tmdbId, "tv", TMDB_API_KEY);
-          const imdbId = await tmdbApi.tmdbGetExternalImdb(tmdbId, "tv", TMDB_API_KEY);
+          const details = await tmdbApi.tmdbGetDetails(
+            tmdbId,
+            "tv",
+            TMDB_API_KEY
+          );
+          const imdbId = await tmdbApi.tmdbGetExternalImdb(
+            tmdbId,
+            "tv",
+            TMDB_API_KEY
+          );
 
           // Build updated components with selected seasons
           const components = buildButtons(
-          // Disable the select menu after successful request
-          const originalEmbeds = interaction.message.embeds;
-          const disabledComponents = buildButtons(
             tmdbId,
             imdbId,
             false,
@@ -1065,13 +1210,13 @@ async function startBot() {
               }
             }
 
-            const tagOptions = uniqueTags.slice(0, 25).map(tag => ({
+            const tagOptions = uniqueTags.slice(0, 25).map((tag) => ({
               label: tag.label || tag.name || `Tag ${tag.id}`,
               value: tag.id.toString(),
             }));
 
             const tagMenu = new StringSelectMenuBuilder()
-              .setCustomId(`select_tags|${tmdbId}|${selectedSeasons.join(',')}`)
+              .setCustomId(`select_tags|${tmdbId}|${selectedSeasons.join(",")}`)
               .setPlaceholder("Select tags (optional)")
               .addOptions(tagOptions)
               .setMinValues(0)
@@ -1083,11 +1228,7 @@ async function startBot() {
 
           await interaction.editReply({
             components,
-            embeds: originalEmbeds,
-            components: disabledComponents,
           });
-          const isEphemeral = String(process.env.EPHEMERAL_INTERACTIONS || 'false').toLowerCase() === 'true';
-          await interaction.followUp({ embeds: [embed], flags: isEphemeral ? MessageFlags.Ephemeral : undefined });
         } catch (err) {
           logger.error("Season selection error:", err);
           try {
@@ -1098,12 +1239,6 @@ async function startBot() {
           } catch (followUpErr) {
             logger.error("Failed to send follow-up message:", followUpErr);
           }
-          console.error("Season request error:", err);
-          await interaction.followUp({
-            content:
-              "⚠️ I could not send the request for the selected seasons.",
-            flags: MessageFlags.Ephemeral,
-          });
         }
       }
 
@@ -1131,8 +1266,10 @@ async function startBot() {
         const parts = interaction.customId.split("|");
         const tmdbId = parseInt(parts[1], 10);
         const selectedSeasonsParam = parts[2] || "";
-        const selectedSeasons = selectedSeasonsParam ? selectedSeasonsParam.split(",") : [];
-        const selectedTagIds = interaction.values.map(v => v.toString());
+        const selectedSeasons = selectedSeasonsParam
+          ? selectedSeasonsParam.split(",")
+          : [];
+        const selectedTagIds = interaction.values.map((v) => v.toString());
 
         if (!tmdbId) {
           return interaction.reply({
@@ -1148,26 +1285,40 @@ async function startBot() {
           const mediaType = selectedSeasons.length > 0 ? "tv" : "movie";
 
           // Get TMDB details for building updated buttons
-          const details = await tmdbApi.tmdbGetDetails(tmdbId, mediaType, TMDB_API_KEY);
-          const imdbId = await tmdbApi.tmdbGetExternalImdb(tmdbId, mediaType, TMDB_API_KEY);
+          const details = await tmdbApi.tmdbGetDetails(
+            tmdbId,
+            mediaType,
+            TMDB_API_KEY
+          );
+          const imdbId = await tmdbApi.tmdbGetExternalImdb(
+            tmdbId,
+            mediaType,
+            TMDB_API_KEY
+          );
 
           // Fetch all tags to map IDs to names
           let selectedTagNames = [];
           if (selectedTagIds.length > 0) {
             try {
-              const allTags = await jellyseerrApi.fetchTags(JELLYSEERR_URL, JELLYSEERR_API_KEY);
+              const allTags = await jellyseerrApi.fetchTags(
+                JELLYSEERR_URL,
+                JELLYSEERR_API_KEY
+              );
 
               // Filter by type: Radarr for movies, Sonarr for TV
-              const filteredTags = mediaType === "movie"
-                ? allTags.filter(tag => tag.type === "radarr")
-                : allTags.filter(tag => tag.type === "sonarr");
+              const filteredTags =
+                mediaType === "movie"
+                  ? allTags.filter((tag) => tag.type === "radarr")
+                  : allTags.filter((tag) => tag.type === "sonarr");
 
               selectedTagNames = selectedTagIds
-                .map(tagId => {
-                  const tag = filteredTags.find(t => t.id.toString() === tagId);
-                  return tag ? (tag.label || tag.name) : null;
+                .map((tagId) => {
+                  const tag = filteredTags.find(
+                    (t) => t.id.toString() === tagId
+                  );
+                  return tag ? tag.label || tag.name : null;
                 })
-                .filter(name => name !== null);
+                .filter((name) => name !== null);
             } catch (err) {
               logger.debug("Failed to fetch tag names:", err?.message);
               // Continue with tag IDs if names can't be fetched
@@ -1241,80 +1392,94 @@ async function startBot() {
 }
 
 function configureWebServer() {
-    // Middleware for parsing JSON bodies - MUST be before routes that use req.body
-    app.use(express.json());
-    app.use(cookieParser());
+  // Middleware for parsing JSON bodies - MUST be before routes that use req.body
+  app.use(express.json());
+  app.use(cookieParser());
 
-    // Rate limiting middleware - DoS protection
-    const apiLimiter = rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 100, // Limit each IP to 100 requests per windowMs
-      message: { success: false, error: 'Too many requests, please try again later.' },
-      standardHeaders: true,
-      legacyHeaders: false,
-    });
+  // Rate limiting middleware - DoS protection
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: {
+      success: false,
+      error: "Too many requests, please try again later.",
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
-    const configLimiter = rateLimit({
-      windowMs: 1 * 60 * 1000, // 1 minute
-      max: 50, // Limit config changes to 50 per minute
-      message: { success: false, error: 'Too many configuration changes, please slow down.' },
-      standardHeaders: true,
-      legacyHeaders: false,
-    });
+  const configLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 50, // Limit config changes to 50 per minute
+    message: {
+      success: false,
+      error: "Too many configuration changes, please slow down.",
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
-    // --- AUTH ENDPOINTS (no rate limiting for auth) ---
-    app.post("/api/auth/login", login);
-    app.post("/api/auth/register", register);
-    app.post("/api/auth/logout", logout);
-    app.get("/api/auth/check", checkAuth);
+  // --- AUTH ENDPOINTS (no rate limiting for auth) ---
+  app.post("/api/auth/login", login);
+  app.post("/api/auth/register", register);
+  app.post("/api/auth/logout", logout);
+  app.get("/api/auth/check", checkAuth);
 
-    // --- JELLYFIN WEBHOOK ENDPOINT (no rate limiting for webhooks) ---
-    app.post("/jellyfin/webhook", express.json(), async (req, res) => {
-      try {
-        logger.info("📥 Received Jellyfin webhook");
-        logger.debug("Webhook payload:", JSON.stringify(req.body, null, 2));
+  // --- JELLYFIN WEBHOOK ENDPOINT (no rate limiting for webhooks) ---
+  app.post("/jellyfin/webhook", express.json(), async (req, res) => {
+    try {
+      logger.info("📥 Received Jellyfin webhook");
+      logger.debug("Webhook payload:", JSON.stringify(req.body, null, 2));
 
-        // Acknowledge receipt immediately
-        res.status(200).json({ success: true, message: "Webhook received" });
+      // Acknowledge receipt immediately
+      res.status(200).json({ success: true, message: "Webhook received" });
 
-        // Process webhook asynchronously
-        if (discordClient && isBotRunning) {
-          await handleJellyfinWebhook(req, res, discordClient, pendingRequests);
-        } else {
-          logger.warn("⚠️ Jellyfin webhook received but Discord bot is not running");
-        }
-      } catch (error) {
-        logger.error("❌ Error processing Jellyfin webhook:", error);
-        // Don't send error response since we already sent 200
+      // Process webhook asynchronously
+      if (discordClient && isBotRunning) {
+        await handleJellyfinWebhook(req, res, discordClient, pendingRequests);
+      } else {
+        logger.warn(
+          "⚠️ Jellyfin webhook received but Discord bot is not running"
+        );
       }
-    });
+    } catch (error) {
+      logger.error("❌ Error processing Jellyfin webhook:", error);
+      // Don't send error response since we already sent 200
+    }
+  });
 
-    // Apply rate limiting to all API endpoints (except auth and webhooks)
-    app.use('/api/', apiLimiter);
+  // Apply rate limiting to all API endpoints (except auth and webhooks)
+  app.use("/api/", apiLimiter);
 
-    // Endpoint for Discord servers list (guilds)
-    app.get("/api/discord/guilds", authenticateToken, async (req, res) => {
-      try {
-        if (!discordClient || !discordClient.user) {
-          logger.debug("[GUILDS API] Bot not running or not logged in.");
-          return res.json({ success: false, message: "Bot not running" });
-        }
-        // Debug: log all guilds
-        logger.debug("[GUILDS API] discordClient.guilds.cache:", discordClient.guilds.cache.map(g => ({id: g.id, name: g.name})));
-        // Fetch guilds the bot is in
-        const guilds = discordClient.guilds.cache.map(g => ({
-          id: g.id,
-          name: g.name
-        }));
-        res.json({ success: true, guilds });
-      } catch (err) {
-        logger.error("[GUILDS API] Error:", err);
-        res.json({ success: false, message: err.message });
+  // Endpoint for Discord servers list (guilds)
+  app.get("/api/discord/guilds", authenticateToken, async (req, res) => {
+    try {
+      if (!discordClient || !discordClient.user) {
+        logger.debug("[GUILDS API] Bot not running or not logged in.");
+        return res.json({ success: false, message: "Bot not running" });
       }
-    });
+      // Debug: log all guilds
+      logger.debug(
+        "[GUILDS API] discordClient.guilds.cache:",
+        discordClient.guilds.cache.map((g) => ({ id: g.id, name: g.name }))
+      );
+      // Fetch guilds the bot is in
+      const guilds = discordClient.guilds.cache.map((g) => ({
+        id: g.id,
+        name: g.name,
+      }));
+      res.json({ success: true, guilds });
+    } catch (err) {
+      logger.error("[GUILDS API] Error:", err);
+      res.json({ success: false, message: err.message });
+    }
+  });
 
-    // Endpoint for Discord channels list from a server
-    app.get("/api/discord/channels/:guildId", authenticateToken, async (req, res) => {
+  // Endpoint for Discord channels list from a server
+  app.get(
+    "/api/discord/channels/:guildId",
+    authenticateToken,
+    async (req, res) => {
       try {
         const { guildId } = req.params;
         if (!discordClient || !discordClient.user) {
@@ -1329,211 +1494,269 @@ function configureWebServer() {
 
         // Fetch text channels where bot can send messages
         const channels = guild.channels.cache
-          .filter(channel =>
-            channel.type === 0 && // GUILD_TEXT
-            channel.permissionsFor(discordClient.user).has("SendMessages")
+          .filter(
+            (channel) =>
+              channel.type === 0 && // GUILD_TEXT
+              channel.permissionsFor(discordClient.user).has("SendMessages")
           )
-          .map(channel => ({
+          .map((channel) => ({
             id: channel.id,
             name: channel.name,
-            type: channel.type === 2 ? 'announcement' : 'text'
+            type: channel.type === 2 ? "announcement" : "text",
           }))
           .sort((a, b) => a.name.localeCompare(b.name));
 
-        logger.debug(`[CHANNELS API] Found ${channels.length} channels in guild ${guild.name}`);
+        logger.debug(
+          `[CHANNELS API] Found ${channels.length} channels in guild ${guild.name}`
+        );
         res.json({ success: true, channels });
       } catch (err) {
         logger.error("[CHANNELS API] Error:", err);
         res.json({ success: false, message: err.message });
       }
-    });
+    }
+  );
 
-    // Endpoint for Discord members from a server
-    app.get("/api/discord-members", authenticateToken, async (req, res) => {
-      try {
-        logger.debug("[MEMBERS API] Request received");
-        if (!discordClient || !discordClient.user) {
-          logger.debug("[MEMBERS API] Bot not running");
-          return res.json({ success: false, message: "Bot not running" });
-        }
-
-        const guildId = process.env.GUILD_ID;
-        logger.debug("[MEMBERS API] GUILD_ID from env:", guildId);
-        if (!guildId) {
-          logger.debug("[MEMBERS API] No guild selected");
-          return res.json({ success: false, message: "No guild selected" });
-        }
-
-        const guild = discordClient.guilds.cache.get(guildId);
-        if (!guild) {
-          logger.debug("[MEMBERS API] Guild not found in cache");
-          return res.json({ success: false, message: "Guild not found" });
-        }
-
-        logger.debug("[MEMBERS API] Guild found:", guild.name, "Member count:", guild.memberCount);
-
-        // Check if bot has permission to view members
-        const botMember = guild.members.cache.get(discordClient.user.id);
-        if (!botMember) {
-          logger.debug("[MEMBERS API] Bot member not found in guild");
-          return res.json({ success: false, message: "Bot not in guild" });
-        }
-
-        logger.debug("[MEMBERS API] Bot permissions:", botMember.permissions.toArray());
-
-        // Try to fetch members - this may fail if GUILD_MEMBERS intent is not enabled
-        try {
-          logger.debug("[MEMBERS API] Attempting to fetch members...");
-          await guild.members.fetch();
-          logger.debug("[MEMBERS API] Members fetched successfully");
-        } catch (fetchErr) {
-          logger.error("[MEMBERS API] Failed to fetch members:", fetchErr.message);
-          logger.debug("[MEMBERS API] This is normal if Server Members Intent is not enabled in Discord Developer Portal");
-          logger.debug("[MEMBERS API] Using cached members instead");
-        }
-
-        // Get members from cache (will include bot and users that have been active)
-        const members = guild.members.cache
-          .filter(member => !member.user.bot) // Exclude bots
-          .map(member => ({
-            id: member.id,
-            username: member.user.username,
-            displayName: member.displayName,
-            avatar: member.user.displayAvatarURL({ size: 64 }),
-            discriminator: member.user.discriminator
-          }))
-          .slice(0, 100); // Limit to first 100 members for performance
-
-        logger.debug(`[MEMBERS API] Returning ${members.length} members`);
-        res.json({ success: true, members });
-      } catch (err) {
-        logger.error("[MEMBERS API] Error:", err);
-        res.json({ success: false, message: err.message });
+  // Endpoint for Discord members from a server
+  app.get("/api/discord-members", authenticateToken, async (req, res) => {
+    try {
+      logger.debug("[MEMBERS API] Request received");
+      if (!discordClient || !discordClient.user) {
+        logger.debug("[MEMBERS API] Bot not running");
+        return res.json({ success: false, message: "Bot not running" });
       }
-    });
 
-    // Endpoint for Discord roles from a server
-    app.get("/api/discord-roles", authenticateToken, async (req, res) => {
-      try {
-        logger.debug("[ROLES API] Request received");
-        if (!discordClient || !discordClient.user) {
-          logger.debug("[ROLES API] Bot not running");
-          return res.json({ success: false, message: "Bot not running" });
-        }
-
-        const guildId = process.env.GUILD_ID;
-        logger.debug("[ROLES API] GUILD_ID from env:", guildId);
-        if (!guildId) {
-          logger.debug("[ROLES API] No guild selected");
-          return res.json({ success: false, message: "No guild selected" });
-        }
-
-        const guild = discordClient.guilds.cache.get(guildId);
-        if (!guild) {
-          logger.debug("[ROLES API] Guild not found in cache");
-          return res.json({ success: false, message: "Guild not found" });
-        }
-
-        logger.debug("[ROLES API] Guild found:", guild.name);
-
-        // Fetch roles
-        const roles = guild.roles.cache
-          .filter(role => !role.managed) // Exclude managed roles (bot roles)
-          .map(role => ({
-            id: role.id,
-            name: role.name,
-            color: role.hexColor,
-            memberCount: role.members.size
-          }))
-          .sort((a, b) => b.memberCount - a.memberCount); // Sort by member count descending
-
-        logger.debug(`[ROLES API] Returning ${roles.length} roles`);
-        res.json({ success: true, roles });
-      } catch (err) {
-        logger.error("[ROLES API] Error:", err);
-        res.json({ success: false, message: err.message });
+      const guildId = process.env.GUILD_ID;
+      logger.debug("[MEMBERS API] GUILD_ID from env:", guildId);
+      if (!guildId) {
+        logger.debug("[MEMBERS API] No guild selected");
+        return res.json({ success: false, message: "No guild selected" });
       }
-    });
 
-    // Endpoint for Jellyseerr users
-    app.get("/api/jellyseerr-users", authenticateToken, async (req, res) => {
+      const guild = discordClient.guilds.cache.get(guildId);
+      if (!guild) {
+        logger.debug("[MEMBERS API] Guild not found in cache");
+        return res.json({ success: false, message: "Guild not found" });
+      }
+
+      logger.debug(
+        "[MEMBERS API] Guild found:",
+        guild.name,
+        "Member count:",
+        guild.memberCount
+      );
+
+      // Check if bot has permission to view members
+      const botMember = guild.members.cache.get(discordClient.user.id);
+      if (!botMember) {
+        logger.debug("[MEMBERS API] Bot member not found in guild");
+        return res.json({ success: false, message: "Bot not in guild" });
+      }
+
+      logger.debug(
+        "[MEMBERS API] Bot permissions:",
+        botMember.permissions.toArray()
+      );
+
+      // Try to fetch members - this may fail if GUILD_MEMBERS intent is not enabled
       try {
-        logger.debug("[JELLYSEERR USERS API] Request received");
-        const jellyseerrUrl = process.env.JELLYSEERR_URL;
-        const apiKey = process.env.JELLYSEERR_API_KEY;
-
-        logger.debug("[JELLYSEERR USERS API] JELLYSEERR_URL:", jellyseerrUrl);
-        logger.debug("[JELLYSEERR USERS API] API_KEY present:", !!apiKey);
-
-        if (!jellyseerrUrl || !apiKey) {
-          logger.debug("[JELLYSEERR USERS API] Missing configuration");
-          return res.json({ success: false, message: "Jellyseerr configuration missing" });
-        }
-
-        let baseUrl = jellyseerrUrl.replace(/\/$/, "");
-        if (!baseUrl.endsWith('/api/v1')) {
-          baseUrl += '/api/v1';
-        }
-
-        logger.debug("[JELLYSEERR USERS API] Making request to:", `${baseUrl}/user`);
-
-        const response = await axios.get(
-          `${baseUrl}/user`,
-          {
-            headers: { "X-Api-Key": apiKey },
-            timeout: TIMEOUTS.JELLYSEERR_API,
-          }
+        logger.debug("[MEMBERS API] Attempting to fetch members...");
+        await guild.members.fetch();
+        logger.debug("[MEMBERS API] Members fetched successfully");
+      } catch (fetchErr) {
+        logger.error(
+          "[MEMBERS API] Failed to fetch members:",
+          fetchErr.message
         );
-
-        logger.debug("[JELLYSEERR USERS API] Response received, status:", response.status);
-        logger.debug("[JELLYSEERR USERS API] Response data type:", typeof response.data);
-        logger.debug("[JELLYSEERR USERS API] Response data is array:", Array.isArray(response.data));
-        if (!Array.isArray(response.data)) {
-          logger.debug("[JELLYSEERR USERS API] Response data keys:", Object.keys(response.data));
-        }
-        logger.debug("[JELLYSEERR USERS API] Response data length:", Array.isArray(response.data) ? response.data.length : (response.data.results?.length || 'N/A'));
-
-        // Jellyseerr API returns { pageInfo, results: [] }
-        const userData = response.data.results || [];
-        
-        const users = userData.map(user => {
-          let avatar = user.avatar || null;
-          // If avatar is relative, make it absolute
-          if (avatar && !avatar.startsWith('http')) {
-            avatar = `${jellyseerrUrl.replace(/\/api\/v1$/, '')}${avatar}`;
-          }
-          return {
-            id: user.id,
-            displayName: user.displayName || user.username || `User ${user.id}`,
-            email: user.email || '',
-            avatar: avatar
-          };
-        });
-
-        logger.debug(`[JELLYSEERR USERS API] Returning ${users.length} users`);
-        res.json({ success: true, users });
-      } catch (err) {
-        logger.error("[JELLYSEERR USERS API] Error:", err.message);
-        if (err.response) {
-          logger.error("[JELLYSEERR USERS API] Response status:", err.response.status);
-          logger.error("[JELLYSEERR USERS API] Response data:", err.response.data);
-        }
-        res.json({ success: false, message: err.message });
+        logger.debug(
+          "[MEMBERS API] This is normal if Server Members Intent is not enabled in Discord Developer Portal"
+        );
+        logger.debug("[MEMBERS API] Using cached members instead");
       }
-    });
 
-    // Endpoint for user mappings
-    app.get("/api/user-mappings", authenticateToken, (req, res) => {
-      // Load from config.json using centralized helper
-      const mappings = getUserMappings();
-      res.json(mappings);
-    });
+      // Get members from cache (will include bot and users that have been active)
+      const members = guild.members.cache
+        .filter((member) => !member.user.bot) // Exclude bots
+        .map((member) => ({
+          id: member.id,
+          username: member.user.username,
+          displayName: member.displayName,
+          avatar: member.user.displayAvatarURL({ size: 64 }),
+          discriminator: member.user.discriminator,
+        }))
+        .slice(0, 100); // Limit to first 100 members for performance
 
-    app.post("/api/user-mappings", authenticateToken, validateBody(userMappingSchema), (req, res) => {
-      const { discordUserId, jellyseerrUserId, discordUsername, discordDisplayName, jellyseerrDisplayName } = req.body;
+      logger.debug(`[MEMBERS API] Returning ${members.length} members`);
+      res.json({ success: true, members });
+    } catch (err) {
+      logger.error("[MEMBERS API] Error:", err);
+      res.json({ success: false, message: err.message });
+    }
+  });
+
+  // Endpoint for Discord roles from a server
+  app.get("/api/discord-roles", authenticateToken, async (req, res) => {
+    try {
+      logger.debug("[ROLES API] Request received");
+      if (!discordClient || !discordClient.user) {
+        logger.debug("[ROLES API] Bot not running");
+        return res.json({ success: false, message: "Bot not running" });
+      }
+
+      const guildId = process.env.GUILD_ID;
+      logger.debug("[ROLES API] GUILD_ID from env:", guildId);
+      if (!guildId) {
+        logger.debug("[ROLES API] No guild selected");
+        return res.json({ success: false, message: "No guild selected" });
+      }
+
+      const guild = discordClient.guilds.cache.get(guildId);
+      if (!guild) {
+        logger.debug("[ROLES API] Guild not found in cache");
+        return res.json({ success: false, message: "Guild not found" });
+      }
+
+      logger.debug("[ROLES API] Guild found:", guild.name);
+
+      // Fetch roles
+      const roles = guild.roles.cache
+        .filter((role) => !role.managed) // Exclude managed roles (bot roles)
+        .map((role) => ({
+          id: role.id,
+          name: role.name,
+          color: role.hexColor,
+          memberCount: role.members.size,
+        }))
+        .sort((a, b) => b.memberCount - a.memberCount); // Sort by member count descending
+
+      logger.debug(`[ROLES API] Returning ${roles.length} roles`);
+      res.json({ success: true, roles });
+    } catch (err) {
+      logger.error("[ROLES API] Error:", err);
+      res.json({ success: false, message: err.message });
+    }
+  });
+
+  // Endpoint for Jellyseerr users
+  app.get("/api/jellyseerr-users", authenticateToken, async (req, res) => {
+    try {
+      logger.debug("[JELLYSEERR USERS API] Request received");
+      const jellyseerrUrl = process.env.JELLYSEERR_URL;
+      const apiKey = process.env.JELLYSEERR_API_KEY;
+
+      logger.debug("[JELLYSEERR USERS API] JELLYSEERR_URL:", jellyseerrUrl);
+      logger.debug("[JELLYSEERR USERS API] API_KEY present:", !!apiKey);
+
+      if (!jellyseerrUrl || !apiKey) {
+        logger.debug("[JELLYSEERR USERS API] Missing configuration");
+        return res.json({
+          success: false,
+          message: "Jellyseerr configuration missing",
+        });
+      }
+
+      let baseUrl = jellyseerrUrl.replace(/\/$/, "");
+      if (!baseUrl.endsWith("/api/v1")) {
+        baseUrl += "/api/v1";
+      }
+
+      logger.debug(
+        "[JELLYSEERR USERS API] Making request to:",
+        `${baseUrl}/user`
+      );
+
+      const response = await axios.get(`${baseUrl}/user`, {
+        headers: { "X-Api-Key": apiKey },
+        timeout: TIMEOUTS.JELLYSEERR_API,
+      });
+
+      logger.debug(
+        "[JELLYSEERR USERS API] Response received, status:",
+        response.status
+      );
+      logger.debug(
+        "[JELLYSEERR USERS API] Response data type:",
+        typeof response.data
+      );
+      logger.debug(
+        "[JELLYSEERR USERS API] Response data is array:",
+        Array.isArray(response.data)
+      );
+      if (!Array.isArray(response.data)) {
+        logger.debug(
+          "[JELLYSEERR USERS API] Response data keys:",
+          Object.keys(response.data)
+        );
+      }
+      logger.debug(
+        "[JELLYSEERR USERS API] Response data length:",
+        Array.isArray(response.data)
+          ? response.data.length
+          : response.data.results?.length || "N/A"
+      );
+
+      // Jellyseerr API returns { pageInfo, results: [] }
+      const userData = response.data.results || [];
+
+      const users = userData.map((user) => {
+        let avatar = user.avatar || null;
+        // If avatar is relative, make it absolute
+        if (avatar && !avatar.startsWith("http")) {
+          avatar = `${jellyseerrUrl.replace(/\/api\/v1$/, "")}${avatar}`;
+        }
+        return {
+          id: user.id,
+          displayName: user.displayName || user.username || `User ${user.id}`,
+          email: user.email || "",
+          avatar: avatar,
+        };
+      });
+
+      logger.debug(`[JELLYSEERR USERS API] Returning ${users.length} users`);
+      res.json({ success: true, users });
+    } catch (err) {
+      logger.error("[JELLYSEERR USERS API] Error:", err.message);
+      if (err.response) {
+        logger.error(
+          "[JELLYSEERR USERS API] Response status:",
+          err.response.status
+        );
+        logger.error(
+          "[JELLYSEERR USERS API] Response data:",
+          err.response.data
+        );
+      }
+      res.json({ success: false, message: err.message });
+    }
+  });
+
+  // Endpoint for user mappings
+  app.get("/api/user-mappings", authenticateToken, (req, res) => {
+    // Load from config.json using centralized helper
+    const mappings = getUserMappings();
+    res.json(mappings);
+  });
+
+  app.post(
+    "/api/user-mappings",
+    authenticateToken,
+    validateBody(userMappingSchema),
+    (req, res) => {
+      const {
+        discordUserId,
+        jellyseerrUserId,
+        discordUsername,
+        discordDisplayName,
+        jellyseerrDisplayName,
+      } = req.body;
 
       if (!discordUserId || !jellyseerrUserId) {
-        return res.status(400).json({ success: false, message: "Discord user ID and Jellyseerr user ID are required." });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "Discord user ID and Jellyseerr user ID are required.",
+          });
       }
 
       try {
@@ -1542,7 +1765,7 @@ function configureWebServer() {
           jellyseerrUserId,
           discordUsername: discordUsername || null,
           discordDisplayName: discordDisplayName || null,
-          jellyseerrDisplayName: jellyseerrDisplayName || null
+          jellyseerrDisplayName: jellyseerrDisplayName || null,
         };
 
         // Use centralized saveUserMapping helper
@@ -1551,11 +1774,20 @@ function configureWebServer() {
         res.json({ success: true, message: "Mapping saved successfully." });
       } catch (error) {
         logger.error("Error saving user mapping:", error);
-        res.status(500).json({ success: false, message: "Failed to save mapping - check server logs." });
+        res
+          .status(500)
+          .json({
+            success: false,
+            message: "Failed to save mapping - check server logs.",
+          });
       }
-    });
+    }
+  );
 
-    app.delete("/api/user-mappings/:discordUserId", authenticateToken, (req, res) => {
+  app.delete(
+    "/api/user-mappings/:discordUserId",
+    authenticateToken,
+    (req, res) => {
       const { discordUserId } = req.params;
 
       try {
@@ -1563,62 +1795,72 @@ function configureWebServer() {
         const deleted = deleteUserMapping(discordUserId);
 
         if (!deleted) {
-          return res.status(404).json({ success: false, message: "Mapping not found." });
+          return res
+            .status(404)
+            .json({ success: false, message: "Mapping not found." });
         }
 
         res.json({ success: true, message: "Mapping deleted successfully." });
       } catch (error) {
         logger.error("Error deleting user mapping:", error);
-        res.status(500).json({ success: false, message: "Failed to delete mapping - check server logs." });
+        res
+          .status(500)
+          .json({
+            success: false,
+            message: "Failed to delete mapping - check server logs.",
+          });
       }
-    });
+    }
+  );
 
-    // Endpoint for Jellyfin libraries
-    app.post("/api/jellyfin-libraries", authenticateToken, async (req, res) => {
-      try {
-        const { url, apiKey } = req.body;
+  // Endpoint for Jellyfin libraries
+  app.post("/api/jellyfin-libraries", authenticateToken, async (req, res) => {
+    try {
+      const { url, apiKey } = req.body;
 
-        if (!url || !apiKey) {
-          return res.status(400).json({ success: false, message: "URL and API Key are required." });
+      if (!url || !apiKey) {
+        return res
+          .status(400)
+          .json({ success: false, message: "URL and API Key are required." });
+      }
+
+      const response = await axios.get(
+        `${url.replace(/\/$/, "")}/Library/MediaFolders`,
+        {
+          headers: { "X-MediaBrowser-Token": apiKey },
+          timeout: TIMEOUTS.JELLYFIN_API,
         }
+      );
 
-        const response = await axios.get(
-          `${url.replace(/\/$/, "")}/Library/MediaFolders`,
-          {
-            headers: { "X-MediaBrowser-Token": apiKey },
-            timeout: TIMEOUTS.JELLYFIN_API,
-          }
-        );
+      const libraries = response.data.Items.map((item) => ({
+        id: item.Id,
+        name: item.Name,
+        type: item.CollectionType || "unknown",
+      }));
 
-        const libraries = response.data.Items.map(item => ({
-          id: item.Id,
-          name: item.Name,
-          type: item.CollectionType || 'unknown'
-        }));
-
-        res.json({ success: true, libraries });
-      } catch (err) {
-        logger.error("[JELLYFIN LIBRARIES API] Error:", err);
-        res.json({ success: false, message: err.message });
-      }
-    });
+      res.json({ success: true, libraries });
+    } catch (err) {
+      logger.error("[JELLYFIN LIBRARIES API] Error:", err);
+      res.json({ success: false, message: err.message });
+    }
+  });
 
   // Global error handler middleware - must be last
   app.use((err, req, res, next) => {
-    logger.error('Express error handler:', {
+    logger.error("Express error handler:", {
       error: err.message,
       stack: err.stack,
       path: req.path,
-      method: req.method
+      method: req.method,
     });
 
     // Don't expose internal errors to client in production
     const statusCode = err.status || err.statusCode || 500;
-    const message = statusCode === 500 ? 'Internal server error' : err.message;
+    const message = statusCode === 500 ? "Internal server error" : err.message;
 
     res.status(statusCode).json({
       success: false,
-      error: message
+      error: message,
     });
   });
 
@@ -1645,79 +1887,99 @@ function configureWebServer() {
     }
   });
 
-  app.post("/api/save-config", authenticateToken, configLimiter, validateBody(configSchema), async (req, res) => {
-    const configData = req.body;
-    const oldToken = process.env.DISCORD_TOKEN;
-    const oldGuildId = process.env.GUILD_ID;
-    const oldJellyfinApiKey = process.env.JELLYFIN_API_KEY;
+  app.post(
+    "/api/save-config",
+    authenticateToken,
+    configLimiter,
+    validateBody(configSchema),
+    async (req, res) => {
+      const configData = req.body;
+      const oldToken = process.env.DISCORD_TOKEN;
+      const oldGuildId = process.env.GUILD_ID;
+      const oldJellyfinApiKey = process.env.JELLYFIN_API_KEY;
 
-    // Normalize JELLYSEERR_URL to remove /api/v1 suffix if present
-    if (configData.JELLYSEERR_URL && typeof configData.JELLYSEERR_URL === 'string') {
-      configData.JELLYSEERR_URL = configData.JELLYSEERR_URL.replace(/\/api\/v1\/?$/, '');
-    }
+      // Normalize JELLYSEERR_URL to remove /api/v1 suffix if present
+      if (
+        configData.JELLYSEERR_URL &&
+        typeof configData.JELLYSEERR_URL === "string"
+      ) {
+        configData.JELLYSEERR_URL = configData.JELLYSEERR_URL.replace(
+          /\/api\/v1\/?$/,
+          ""
+        );
+      }
 
-    try {
-      // Load existing config to preserve USER_MAPPINGS and other non-form fields
-      const existingConfig = readConfig() || {};
+      try {
+        // Load existing config to preserve USER_MAPPINGS and other non-form fields
+        const existingConfig = readConfig() || {};
 
-      // Merge with existing config, preserving USER_MAPPINGS and other fields not in the form
-      const finalConfig = {
-        ...existingConfig,
-        ...configData,
-        // Ensure USER_MAPPINGS, USERS, and JWT_SECRET are preserved
-        USER_MAPPINGS: existingConfig.USER_MAPPINGS || [],
-        USERS: existingConfig.USERS || [],
-        JWT_SECRET: existingConfig.JWT_SECRET || process.env.JWT_SECRET,
-        // Safety check for library mappings - prefer new config, fallback to existing if missing in request
-        JELLYFIN_NOTIFICATION_LIBRARIES: configData.JELLYFIN_NOTIFICATION_LIBRARIES || existingConfig.JELLYFIN_NOTIFICATION_LIBRARIES || {},
-      };
+        // Merge with existing config, preserving USER_MAPPINGS and other fields not in the form
+        const finalConfig = {
+          ...existingConfig,
+          ...configData,
+          // Ensure USER_MAPPINGS, USERS, and JWT_SECRET are preserved
+          USER_MAPPINGS: existingConfig.USER_MAPPINGS || [],
+          USERS: existingConfig.USERS || [],
+          JWT_SECRET: existingConfig.JWT_SECRET || process.env.JWT_SECRET,
+          // Safety check for library mappings - prefer new config, fallback to existing if missing in request
+          JELLYFIN_NOTIFICATION_LIBRARIES:
+            configData.JELLYFIN_NOTIFICATION_LIBRARIES ||
+            existingConfig.JELLYFIN_NOTIFICATION_LIBRARIES ||
+            {},
+        };
 
-      // Use centralized writeConfig with robust error handling
-      if (!writeConfig(finalConfig)) {
+        // Use centralized writeConfig with robust error handling
+        if (!writeConfig(finalConfig)) {
+          return res.status(500).json({
+            success: false,
+            error:
+              "Failed to save configuration file. Check Docker volume permissions and server logs.",
+          });
+        }
+
+        logger.info("✅ Configuration saved successfully");
+      } catch (writeErr) {
+        logger.error("Error saving config.json:", writeErr);
         return res.status(500).json({
           success: false,
-          error: 'Failed to save configuration file. Check Docker volume permissions and server logs.'
+          error:
+            "Failed to save configuration file. Check Docker volume permissions.",
         });
       }
 
-      logger.info('✅ Configuration saved successfully');
-    } catch (writeErr) {
-      logger.error('Error saving config.json:', writeErr);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to save configuration file. Check Docker volume permissions.'
-      });
-    }
+      loadConfig(); // Reload config into process.env
 
-    loadConfig(); // Reload config into process.env
+      // If bot is running and critical settings changed, restart the bot logic
+      const jellyfinApiKeyChanged =
+        oldJellyfinApiKey !== process.env.JELLYFIN_API_KEY;
+      const needsRestart =
+        oldToken !== process.env.DISCORD_TOKEN ||
+        oldGuildId !== process.env.GUILD_ID ||
+        jellyfinApiKeyChanged;
 
-    // If bot is running and critical settings changed, restart the bot logic
-    const jellyfinApiKeyChanged = oldJellyfinApiKey !== process.env.JELLYFIN_API_KEY;
-    const needsRestart =
-      oldToken !== process.env.DISCORD_TOKEN ||
-      oldGuildId !== process.env.GUILD_ID ||
-      jellyfinApiKeyChanged;
+      if (isBotRunning && needsRestart) {
+        logger.warn(
+          "Critical Discord settings changed. Restarting bot logic..."
+        );
 
-    if (isBotRunning && needsRestart) {
-      logger.warn("Critical Discord settings changed. Restarting bot logic...");
-
-      await discordClient.destroy();
-      isBotRunning = false;
-      discordClient = null;
-      try {
-        await startBot();
-        res
-          .status(200)
-          .json({ message: "Configuration saved. Bot restarted." });
-      } catch (error) {
-        res.status(500).json({
-          message: `Config saved, but bot failed to restart: ${error.message}`,
-        });
+        await discordClient.destroy();
+        isBotRunning = false;
+        discordClient = null;
+        try {
+          await startBot();
+          res
+            .status(200)
+            .json({ message: "Configuration saved. Bot restarted." });
+        } catch (error) {
+          res.status(500).json({
+            message: `Config saved, but bot failed to restart: ${error.message}`,
+          });
+        }
+      } else {
+        res.status(200).json({ message: "Configuration saved successfully!" });
       }
-    } else {
-      res.status(200).json({ message: "Configuration saved successfully!" });
     }
-  });
+  );
 
   app.post("/api/test-jellyseerr", authenticateToken, async (req, res) => {
     const { url, apiKey } = req.body;
@@ -1729,17 +1991,14 @@ function configureWebServer() {
 
     try {
       let baseUrl = url.replace(/\/$/, "");
-      if (!baseUrl.endsWith('/api/v1')) {
-        baseUrl += '/api/v1';
+      if (!baseUrl.endsWith("/api/v1")) {
+        baseUrl += "/api/v1";
       }
 
-      const response = await axios.get(
-        `${baseUrl}/settings/about`,
-        {
-          headers: { "X-Api-Key": apiKey },
-          timeout: TIMEOUTS.JELLYSEERR_API,
-        }
-      );
+      const response = await axios.get(`${baseUrl}/settings/about`, {
+        headers: { "X-Api-Key": apiKey },
+        timeout: TIMEOUTS.JELLYSEERR_API,
+      });
       const version = response.data?.version;
       res.json({
         success: true,
@@ -1762,8 +2021,6 @@ function configureWebServer() {
 
   app.post("/api/test-jellyfin", authenticateToken, async (req, res) => {
     const { url } = req.body;
-  app.post("/api/test-jellyfin", async (req, res) => {
-    const { url, apiKey } = req.body;
     if (!url) {
       return res
         .status(400)
@@ -1772,26 +2029,15 @@ function configureWebServer() {
 
     try {
       const testUrl = `${url.replace(/\/$/, "")}/System/Info/Public`;
-      const response = await axios.get(testUrl, { timeout: TIMEOUTS.JELLYFIN_API });
-      const headers = {};
-      
-      // Add API key to headers if provided for more comprehensive testing
-      if (apiKey) {
-        headers["X-Emby-Token"] = apiKey;
-      }
-      
-      const response = await axios.get(testUrl, { 
-        headers,
-        timeout: 8000 
+      const response = await axios.get(testUrl, {
+        timeout: TIMEOUTS.JELLYFIN_API,
       });
 
       if (response.data?.ServerName && response.data?.Version) {
-        const authStatus = apiKey ? " (with API key)" : " (public endpoint)";
         return res.json({
           success: true,
           message: `Connected to ${response.data.ServerName} (v${response.data.Version})`,
-          serverId: response.data.Id
-          message: `Connected to ${response.data.ServerName} (v${response.data.Version})${authStatus}`,
+          serverId: response.data.Id,
         });
       }
       throw new Error("Invalid response from Jellyfin server.");
@@ -1822,12 +2068,12 @@ function configureWebServer() {
 
       res.json({
         success: true,
-        libraries: libraries.map(lib => ({
+        libraries: libraries.map((lib) => ({
           id: lib.ItemId,
           collectionId: lib.CollectionId,
           name: lib.Name,
-          type: lib.CollectionType
-        }))
+          type: lib.CollectionType,
+        })),
       });
     } catch (error) {
       logger.error("Failed to fetch Jellyfin libraries:", error);
@@ -1846,25 +2092,33 @@ function configureWebServer() {
     res.json({
       status: "healthy",
       uptime: Math.floor(uptime),
-      uptimeFormatted: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${Math.floor(uptime % 60)}s`,
+      uptimeFormatted: `${Math.floor(uptime / 3600)}h ${Math.floor(
+        (uptime % 3600) / 60
+      )}m ${Math.floor(uptime % 60)}s`,
       bot: {
         running: isBotRunning,
-        username: isBotRunning && discordClient?.user ? discordClient.user.tag : null,
+        username:
+          isBotRunning && discordClient?.user ? discordClient.user.tag : null,
         connected: discordClient?.ws?.status === 0, // 0 = READY
       },
       cache: {
         hits: cacheStats.hits,
         misses: cacheStats.misses,
         keys: cacheStats.keys,
-        hitRate: cacheStats.hits + cacheStats.misses > 0
-          ? ((cacheStats.hits / (cacheStats.hits + cacheStats.misses)) * 100).toFixed(2) + '%'
-          : '0%'
+        hitRate:
+          cacheStats.hits + cacheStats.misses > 0
+            ? (
+                (cacheStats.hits / (cacheStats.hits + cacheStats.misses)) *
+                100
+              ).toFixed(2) + "%"
+            : "0%",
       },
       memory: {
-        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
-        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
+        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + " MB",
+        total:
+          Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + " MB",
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   });
 
@@ -1875,35 +2129,37 @@ function configureWebServer() {
         return { entries: [], truncated: false };
       }
       const content = fs.readFileSync(filePath, "utf-8");
-      const lines = content.split("\n").filter(line => line.trim());
+      const lines = content.split("\n").filter((line) => line.trim());
 
       // Keep only the last 'limit' entries
       const truncated = lines.length > limit;
       const relevantLines = lines.slice(-limit);
 
-      const entries = relevantLines.map(line => {
+      const entries = relevantLines.map((line) => {
         // Parse Winston JSON logs
         try {
           const logEntry = JSON.parse(line);
           return {
             timestamp: logEntry.timestamp || "N/A",
             level: logEntry.level || "unknown",
-            message: logEntry.message || ""
+            message: logEntry.message || "",
           };
         } catch {
           // Fallback for non-JSON lines
-          const match = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(\w+):\s+(.+)$/);
+          const match = line.match(
+            /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(\w+):\s+(.+)$/
+          );
           if (match) {
             return {
               timestamp: match[1],
               level: match[2],
-              message: match[3]
+              message: match[3],
             };
           }
           return {
             timestamp: "N/A",
             level: "unknown",
-            message: line
+            message: line,
           };
         }
       });
@@ -1924,7 +2180,9 @@ function configureWebServer() {
     // Try to find the latest rotated error log file
     try {
       const files = fs.readdirSync(logsDir);
-      const errorFiles = files.filter(f => f.startsWith('error-') && f.endsWith('.log'));
+      const errorFiles = files.filter(
+        (f) => f.startsWith("error-") && f.endsWith(".log")
+      );
       if (errorFiles.length > 0) {
         errorFiles.sort().reverse();
         errorLogPath = path.join(logsDir, errorFiles[0]);
@@ -1939,7 +2197,7 @@ function configureWebServer() {
       count: entries.length,
       total: truncated ? "1000+" : entries.length,
       truncated,
-      entries
+      entries,
     });
   });
 
@@ -1952,7 +2210,9 @@ function configureWebServer() {
     // Try to find the latest rotated combined log file
     try {
       const files = fs.readdirSync(logsDir);
-      const combinedFiles = files.filter(f => f.startsWith('combined-') && f.endsWith('.log'));
+      const combinedFiles = files.filter(
+        (f) => f.startsWith("combined-") && f.endsWith(".log")
+      );
       if (combinedFiles.length > 0) {
         combinedFiles.sort().reverse();
         combinedLogPath = path.join(logsDir, combinedFiles[0]);
@@ -1967,57 +2227,11 @@ function configureWebServer() {
       count: entries.length,
       total: truncated ? "1000+" : entries.length,
       truncated,
-      entries
+      entries,
     });
   });
 
   app.get("/api/status", authenticateToken, (req, res) => {
-  // Fetch all Jellyfin libraries for the exclusion UI
-  app.post("/api/jellyfin-libraries", async (req, res) => {
-    const { url, apiKey } = req.body;
-    if (!url) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Jellyfin URL is required." });
-    }
-
-    try {
-      // Fetch libraries from Jellyfin API
-      // The endpoint requires authentication if apiKey is provided
-      const librariesUrl = `${url.replace(/\/$/, "")}/Library/MediaFolders`;
-      const headers = {};
-      
-      // Add API key to headers if provided
-      if (apiKey) {
-        headers["X-Emby-Token"] = apiKey;
-      }
-
-      const response = await axios.get(librariesUrl, { 
-        headers,
-        timeout: 8000 
-      });
-
-      // Extract relevant library information
-      const libraries = (response.data?.Items || []).map(lib => ({
-        id: lib.Id,
-        name: lib.Name,
-        type: lib.CollectionType || 'mixed'
-      }));
-
-      res.json({
-        success: true,
-        libraries: libraries
-      });
-    } catch (error) {
-      console.error("Failed to fetch Jellyfin libraries:", error.message);
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch libraries. Make sure the URL is correct and the server is accessible.",
-      });
-    }
-  });
-
-  app.get("/api/status", (req, res) => {
     res.json({
       isBotRunning,
       botUsername:
@@ -2026,14 +2240,6 @@ function configureWebServer() {
   });
 
   app.post("/api/start-bot", authenticateToken, async (req, res) => {
-  app.get("/api/webhook-url", (req, res) => {
-    const protocol = req.get('X-Forwarded-Proto') || (req.secure ? 'https' : 'http');
-    const host = req.get('Host') || `localhost:${port}`;
-    const webhookUrl = `${protocol}://${host}/jellyfin-webhook`;
-    res.json({ webhookUrl });
-  });
-
-  app.post("/api/start-bot", async (req, res) => {
     if (isBotRunning) {
       return res.status(400).json({ message: "Bot is already running." });
     }
@@ -2134,7 +2340,9 @@ function startServer() {
       );
 
       if (!isBotRunning && hasConfigFile && hasDiscordCreds) {
-        logger.info("🚀 Detected existing config.json with Discord credentials. Auto-starting bot...");
+        logger.info(
+          "🚀 Detected existing config.json with Discord credentials. Auto-starting bot..."
+        );
         (async () => {
           try {
             await startBot();
@@ -2144,7 +2352,9 @@ function startServer() {
           }
         })();
       } else if (!hasDiscordCreds) {
-        logger.info("ℹ️ Config found but Discord credentials are incomplete. Bot not auto-started.");
+        logger.info(
+          "ℹ️ Config found but Discord credentials are incomplete. Bot not auto-started."
+        );
       }
     } catch (e) {
       logger.error("Error during auto-start check:", e?.message || e);

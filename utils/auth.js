@@ -1,8 +1,13 @@
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
-import logger from './logger.js';
-import { readConfig, updateConfig, getUsers, saveUser as saveUserToConfig } from './configFile.js';
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import logger from "./logger.js";
+import {
+  readConfig,
+  updateConfig,
+  getUsers,
+  saveUser as saveUserToConfig,
+} from "./configFile.js";
 
 // Generate or retrieve JWT_SECRET
 function getOrGenerateJwtSecret() {
@@ -12,20 +17,26 @@ function getOrGenerateJwtSecret() {
 
   // Try to load from config file
   const config = readConfig();
-  if (config?.JWT_SECRET && config.JWT_SECRET.trim() !== '') {
+  if (config?.JWT_SECRET && config.JWT_SECRET.trim() !== "") {
     return config.JWT_SECRET;
   }
 
   // Generate a new secure JWT secret
-  logger.warn("JWT_SECRET not found in config. Generating a new secure secret...");
-  const newSecret = crypto.randomBytes(64).toString('hex');
+  logger.warn(
+    "JWT_SECRET not found in config. Generating a new secure secret..."
+  );
+  const newSecret = crypto.randomBytes(64).toString("hex");
 
   // Save the generated secret to config
   if (updateConfig({ JWT_SECRET: newSecret })) {
-    logger.info("✅ JWT_SECRET generated and saved to config.json successfully");
+    logger.info(
+      "✅ JWT_SECRET generated and saved to config.json successfully"
+    );
   } else {
     logger.error("❌ Failed to save JWT_SECRET to config");
-    logger.warn("⚠️  Using in-memory JWT_SECRET - sessions will not persist across restarts");
+    logger.warn(
+      "⚠️  Using in-memory JWT_SECRET - sessions will not persist across restarts"
+    );
   }
 
   return newSecret;
@@ -53,45 +64,62 @@ export const login = async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
-    return res.status(400).json({ success: false, message: "Username and password are required" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Username and password are required" });
   }
 
   const users = getUsers();
-  const user = users.find(u => u.username === username);
+  const user = users.find((u) => u.username === username);
 
   if (!user) {
-    return res.status(401).json({ success: false, message: "Invalid credentials" });
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid credentials" });
   }
 
   const validPassword = await bcrypt.compare(password, user.password);
   if (!validPassword) {
-    return res.status(401).json({ success: false, message: "Invalid credentials" });
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid credentials" });
   }
 
-  const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, {
+    expiresIn: "7d",
+  });
 
-    res.cookie('auth_token', token, {
-      httpOnly: true,
-      secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
+  res.cookie("auth_token", token, {
+    httpOnly: true,
+    secure: req.secure || req.headers["x-forwarded-proto"] === "https",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  });
 
-  res.json({ success: true, message: "Logged in successfully", username: user.username });
+  res.json({
+    success: true,
+    message: "Logged in successfully",
+    username: user.username,
+  });
 };
 
 export const register = async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
-    return res.status(400).json({ success: false, message: "Username and password are required" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Username and password are required" });
   }
 
   const users = getUsers();
-  
+
   // For now, only allow registration if no users exist (Single User Mode / First Run)
   if (users.length > 0) {
-    return res.status(403).json({ success: false, message: "Registration is disabled. An admin account already exists." });
+    return res.status(403).json({
+      success: false,
+      message: "Registration is disabled. An admin account already exists.",
+    });
   }
 
   const salt = await bcrypt.genSalt(10);
@@ -101,23 +129,34 @@ export const register = async (req, res) => {
     const newUser = saveUserToConfig(username, hashedPassword);
 
     // Auto-login after register
-    const token = jwt.sign({ id: newUser.id, username: newUser.username }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(
+      { id: newUser.id, username: newUser.username },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
-    res.cookie('auth_token', token, {
+    res.cookie("auth_token", token, {
       httpOnly: true,
-      secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      secure: req.secure || req.headers["x-forwarded-proto"] === "https",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
-    res.json({ success: true, message: "Account created successfully", username: newUser.username });
+    res.json({
+      success: true,
+      message: "Account created successfully",
+      username: newUser.username,
+    });
   } catch (error) {
     logger.error("Error during user registration:", error);
-    res.status(500).json({ success: false, message: "Error creating account - check server logs" });
+    res.status(500).json({
+      success: false,
+      message: "Error creating account - check server logs",
+    });
   }
 };
 
 export const logout = (req, res) => {
-  res.clearCookie('auth_token');
+  res.clearCookie("auth_token");
   res.json({ success: true, message: "Logged out successfully" });
 };
 

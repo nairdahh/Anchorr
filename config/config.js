@@ -15,7 +15,6 @@ export const configTemplate = {
   JELLYFIN_NOTIFY_SERIES: "true",
   JELLYFIN_NOTIFY_SEASONS: "false",
   JELLYFIN_NOTIFY_EPISODES: "false",
-  JELLYFIN_EXCLUDED_LIBRARIES: "", // Comma-separated list of library IDs to exclude from notifications
   WEBHOOK_PORT: "8282",
   AUTO_START_BOT: "true",
   NOTIFY_ON_AVAILABLE: "false",
@@ -25,5 +24,4 @@ export const configTemplate = {
   USER_MAPPINGS: [],
   ROLE_ALLOWLIST: [],
   ROLE_BLOCKLIST: [],
-  EPHEMERAL_INTERACTIONS: "false",
 };

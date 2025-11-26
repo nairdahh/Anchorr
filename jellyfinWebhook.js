@@ -446,26 +446,6 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       );
     }
 
-    // Check if the library is excluded
-    // The webhook data should include library information to filter out excluded libraries
-    const excludedLibraries = process.env.JELLYFIN_EXCLUDED_LIBRARIES || "";
-    if (excludedLibraries && excludedLibraries.trim()) {
-      const excludedList = excludedLibraries.split(",").map(id => id.trim()).filter(id => id);
-      
-      // Check if the item's library is in the excluded list
-      // Jellyfin webhook can include various fields for the library:
-      // - LibraryId: Direct library ID
-      // - CollectionId: Collection/Library ID
-      // - ParentId: Parent folder ID (for episodes/seasons, this would be the series)
-      // We check multiple possible fields to ensure we catch the library ID
-      const libraryId = data.LibraryId || data.CollectionId || data.Library_Id;
-      
-      if (libraryId && excludedList.includes(libraryId)) {
-        console.log(`Skipping notification for item from excluded library: ${libraryId}`);
-        return res.status(200).send("OK: Notification skipped (library excluded).");
-      }
-    }
-
     if (data.ItemType === "Movie") {
       await processAndSendNotification(
         data,
@@ -552,7 +532,9 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       // Call the debounced function. It will only execute after 30s of inactivity.
       debouncer.sender(debouncer.latestData);
 
-      return res.status(200).send(`OK: TV notification for ${SeriesId} is debounced.`);
+      return res
+        .status(200)
+        .send(`OK: TV notification for ${SeriesId} is debounced.`);
     }
 
     await processAndSendNotification(data, client, pendingRequests);
