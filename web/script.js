@@ -69,13 +69,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const value = config[key];
             if (typeof value === 'object' && value !== null) {
               input.value = JSON.stringify(value);
-              console.log('Loaded library config from server:', input.value);
             } else if (typeof value === 'string') {
               input.value = value;
-              console.log('Loaded library config (already string) from server:', input.value);
             } else {
               input.value = '{}';
-              console.log('No library config found, using empty object');
             }
           } else if (input.tagName === "SELECT") {
             // For select elements, save the value to restore later (after options are loaded)
@@ -89,7 +86,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       updateWebhookUrl();
     } catch (error) {
-      console.error("Error fetching config:", error);
       showToast("Error fetching configuration.");
     }
   }
@@ -102,7 +98,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const status = await response.json();
       updateStatusIndicator(status.isBotRunning, status.botUsername);
     } catch (error) {
-      console.error("Error fetching status:", error);
       updateStatusIndicator(false);
     }
   }
@@ -166,7 +161,6 @@ document.addEventListener("DOMContentLoaded", () => {
         showAuth(data.hasUsers);
       }
     } catch (error) {
-      console.error("Auth check failed:", error);
       showAuth(true); // Default to showing login if check fails
     }
   }
@@ -377,7 +371,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await fetch("/api/auth/logout", { method: "POST" });
         location.reload();
       } catch (error) {
-        console.error("Logout failed:", error);
+        // Logout error handling
       }
     });
   }
@@ -388,12 +382,9 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     const formData = new FormData(form);
 
-    // Filter out empty keys and log what we're getting
+    // Filter out empty keys
     const filteredEntries = Array.from(formData.entries()).filter(([key, value]) => {
       const isValid = key.trim() !== '';
-      if (!isValid) {
-        console.warn('Filtered out empty key with value:', value);
-      }
       return isValid;
     });
 
@@ -416,19 +407,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // Handle Jellyfin notification libraries (can be array or object)
     try {
       const libConfigString = config.JELLYFIN_NOTIFICATION_LIBRARIES;
-      console.log('Library config before parse:', libConfigString);
       config.JELLYFIN_NOTIFICATION_LIBRARIES = libConfigString
         ? JSON.parse(libConfigString)
         : {};
-      console.log('Library config after parse (will send to server):', config.JELLYFIN_NOTIFICATION_LIBRARIES);
     } catch (e) {
-      console.error('Failed to parse library config, using empty object:', e);
       config.JELLYFIN_NOTIFICATION_LIBRARIES = {};
     }
 
     try {
-      console.log("Sending config (full):", JSON.stringify(config, null, 2));
-      console.log("Config keys:", Object.keys(config));
       const response = await fetch("/api/save-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -436,14 +422,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const result = await response.json();
       if (!response.ok) {
-        console.error("Validation errors:", result.errors);
         const errorMsg = result.errors?.map(e => `${e.field}: ${e.message}`).join(', ') || result.message;
         showToast(`Error: ${errorMsg}`);
       } else {
         showToast(result.message);
       }
     } catch (error) {
-      console.error("Error saving config:", error);
       showToast("Error saving configuration.");
     }
   });
@@ -478,7 +462,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 1000); // Fetch status after a short delay to get the new state
       }
     } catch (error) {
-      console.error(`Error with ${action} action:`, error);
       showToast(`Failed to ${action} bot.`);
       botControlText.textContent = originalText; // Restore text on failure
       botControlBtn.disabled = false;
@@ -637,7 +620,6 @@ document.addEventListener("DOMContentLoaded", () => {
               setTimeout(() => {
                 serverIdInput.style.backgroundColor = originalBg;
               }, 1000);
-              console.log(`Auto-filled Jellyfin Server ID: ${result.serverId}`);
             }
           }
         } else {
@@ -696,7 +678,6 @@ document.addEventListener("DOMContentLoaded", () => {
             let libraryChannels = {};
             try {
               const currentValue = notificationLibrariesInput.value;
-              console.log('Reading saved library config:', currentValue);
 
               if (currentValue && currentValue.trim() !== '') {
                 const parsed = JSON.parse(currentValue);
@@ -707,14 +688,11 @@ document.addEventListener("DOMContentLoaded", () => {
                   parsed.forEach(libId => {
                     libraryChannels[libId] = defaultChannel;
                   });
-                  console.log('Converted array to object format:', libraryChannels);
                 } else if (typeof parsed === 'object') {
                   libraryChannels = parsed;
-                  console.log('Using saved object format:', libraryChannels);
                 }
               }
             } catch (e) {
-              console.error('Failed to parse library config:', e);
               libraryChannels = {};
             }
 
@@ -722,16 +700,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const allEnabled = Object.keys(libraryChannels).length === 0;
             const defaultChannel = document.getElementById("JELLYFIN_CHANNEL_ID").value || '';
 
-            console.log(`Libraries config - allEnabled: ${allEnabled}, libraryChannels:`, libraryChannels);
-
             librariesList.innerHTML = libraries.map(lib => {
               // Library is checked ONLY if:
               // 1. No libraries configured yet (allEnabled = true), OR
               // 2. This library ID exists as a key in libraryChannels object
               const isChecked = allEnabled || libraryChannels.hasOwnProperty(lib.id);
               const selectedChannel = isChecked ? (libraryChannels[lib.id] || defaultChannel) : '';
-
-              console.log(`Library ${lib.name} (${lib.id}): checked=${isChecked}, channel=${selectedChannel}`);
 
               return `
               <div class="library-item">
@@ -779,7 +753,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // DON'T call updateNotificationLibraries() here - it would overwrite the saved config
             // The hidden input already has the correct value from fetchConfig()
-            console.log('Libraries loaded. Hidden input value:', notificationLibrariesInput.value);
           }
 
           // Libraries loaded successfully
@@ -787,7 +760,6 @@ document.addEventListener("DOMContentLoaded", () => {
           throw new Error(result.message || "Failed to fetch libraries");
         }
       } catch (error) {
-        console.error("Failed to load libraries:", error);
         librariesList.innerHTML = `<div style="padding: 1rem; color: var(--red); background: var(--surface0); border-radius: 6px;">
           <i class="bi bi-exclamation-triangle" style="margin-right: 0.5rem;"></i>${error.message || "Failed to load libraries. Please check your Jellyfin URL and API Key."}
         </div>`;
@@ -826,11 +798,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (currentChannel) {
           select.value = currentChannel;
         }
-
-        console.log(`Library ${libraryId} channel set to: ${select.value} (expected: ${currentChannel})`);
       });
     } catch (error) {
-      console.error("Failed to populate library channel dropdowns:", error);
     }
   }
 
@@ -842,7 +811,6 @@ document.addEventListener("DOMContentLoaded", () => {
     checkboxes.forEach(cb => {
       const libraryId = cb.value;
       if (!libraryId || libraryId.trim() === '') {
-        console.warn('Skipping library checkbox with empty value');
         return;
       }
       const select = librariesList.querySelector(`select[data-library-id="${libraryId}"]`);
@@ -851,7 +819,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     const jsonValue = JSON.stringify(libraryChannels);
-    console.log('Updating JELLYFIN_NOTIFICATION_LIBRARIES:', jsonValue);
     notificationLibrariesInput.value = jsonValue;
   }
 
@@ -902,15 +869,12 @@ document.addEventListener("DOMContentLoaded", () => {
           // If value was successfully set, load channels for that guild
           if (guildSelect.value === currentValue) {
             loadDiscordChannels(currentValue);
-          } else {
-            console.warn(`Saved guild ID ${currentValue} not found in available servers`);
           }
         }
       } else {
         guildSelect.innerHTML = '<option value="">Error loading servers. Check token.</option>';
       }
     } catch (error) {
-      console.error("Error loading Discord guilds:", error);
       guildSelect.innerHTML = '<option value="">Error loading servers</option>';
     }
   }
@@ -945,15 +909,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (currentValue) {
           channelSelect.value = currentValue;
           // Verify if the value was successfully set
-          if (channelSelect.value !== currentValue) {
-            console.warn(`Saved channel ID ${currentValue} not found in available channels`);
+          if (channelSelect.value === currentValue) {
+            // Value was successfully restored
           }
         }
       } else {
         channelSelect.innerHTML = '<option value="">Error loading channels</option>';
       }
     } catch (error) {
-      console.error("Error loading Discord channels:", error);
       channelSelect.innerHTML = '<option value="">Error loading channels</option>';
     }
   }
@@ -1021,7 +984,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       return data.value;
     } catch (error) {
-      console.error('Error loading from cache:', error);
       return null;
     }
   }
@@ -1035,7 +997,7 @@ document.addEventListener("DOMContentLoaded", () => {
       };
       localStorage.setItem(key, JSON.stringify(data));
     } catch (error) {
-      console.error('Error saving to cache:', error);
+      // Cache save error
     }
   }
 
@@ -1072,10 +1034,8 @@ document.addEventListener("DOMContentLoaded", () => {
             trigger.placeholder = "Error loading members. Is bot running?";
           }
         }
-        console.error("Failed to load Discord members:", data.message);
       }
     } catch (error) {
-      console.error("Exception loading Discord members:", error);
       const customSelect = document.getElementById("discord-user-select");
       if (customSelect) {
         const trigger = customSelect.querySelector(".custom-select-trigger");
@@ -1196,11 +1156,8 @@ document.addEventListener("DOMContentLoaded", () => {
         usersLoaded = true;
         saveToCache(JELLYSEERR_USERS_CACHE_KEY, data.users);
         populateJellyseerrUserSelect();
-      } else {
-        console.error("Failed to load Jellyseerr users:", data.message);
       }
     } catch (error) {
-      console.error("Error loading Jellyseerr users:", error);
     }
   }
 
@@ -1330,7 +1287,6 @@ document.addEventListener("DOMContentLoaded", () => {
       // Display mappings (with avatars if members loaded)
       displayMappings();
     } catch (error) {
-      console.error("Error loading mappings:", error);
     }
   }
 
@@ -1352,8 +1308,6 @@ document.addEventListener("DOMContentLoaded", () => {
               jellyseerrDisplayName: jellyseerrUser?.displayName || mapping.jellyseerrDisplayName
             };
 
-            console.log('Updating mapping metadata for Discord user:', mapping.discordUserId);
-
             await fetch("/api/user-mappings", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -1367,7 +1321,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await fetch("/api/user-mappings");
       currentMappings = await response.json();
     } catch (error) {
-      console.error("Error updating mappings metadata:", error);
     }
   }
 
@@ -1443,7 +1396,6 @@ document.addEventListener("DOMContentLoaded", () => {
         showToast(`Error: ${result.message}`);
       }
     } catch (error) {
-      console.error("Error deleting mapping:", error);
       showToast("Failed to remove mapping.");
     }
   };
@@ -1465,9 +1417,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const discordMember = discordMembers.find(m => m.id === discordUserId);
       const jellyseerrUser = jellyseerrUsers.find(u => String(u.id) === String(jellyseerrUserId));
 
-      console.log('Discord Member found:', discordMember);
-      console.log('Jellyseerr User found:', jellyseerrUser);
-
       // Prepare data for submission
       const mappingData = {
         discordUserId,
@@ -1477,8 +1426,6 @@ document.addEventListener("DOMContentLoaded", () => {
         discordAvatar: discordMember?.avatar || null,
         jellyseerrDisplayName: jellyseerrUser?.displayName || null
       };
-
-      console.log('Mapping data being sent:', mappingData);
 
       try {
         const response = await fetch("/api/user-mappings", {
@@ -1518,7 +1465,6 @@ document.addEventListener("DOMContentLoaded", () => {
           showToast(`Error: ${result.message}`);
         }
       } catch (error) {
-        console.error("Error adding mapping:", error);
         showToast("Failed to add mapping.");
       }
     });
@@ -1769,7 +1715,6 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("blocklist-roles").innerHTML = '<p class="form-text" style="opacity: 0.7; font-style: italic;">Bot must be running to load roles</p>';
       }
     } catch (error) {
-      console.error("Error loading roles:", error);
     }
   }
   
@@ -1956,7 +1901,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     } catch (error) {
-      console.error("Jellyseerr connection error:", error);
       jellyseerrIndicator.className = "status-dot status-disconnected";
     }
 
@@ -1984,7 +1928,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     } catch (error) {
-      console.error("Jellyfin connection error:", error);
       jellyfinIndicator.className = "status-dot status-disconnected";
     }
   }
@@ -2010,7 +1953,6 @@ document.addEventListener("DOMContentLoaded", () => {
         botControlTextLogs.textContent = "Start Bot";
       }
     } catch (error) {
-      console.error("Error fetching bot status:", error);
     }
   }
 
@@ -2044,7 +1986,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 1000);
       }
     } catch (error) {
-      console.error(`Error with bot control:`, error);
       showToast(`Failed to control bot.`);
       botControlBtnLogs.disabled = false;
     }

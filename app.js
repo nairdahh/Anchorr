@@ -1550,7 +1550,7 @@ function configureWebServer() {
     });
 
     // Endpoint for Jellyfin libraries
-    app.post("/api/jellyfin-libraries", async (req, res) => {
+    app.post("/api/jellyfin-libraries", authenticateToken, async (req, res) => {
       try {
         const { url, apiKey } = req.body;
 

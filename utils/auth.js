@@ -73,6 +73,7 @@ export const login = async (req, res) => {
     res.cookie('auth_token', token, {
       httpOnly: true,
       secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
+      sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 

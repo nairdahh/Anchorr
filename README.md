@@ -25,7 +25,7 @@
 - **🚫 Duplicate Detection**: Automatically checks if content already exists in Jellyseerr before allowing requests
 - **🏷️ Tag Selection**: Select Radarr/Sonarr tags when requesting media for better organization and categorization
 - **📬 Jellyfin Notifications**: Automatic Discord notifications when new media is added to your library
-- **📚 Library Filtering**: Choose which Jellyfin libraries send Discord notifications
+- **📚 Library Filtering and Mapping**: Choose which Jellyfin libraries send Discord notifications and on what channel
 - **👤 User Mapping**: Map Discord users to Jellyseerr accounts so requests appear from the correct user
 - **🔐 Role-Based Permissions**: Control who can use bot commands through Discord roles (allowlist/blocklist)
 - **🔔 Private Notifications**: Optional PM when your requested content becomes available on Jellyfin
@@ -105,6 +105,7 @@ Deploying with Docker is the recommended method for running Anchorr. You can use
 ### Method 1: Docker Compose
 
 **Option A: Clone the full repository**
+
 ```bash
 git clone https://github.com/nairdahh/anchorr.git
 cd anchorr
@@ -112,6 +113,7 @@ docker compose up -d
 ```
 
 **Option B: Download only docker-compose.yml**
+
 ```bash
 mkdir anchorr && cd anchorr
 wget https://raw.githubusercontent.com/nairdahh/anchorr/main/docker-compose.yml
@@ -136,12 +138,14 @@ docker run -d \
 **Access:** Open browser at `http://<your-server-ip>:8282`
 
 **Important parameters:**
+
 - `-p 8282:8282` - **Port mapping** (host:container). First number is the port on your host.
 - `-v $(pwd)/anchorr-data:/config` - Persistent data storage
 - `--restart unless-stopped` - Auto-restart on failure
 
 **Example for Unraid:**
 When adding the container in Unraid Community Apps, add this volume mapping in the "Path" section:
+
 - **Container Path**: `/config`
 - **Host Path**: `/mnt/user/appdata/anchorr`
 - **Access Mode**: `RW` (Read-Write)
@@ -151,12 +155,14 @@ When adding the container in Unraid Community Apps, add this volume mapping in t
 If port 8282 is already in use:
 
 **Docker Compose:** Edit `docker-compose.yml`
+
 ```yaml
 ports:
-  - "9000:8282"  # Change 9000 to your desired port
+  - "9000:8282" # Change 9000 to your desired port
 ```
 
 **Docker Run:** Change the first port number
+
 ```bash
 docker run -d \
   --name anchorr \
@@ -165,6 +171,7 @@ docker run -d \
   --restart unless-stopped \
   nairdah/anchorr:latest
 ```
+
 Then access at: `http://localhost:9000`
 
 ## 📸 Screenshots (a bit outdated for now)
