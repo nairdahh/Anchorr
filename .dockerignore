@@ -12,3 +12,4 @@ LICENSE
 .claude
 .DS_Store
 *.log
+logs/

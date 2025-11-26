@@ -19,18 +19,25 @@
 ## 🌟 Features
 
 - **🔍 Media Search**: Search for movies and TV shows with `/search` command - you can then request it later within the message embed
+- **🔥 Trending Content**: Browse weekly trending movies and TV shows with `/trending` command
 - **📤 One-Click Requests**: Directly request media to Jellyseerr with `/request` command
 - **📺 Smart TV Handling**: Choose specific seasons when searching for TV series using `/search`, or request all the seasons at once with `/request`
+- **🚫 Duplicate Detection**: Automatically checks if content already exists in Jellyseerr before allowing requests
+- **🏷️ Tag Selection**: Select Radarr/Sonarr tags when requesting media for better organization and categorization
 - **📬 Jellyfin Notifications**: Automatic Discord notifications when new media is added to your library
+- **📚 Library Filtering and Mapping**: Choose which Jellyfin libraries send Discord notifications and on what channel
+- **👤 User Mapping**: Map Discord users to Jellyseerr accounts so requests appear from the correct user
+- **🔐 Role-Based Permissions**: Control who can use bot commands through Discord roles (allowlist/blocklist)
+- **🔔 Private Notifications**: Optional PM when your requested content becomes available on Jellyfin
+- **👻 Ephemeral Mode**: Make bot responses visible only to the command user
 - **🎨 Rich Embeds**: Beautiful, detailed embeds with:
   - Movie/TV show posters and backdrops
   - Director/Creator information
   - IMDb ratings and links
   - Runtime, genres, and synopsis
   - Quick action buttons (IMDb, Letterboxd, Watch Now)
-- **🔗 Autocomplete Support**: Intelligent autocomplete for search queries
-- **👁️ Ephemeral Interactions**: Optional private responses visible only to the command user
-- **⚙️ Web Dashboard**: User-friendly web interface for configuration
+- **🔗 Autocomplete Support**: Intelligent autocomplete for search queries with rich metadata
+- **⚙️ Web Dashboard**: User-friendly web interface for configuration with auto-detection
 
 ## 📋 Prerequisites
 
@@ -82,7 +89,7 @@ Generate an OAuth2 URL in [Discord Developer Portal](https://discord.com/develop
 
 In Jellyfin Dashboard → Webhooks:
 
-1. Click **+** to add new webhook
+1. Click **+** to add new Discord webhook
 2. Enter URL: `http://<bot-host>:<port>/jellyfin-webhook`
 3. Example: `http://192.168.1.100:8282/jellyfin-webhook`
 4. Save and you're done! 🎉
@@ -91,6 +98,7 @@ In Jellyfin Dashboard → Webhooks:
 
 Configuration is managed through a **web dashboard** at `http://localhost:8282/`. However, you can also configure it programmatically.
 
+## 🐳 Docker Deployment
 ### Configuration Variables
 
 | Variable              | Description                       | Example                        |
@@ -113,48 +121,66 @@ Configuration is managed through a **web dashboard** at `http://localhost:8282/`
 
 If you're upgrading from an older version with a `.env` file:
 
-- Simply run the new version
-- The app will automatically detect and migrate your `.env` variables to `config.json`
-- You can then safely delete the `.env` file
+Deploying with Docker is the recommended method for running Anchorr. You can use Docker Compose (the easiest way) or run the container manually.
 
-## 💬 Commands
+### Method 1: Docker Compose
 
-### `/search <title>`
+**Option A: Clone the full repository**
 
-Search for a movie or TV show and view detailed information.
+```bash
+git clone https://github.com/nairdahh/anchorr.git
+cd anchorr
+docker compose up -d
+```
 
+**Option B: Download only docker-compose.yml**
 - Shows poster, backdrop, ratings, genres, and synopsis
 - Interactive buttons to request directly or view on IMDb/Letterboxd
 - For TV shows: Choose specific seasons to request
 - **Private Mode**: When ephemeral interactions are enabled, only you can see the search results
 
-### `/request <title>`
+```bash
+mkdir anchorr && cd anchorr
+wget https://raw.githubusercontent.com/nairdahh/anchorr/main/docker-compose.yml
+# OR with curl: curl -O https://raw.githubusercontent.com/nairdahh/anchorr/main/docker-compose.yml
+docker compose up -d
+```
 
-Instantly request a movie or TV show (all seasons for TV).
+**Access:** Open browser at `http://<your-server-ip>:8282` (e.g., `http://192.168.1.100:8282` or `http://localhost:8282`)
 
+### Method 2: Manual Docker Run
 - Automatically sends to Jellyseerr
 - Shows confirmation with media details
 - **Private Mode**: When ephemeral interactions are enabled, only you can see the request confirmation
 
-### Autocomplete
+```bash
+# Run container (using port 8282)
+docker run -d \
+  --name anchorr \
+  -p 8282:8282 \
+  -v $(pwd)/anchorr-data:/config \
+  --restart unless-stopped \
+  nairdah/anchorr:latest
+```
 
-Start typing in either command to see real-time suggestions with release year and the director/creator.
+**Access:** Open browser at `http://<your-server-ip>:8282`
 
-## 🔔 Jellyfin Notifications
+**Important parameters:**
 
-When new media is added to your Jellyfin library, the bot automatically posts to your configured Discord channel:
+- `-p 8282:8282` - **Port mapping** (host:container). First number is the port on your host.
+- `-v $(pwd)/anchorr-data:/config` - Persistent data storage
+- `--restart unless-stopped` - Auto-restart on failure
 
-- 🎬 **Movies**: Full details with IMDb and Letterboxd links
-- 📺 **TV Shows**: Series information with IMDb link and when available, a Letterboxd link
-- 🎞️ **Episodes**: Season and episode number with timestamps
+**Example for Unraid:**
+When adding the container in Unraid Community Apps, add this volume mapping in the "Path" section:
 
-Each notification includes:
+- **Container Path**: `/config`
+- **Host Path**: `/mnt/user/appdata/anchorr`
+- **Access Mode**: `RW` (Read-Write)
 
-- High-quality poster
-- Runtime, rating, genres and synopsis
-- "Watch Now" button linking directly to Jellyfin
-- IMDb and Letterboxd quick links
+### Using a Different Port
 
+If port 8282 is already in use:
 ### 📚 Library Exclusion
 
 You can exclude specific Jellyfin libraries from notifications to filter out unwanted alerts:
@@ -173,24 +199,25 @@ The system automatically filters webhook events from excluded libraries, logging
 
 ## 🐳 Docker Deployment
 
-### Using Docker Compose (Recommended)
+**Docker Compose:** Edit `docker-compose.yml`
 
-```bash
-docker compose up -d --build
+```yaml
+ports:
+  - "9000:8282" # Change 9000 to your desired port
 ```
 
-### Custom Docker Build
+**Docker Run:** Change the first port number
 
 ```bash
-docker build -t anchorr .
-docker run -p 8282:8282 \
-  -e DISCORD_TOKEN=your_token \
-  -e BOT_ID=your_bot_id \
-  -e GUILD_ID=your_guild_id \
-  anchorr
+docker run -d \
+  --name anchorr \
+  -p 9000:8282 \              # Use port 9000 on host
+  -v $(pwd)/anchorr-data:/config \
+  --restart unless-stopped \
+  nairdah/anchorr:latest
 ```
 
-**Note**: For Docker, use `host.docker.internal` to reference services on the host machine.
+Then access at: `http://localhost:9000`
 
 ## 📸 Screenshots (a bit outdated for now)
 
@@ -200,27 +227,6 @@ docker run -p 8282:8282 \
 | Search Results        | ![Search](./assets/screenshot-search.png)             |
 | Request Confirmation  | ![Request](./assets/screenshot-request.png)           |
 | Jellyfin Notification | ![New Media](./assets/screenshot-newmedia.png)        |
-
-## 🔧 Advanced Features
-
-### Web Dashboard
-
-- ✅ Real-time bot status monitoring
-- ✅ One-click start/stop controls
-- ✅ Connection testing for Jellyseerr and Jellyfin
-- ✅ Configuration editing and persistence
-- ✅ Webhook URL display with copy-to-clipboard
-- ✅ Tab-based organization (Discord, Jellyseerr, TMDB, Jellyfin)
-
-### API Endpoints (Internal)
-
-- `GET /api/config` - Fetch current configuration
-- `POST /api/save-config` - Save configuration changes
-- `GET /api/status` - Get bot status
-- `POST /api/start-bot` - Start the bot
-- `POST /api/stop-bot` - Stop the bot
-- `POST /api/test-jellyseerr` - Test Jellyseerr connection
-- `POST /api/test-jellyfin` - Test Jellyfin connection
 
 ## 🤝 Contributing
 

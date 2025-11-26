@@ -1,6 +1,6 @@
 {
   "name": "anchorr",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -12,8 +12,17 @@
   "description": "",
   "dependencies": {
     "axios": "^1.12.2",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "discord.js": "^14.22.1",
     "express": "^4.18.2",
-    "lodash.debounce": "^4.0.8"
+    "express-rate-limit": "^7.1.5",
+    "joi": "^18.0.2",
+    "jsonwebtoken": "^9.0.2",
+    "lodash.debounce": "^4.0.8",
+    "node-cache": "^5.1.2",
+    "winston": "^3.11.0",
+    "winston-daily-rotate-file": "^4.7.1",
+    "ws": "^8.18.0"
   }
 }

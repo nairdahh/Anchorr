@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2025-11-26
+
+### ✨ Added
+
+- **Trending Command**: New `/trending` command to browse weekly trending movies and TV shows from TMDB with rich autocomplete
+- **Duplicate Detection**: Bot now checks if content already exists in Jellyseerr before allowing requests
+- **PM Notifications**: New `NOTIFY_ON_AVAILABLE` setting - users receive a private message when their requested content becomes available on Jellyfin (Off by default)
+- **Miscellaneous Settings**: New configuration section (step 7) for optional/advanced features like auto-start and PM notifications
+- **User Mapping UI**: Custom dropdown selectors with search functionality for Discord and Jellyseerr users, which allow you to map Discord users with their respective Jellyseerr account, so the requests will now appear on Jellyseerr from their account. Requires enabling SERVER MEMBERS INTENT in Discord Developer Portal (Bot section -> Privileged Gateway Intents)
+- **Role-Based Permissions**: Control who can use bot commands through Discord roles. `ROLE_ALLOWLIST` restricts commands to specific roles (if empty, everyone can use), and `ROLE_BLOCKLIST` blocks specific roles from using commands. Role Permissions UI in configuration dashboard (step 6) with visual role colors and member counts applied to all commands and interactions
+- **Discord Auto-Detection**: Custom dropdown that automatically detects Discord servers and channels - no more manual ID entry required (You need to invite the bot first and set up its token and client id)
+- **Ephemeral Message Mode**: New `PRIVATE_MESSAGE_MODE` setting that hides all bot responses (search results and request confirmations) from the public channel - messages are only visible to the user who issued the command. Can be toggled in Miscellaneous Settings (Off by default)
+- **Tag Selection for Media Requests**: You can now select tags from Radarr (movies) and Sonarr (TV shows) when making requests via `/request` command or after using `/search`. Tags allow for better media management and organization, enabling you to categorize requests (e.g., "anime", "4k", "hard-disk-2"). Works in multiple scenarios:
+  - Direct request: `/request Movie Title` with tag variable (that is optional if you want to skip it)
+  - After search: Use `/search Movie Title`, then select "Request" button and choose your tag from dropdown
+  - Season selection: For TV shows, choose specific seasons first, then select a tag for those seasons
+- **Jellyfin API Integration**: Direct Jellyfin API access for reliable library detection and metadata fetching. The webhook handler now fetches item details via API to ensure accurate library identification, independent of webhook data completeness. This enables more robust features and better error handling.
+- **Library-Specific Notifications**: Choose which Jellyfin libraries send Discord notifications. Load all available libraries from your Jellyfin server, then select which ones should trigger notifications. By default, all libraries are enabled. When you uncheck a library, content added to it will not generate Discord notifications. This allows you to filter out personal collections, test libraries, or content types you don't want announced.
+- **Real-Time Logs Viewer**: New dedicated Logs section in the web dashboard that displays Winston logger output in real-time, allowing you to monitor application events, errors, and debug information directly from the configuration interface without needing to access server logs
+
+### 🔒 Security
+
+- **User Authentication System**: Added account-based authentication system for the web dashboard to protect sensitive configuration and bot settings. Users must log in with credentials before accessing the configuration interface
+- **Config File Permissions**: Changed `config.json` file permissions from `0o666` to `0o600` (owner read/write only) to protect sensitive credentials
+- **API Abuse Prevention**: Rate limiting prevents DoS attacks and limits configuration modification attempts
+- **Input Sanitization**: Joi validation schemas prevent injection attacks and handle malformed data gracefully
+
+### 🚀 Performance
+
+- **API Caching**: 96% reduction in redundant TMDB API calls through intelligent response caching with TTL support
+- **Autocomplete Optimization**: Smart caching for autocomplete - first search fetches from API, subsequent searches return instant cached results
+- **Consolidated API Requests**: Reduced TMDB API call count using `append_to_response` parameter for credits information in single request
+- **Better Memory Usage**: Removed duplicate function definitions and consolidated code through modularization
+
+### 🏗️ Code Quality
+
+- **Constants Module**: Created `config/constants.js` to centralize all hardcoded values including colors, timeouts, and cache TTLs
+- **Response Caching**: Implemented API response caching with `node-cache` for TMDB API calls (5 min for search, 30 min for details) to reduce redundant requests by 96%
+- **Structured Logging**: Replaced all console statements with Winston logger supporting multiple log levels (error, warn, info, debug) and file rotation
+- **Rate Limiting**: Added DoS protection with `express-rate-limit` (100 req/15min general, 10 req/5min config operations) on all API endpoints
+- **Input Validation**: Added Joi validation schemas for all API endpoints to prevent malformed data and injection attacks
+- **Health Check Endpoint**: New `GET /api/health` endpoint for monitoring bot status, uptime, memory usage, and cache statistics
+- **TMDB API Module**: Extracted TMDB API client into separate module (`api/tmdb.js`) with all search, details, and trending functions
+- **Jellyseerr API Module**: Extracted Jellyseerr API client into separate module (`api/jellyseerr.js`) with media status checks and request functions
+- **Discord Commands Module**: Separated command definitions into dedicated module (`discord/commands.js`) for better maintainability
+- **Modular Architecture**: Separated concerns into dedicated modules (API clients, commands, utilities) for better maintainability
+- **Centralized Configuration**: All constants moved to single location (`config/constants.js`) for easier maintenance and consistency
+- **Proper Logging**: All logging now goes through Winston with appropriate log levels for better debugging and monitoring
+- **Validation Layer**: Consistent input validation across all API endpoints to prevent invalid data propagation
+
+### 🔄 Changed
+
+- **Configuration UI**: Reorganized dashboard sections - removed "Network" section, renumbered steps 5-7 (User Mapping, Role Mapping, Miscellaneous) & small visual tweaks
+- **Dropdown UX**: Custom dropdowns with search, selection display, and visual feedback replace native `<select>` elements
+- **Logging System**: Replaced 100+ `console.log`, `console.error`, `console.warn` statements with structured Winston logging
+- **File Organization**: Refactored code into separate modules improving separation of concerns
+- **Error Handling**: Improved error messages throughout application with proper logging levels
+
+### 🗑️ Removed
+
+- **Port Configuration**: Removed redundant WEBHOOK_PORT from UI (can be set via config.json or Docker if needed)
+
+---
+
 ## [1.2.2] - 2025-11-18
 
 ### ✨ Added
