@@ -383,14 +383,14 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
     // Check if library is enabled and get specific channel
     const libraryKeys = Object.keys(notificationLibraries);
-    if (libraryKeys.length > 0 && libraryId && notificationLibraries[libraryId]) {
-      // Library found in configuration - use its specific channel
-      libraryChannelId = notificationLibraries[libraryId];
-      logger.info(`✅ Using mapped channel: ${libraryChannelId} for library: ${libraryId}`);
-    } else if (libraryId) {
-      // Library detected but not in configuration - use default channel
-      libraryChannelId = process.env.JELLYFIN_CHANNEL_ID;
-      logger.warn(`⚠️ Library ${libraryId} not in configuration. Using default channel: ${libraryChannelId}`);
+    if (libraryKeys.length > 0 && libraryId && libraryId in notificationLibraries) {
+      // Library found in configuration - use its specific channel or default if empty
+      libraryChannelId = notificationLibraries[libraryId] || process.env.JELLYFIN_CHANNEL_ID;
+      logger.info(`✅ Using channel: ${libraryChannelId} for configured library: ${libraryId}`);
+    } else if (libraryKeys.length > 0 && libraryId) {
+      // Library detected but not in configuration - disable notifications
+      logger.info(`🚫 Library ${libraryId} not enabled in JELLYFIN_NOTIFICATION_LIBRARIES. Skipping notification.`);
+      return res.status(200).send("OK: Notification skipped for disabled library.");
     } else {
       // No library detected - use default channel
       libraryChannelId = process.env.JELLYFIN_CHANNEL_ID;
