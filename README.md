@@ -13,7 +13,8 @@
   <a href="#-commands">Commands</a> •
   <a href="#-docker-deployment">Docker</a> •
   <a href="./CHANGELOG.md">Changelog</a> •
-  <a href="./CONTRIBUTING.md">Contributing</a>
+  <a href="./CONTRIBUTING.md">Contributing</a> •
+  <a href="https://discord.gg/S5JrsZe9mB">Discord</a>
 </p>
 
 ## 🌟 Features
