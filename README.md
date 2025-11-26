@@ -7,15 +7,27 @@
 </p>
 
 <p align="center">
-  <a href="#-features">Features</a> • 
-  <a href="#-quick-start">Quick Start</a> • 
-  <a href="#-configuration">Configuration</a> • 
+  <a href="#-features">Features</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-configuration">Configuration</a> •
   <a href="#-commands">Commands</a> •
   <a href="#-docker-deployment">Docker</a> •
   <a href="./CHANGELOG.md">Changelog</a> •
   <a href="./CONTRIBUTING.md">Contributing</a> •
   <a href="https://discord.gg/S5JrsZe9mB">Discord</a>
 </p>
+
+## 💬 Discord Server
+
+**Before anything else, I invite you to join my Discord server for faster help, discussions, and important information such as an organizd list of known bugs that are currently being tracker or planned features scheduled for future releases!**
+
+##### This helps avoid duplicate requests and keeps everyone informed about what's coming next!
+
+### Join Here:
+
+[![](https://dcbadge.limes.pink/api/server/https://discord.gg/S5JrsZe9mB)](https://discord.gg/S5JrsZe9mB)
+
+I also have a dedicated channel on the [r/JellyfinCommunity](https://discord.gg/awFC5m4xkr) server (if you are already a member): [Join me here](https://discord.gg/awFC5m4xkr)
 
 ## 🌟 Features
 
