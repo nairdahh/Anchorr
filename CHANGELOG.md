@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.1] - 2025-11-26
+
+### 🐛 Fixed
+
+- **Request Command Error**: Fixed `/request` command failing with "mediaId should be number" error by ensuring TMDB ID is properly converted to number before sending to Jellyseerr API
+- **Ephemeral Messages**: Error and informative messages (already exists, permission denied) are now always ephemeral (visible only to command user), while success messages respect the `PRIVATE_MESSAGE_MODE` setting
+- **Refresh Button Loading**: Fixed Discord users refresh button getting stuck in loading state when bot is not running
+
+### ✨ Added
+
+- **Refresh Discord Users Button**: Added refresh button in User Mapping section to manually reload Discord server members list without needing to restart the application
+
+---
+
 ## [1.3.0] - 2025-11-26
 
 ### ✨ Added

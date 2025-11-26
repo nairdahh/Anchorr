@@ -1585,6 +1585,40 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Refresh Discord Users button
+  const refreshDiscordUsersBtn = document.getElementById("refresh-discord-users-btn");
+  if (refreshDiscordUsersBtn) {
+    refreshDiscordUsersBtn.addEventListener("click", async () => {
+      refreshDiscordUsersBtn.disabled = true;
+      const originalHtml = refreshDiscordUsersBtn.innerHTML;
+      refreshDiscordUsersBtn.innerHTML = '<i class="bi bi-arrow-clockwise" style="animation: spin 1s linear infinite;"></i> Loading...';
+
+      try {
+        // Clear cache and force refresh
+        localStorage.removeItem(DISCORD_MEMBERS_CACHE_KEY);
+        membersLoaded = false; // Reset loaded flag to force reload
+
+        const response = await fetch("/api/discord-members");
+        const data = await response.json();
+
+        if (data.success && data.members) {
+          discordMembers = data.members;
+          membersLoaded = true;
+          saveToCache(DISCORD_MEMBERS_CACHE_KEY, data.members);
+          populateDiscordMemberSelect();
+          showToast("Discord users refreshed successfully!");
+        } else {
+          throw new Error(data.message || "Failed to load Discord members");
+        }
+      } catch (error) {
+        showToast("Failed to refresh Discord users. Is the bot running?");
+      } finally {
+        refreshDiscordUsersBtn.disabled = false;
+        refreshDiscordUsersBtn.innerHTML = originalHtml;
+      }
+    });
+  }
+
   // Lazy load members/users when user clicks on the dropdowns
   const discordSelect = document.getElementById("discord-user-select");
   const jellyseerrSelect = document.getElementById("jellyseerr-user-select");

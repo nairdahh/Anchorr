@@ -589,8 +589,9 @@ async function startBot() {
       });
     }
 
-    const isEphemeral = process.env.PRIVATE_MESSAGE_MODE === "true";
-    await interaction.deferReply({ ephemeral: isEphemeral });
+    // Always start with ephemeral for safety (errors/info messages should always be ephemeral)
+    // Success messages will be handled separately based on PRIVATE_MESSAGE_MODE
+    await interaction.deferReply({ ephemeral: true });
 
     try {
       const details = await tmdbApi.tmdbGetDetails(
@@ -610,12 +611,11 @@ async function startBot() {
         );
 
         if (status.exists && status.available) {
-          // Media already available
+          // Media already available - always ephemeral for info messages
           await interaction.editReply({
             content: "✅ This content is already available in your library!",
             components: [],
             embeds: [],
-            flags: 64,
           });
           return;
         }
@@ -746,9 +746,20 @@ async function startBot() {
         }
       }
 
-      await interaction.editReply({ embeds: [embed], components });
+      // Success message - check if should be public or ephemeral
+      const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
+
+      if (isPrivateMode) {
+        // Keep it ephemeral
+        await interaction.editReply({ embeds: [embed], components });
+      } else {
+        // Delete ephemeral reply and send public message
+        await interaction.deleteReply();
+        await interaction.followUp({ embeds: [embed], components, ephemeral: false });
+      }
     } catch (err) {
       logger.error("Error in handleSearchOrRequest:", err);
+      // Error messages are always ephemeral - handled by deferReply with ephemeral: true
       await interaction.editReply({
         content: "⚠️ An error occurred.",
         components: [],
@@ -1123,7 +1134,16 @@ async function startBot() {
             selectedTagNames
           );
 
-          await interaction.editReply({ embeds: [embed], components });
+          // Success message - check if should be public or ephemeral
+          const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
+
+          if (isPrivateMode) {
+            // Keep it ephemeral (edit the deferred update)
+            await interaction.editReply({ embeds: [embed], components });
+          } else {
+            // Send as public followUp (deferUpdate already acknowledged)
+            await interaction.followUp({ embeds: [embed], components, ephemeral: false });
+          }
         } catch (err) {
           logger.error("Button request error:", err);
           try {

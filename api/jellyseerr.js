@@ -368,7 +368,7 @@ export async function sendRequest({
 
   const payload = {
     mediaType,
-    mediaId: tmdbId,
+    mediaId: parseInt(tmdbId, 10),
     ...(mediaType === "tv" &&
       seasonsFormatted && { seasons: seasonsFormatted }),
   };
