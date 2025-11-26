@@ -9,8 +9,13 @@ services:
     ports:
       - "8282:8282"
     volumes:
-      - anchorr-config:/config
-    # Uncomment if you have permission issues on Linux
+      # Bind mount ensures config.json persists in a visible location
+      # The directory ./anchorr-data will be created automatically by Docker
+      # Change "./anchorr-data" to your preferred path
+      - ./anchorr-data:/config
+    # Run as root to ensure write permissions (safe for localhost deployment)
+    # Running as root allows Docker to create the directory automatically with correct permissions
+    # For non-root: uncomment below, manually create ./anchorr-data, and set to your user/group ID
     # user: "1000:1000"
     labels:
       - "com.example.description=Discord bot for Jellyfin media requests via Jellyseerr"
@@ -34,7 +39,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-volumes:
-  anchorr-config:
-    driver: local
