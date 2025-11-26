@@ -99,6 +99,27 @@ In Jellyfin Dashboard → Webhooks:
 Configuration is managed through a **web dashboard** at `http://localhost:8282/`. However, you can also configure it programmatically.
 
 ## 🐳 Docker Deployment
+### Configuration Variables
+
+| Variable              | Description                       | Example                        |
+| --------------------- | --------------------------------- | ------------------------------ |
+| `DISCORD_TOKEN`       | Your bot's secret token           | `MjU0...`                      |
+| `BOT_ID`              | Bot's Application ID              | `123456789...`                 |
+| `GUILD_ID`            | Discord server ID                 | `987654321...`                 |
+| `EPHEMERAL_INTERACTIONS` | Make bot responses private     | `true` or `false` (default)    |
+| `JELLYSEERR_URL`      | Jellyseerr API endpoint           | `http://localhost:5055/api/v1` |
+| `JELLYSEERR_API_KEY`  | Your Jellyseerr API key           | `abc123...`                    |
+| `TMDB_API_KEY`        | TMDB API key                      | `xyz789...`                    |
+| `OMDB_API_KEY`        | OMDb API key (optional)           | `abc123xyz...`                 |
+| `JELLYFIN_BASE_URL`   | Public Jellyfin URL               | `http://jellyfin.example.com`  |
+| `JELLYFIN_API_KEY`    | Jellyfin API key (optional)       | `c4b6b3c8f1d4f0a8a6c2e4d8...`  |
+| `JELLYFIN_CHANNEL_ID` | Discord channel for notifications | `123456789...`                 |
+| `JELLYFIN_EXCLUDED_LIBRARIES` | Libraries to exclude from notifications | `lib1,lib2,lib3`        |
+| `WEBHOOK_PORT`        | Port for webhook listener         | `8282`                         |
+
+### 🔄 Automatic Migration from `.env`
+
+If you're upgrading from an older version with a `.env` file:
 
 Deploying with Docker is the recommended method for running Anchorr. You can use Docker Compose (the easiest way) or run the container manually.
 
@@ -113,6 +134,10 @@ docker compose up -d
 ```
 
 **Option B: Download only docker-compose.yml**
+- Shows poster, backdrop, ratings, genres, and synopsis
+- Interactive buttons to request directly or view on IMDb/Letterboxd
+- For TV shows: Choose specific seasons to request
+- **Private Mode**: When ephemeral interactions are enabled, only you can see the search results
 
 ```bash
 mkdir anchorr && cd anchorr
@@ -124,6 +149,9 @@ docker compose up -d
 **Access:** Open browser at `http://<your-server-ip>:8282` (e.g., `http://192.168.1.100:8282` or `http://localhost:8282`)
 
 ### Method 2: Manual Docker Run
+- Automatically sends to Jellyseerr
+- Shows confirmation with media details
+- **Private Mode**: When ephemeral interactions are enabled, only you can see the request confirmation
 
 ```bash
 # Run container (using port 8282)
@@ -153,6 +181,23 @@ When adding the container in Unraid Community Apps, add this volume mapping in t
 ### Using a Different Port
 
 If port 8282 is already in use:
+### 📚 Library Exclusion
+
+You can exclude specific Jellyfin libraries from notifications to filter out unwanted alerts:
+
+1. **Configure in Dashboard**: Open the web dashboard and navigate to "Jellyfin Notifications"
+2. **Load Libraries**: Click "Load Libraries" to fetch all available libraries from your Jellyfin server
+3. **Select to Exclude**: Check the boxes next to libraries you want to exclude from notifications
+4. **Save Settings**: Click "Save Settings" to apply your exclusion list
+
+**Use Cases:**
+- Exclude test or personal libraries
+- Filter notifications by content type
+- Reduce noise from specific collections
+
+The system automatically filters webhook events from excluded libraries, logging skipped notifications for transparency.
+
+## 🐳 Docker Deployment
 
 **Docker Compose:** Edit `docker-compose.yml`
 

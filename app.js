@@ -17,6 +17,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
+  MessageFlags,
 } from "discord.js";
 
 // --- MODULE IMPORTS ---
@@ -527,6 +528,9 @@ async function startBot() {
 
     const isEphemeral = process.env.PRIVATE_MESSAGE_MODE === 'true';
     await interaction.deferReply({ ephemeral: isEphemeral });
+    // Use MessageFlags.Ephemeral based on configuration
+    const isEphemeral = String(process.env.EPHEMERAL_INTERACTIONS || 'false').toLowerCase() === 'true';
+    await interaction.deferReply({ flags: isEphemeral ? MessageFlags.Ephemeral : undefined });
 
     try {
       const details = await tmdbApi.tmdbGetDetails(tmdbId, mediaType, TMDB_API_KEY);
@@ -660,6 +664,9 @@ async function startBot() {
       }
 
       await interaction.editReply({ embeds: [embed], components });
+      // For both search & request: check if interactions should be ephemeral.
+      const isEphemeral = String(process.env.EPHEMERAL_INTERACTIONS || 'false').toLowerCase() === 'true';
+      await interaction.editReply({ embeds: [embed], components, ephemeral: isEphemeral });
     } catch (err) {
       logger.error("Error in handleSearchOrRequest:", err);
       await interaction.editReply({
@@ -853,7 +860,7 @@ async function startBot() {
           return interaction.reply({
             content:
               "⚠️ This command is disabled because Jellyseerr or TMDB configuration is missing.",
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
         const raw = getOptionStringRobust(interaction);
@@ -976,8 +983,12 @@ async function startBot() {
             selectedSeasons.length > 0 ? selectedSeasons : ["all"],
             selectedTagNames
           );
+          const originalEmbeds = interaction.message.embeds;
+          const disabledComponents = buildButtons(tmdbId, imdbId, true, mediaType);
 
-          await interaction.editReply({ embeds: [embed], components });
+          await interaction.editReply({ embeds: originalEmbeds, components: disabledComponents });
+          const isEphemeral = String(process.env.EPHEMERAL_INTERACTIONS || 'false').toLowerCase() === 'true';
+          await interaction.followUp({ embeds: [embed], flags: isEphemeral ? MessageFlags.Ephemeral : undefined });
         } catch (err) {
           logger.error("Button request error:", err);
           try {
@@ -1005,7 +1016,7 @@ async function startBot() {
         if (!tmdbId || !selectedSeasons.length) {
           return interaction.reply({
             content: "⚠️ Invalid selection.",
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -1027,6 +1038,9 @@ async function startBot() {
 
           // Build updated components with selected seasons
           const components = buildButtons(
+          // Disable the select menu after successful request
+          const originalEmbeds = interaction.message.embeds;
+          const disabledComponents = buildButtons(
             tmdbId,
             imdbId,
             false,
@@ -1069,7 +1083,11 @@ async function startBot() {
 
           await interaction.editReply({
             components,
+            embeds: originalEmbeds,
+            components: disabledComponents,
           });
+          const isEphemeral = String(process.env.EPHEMERAL_INTERACTIONS || 'false').toLowerCase() === 'true';
+          await interaction.followUp({ embeds: [embed], flags: isEphemeral ? MessageFlags.Ephemeral : undefined });
         } catch (err) {
           logger.error("Season selection error:", err);
           try {
@@ -1080,6 +1098,12 @@ async function startBot() {
           } catch (followUpErr) {
             logger.error("Failed to send follow-up message:", followUpErr);
           }
+          console.error("Season request error:", err);
+          await interaction.followUp({
+            content:
+              "⚠️ I could not send the request for the selected seasons.",
+            flags: MessageFlags.Ephemeral,
+          });
         }
       }
 
@@ -1738,6 +1762,8 @@ function configureWebServer() {
 
   app.post("/api/test-jellyfin", authenticateToken, async (req, res) => {
     const { url } = req.body;
+  app.post("/api/test-jellyfin", async (req, res) => {
+    const { url, apiKey } = req.body;
     if (!url) {
       return res
         .status(400)
@@ -1747,12 +1773,25 @@ function configureWebServer() {
     try {
       const testUrl = `${url.replace(/\/$/, "")}/System/Info/Public`;
       const response = await axios.get(testUrl, { timeout: TIMEOUTS.JELLYFIN_API });
+      const headers = {};
+      
+      // Add API key to headers if provided for more comprehensive testing
+      if (apiKey) {
+        headers["X-Emby-Token"] = apiKey;
+      }
+      
+      const response = await axios.get(testUrl, { 
+        headers,
+        timeout: 8000 
+      });
 
       if (response.data?.ServerName && response.data?.Version) {
+        const authStatus = apiKey ? " (with API key)" : " (public endpoint)";
         return res.json({
           success: true,
           message: `Connected to ${response.data.ServerName} (v${response.data.Version})`,
           serverId: response.data.Id
+          message: `Connected to ${response.data.ServerName} (v${response.data.Version})${authStatus}`,
         });
       }
       throw new Error("Invalid response from Jellyfin server.");
@@ -1933,6 +1972,52 @@ function configureWebServer() {
   });
 
   app.get("/api/status", authenticateToken, (req, res) => {
+  // Fetch all Jellyfin libraries for the exclusion UI
+  app.post("/api/jellyfin-libraries", async (req, res) => {
+    const { url, apiKey } = req.body;
+    if (!url) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Jellyfin URL is required." });
+    }
+
+    try {
+      // Fetch libraries from Jellyfin API
+      // The endpoint requires authentication if apiKey is provided
+      const librariesUrl = `${url.replace(/\/$/, "")}/Library/MediaFolders`;
+      const headers = {};
+      
+      // Add API key to headers if provided
+      if (apiKey) {
+        headers["X-Emby-Token"] = apiKey;
+      }
+
+      const response = await axios.get(librariesUrl, { 
+        headers,
+        timeout: 8000 
+      });
+
+      // Extract relevant library information
+      const libraries = (response.data?.Items || []).map(lib => ({
+        id: lib.Id,
+        name: lib.Name,
+        type: lib.CollectionType || 'mixed'
+      }));
+
+      res.json({
+        success: true,
+        libraries: libraries
+      });
+    } catch (error) {
+      console.error("Failed to fetch Jellyfin libraries:", error.message);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch libraries. Make sure the URL is correct and the server is accessible.",
+      });
+    }
+  });
+
+  app.get("/api/status", (req, res) => {
     res.json({
       isBotRunning,
       botUsername:
@@ -1941,6 +2026,14 @@ function configureWebServer() {
   });
 
   app.post("/api/start-bot", authenticateToken, async (req, res) => {
+  app.get("/api/webhook-url", (req, res) => {
+    const protocol = req.get('X-Forwarded-Proto') || (req.secure ? 'https' : 'http');
+    const host = req.get('Host') || `localhost:${port}`;
+    const webhookUrl = `${protocol}://${host}/jellyfin-webhook`;
+    res.json({ webhookUrl });
+  });
+
+  app.post("/api/start-bot", async (req, res) => {
     if (isBotRunning) {
       return res.status(400).json({ message: "Bot is already running." });
     }

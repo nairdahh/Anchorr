@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const webhookUrlElement = document.getElementById("webhook-url");
   const copyWebhookBtn = document.getElementById("copy-webhook-btn");
   const navItems = document.querySelectorAll(".nav-item, .about-button, .about-link");
+  const navItems = document.querySelectorAll(".nav-item, .about-button");
   const testJellyseerrBtn = document.getElementById("test-jellyseerr-btn");
   const testJellyseerrStatus = document.getElementById(
     "test-jellyseerr-status"
@@ -50,6 +51,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }, duration);
   }
 
+  async function fetchWebhookUrl() {
+    try {
+      const response = await fetch("/api/webhook-url");
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      const webhookUrlElement = document.getElementById("webhook-url");
+      if (webhookUrlElement) {
+        webhookUrlElement.textContent = data.webhookUrl;
+      }
+    } catch (error) {
+      console.error("Error fetching webhook URL:", error);
+      const webhookUrlElement = document.getElementById("webhook-url");
+      if (webhookUrlElement) {
+        webhookUrlElement.textContent = "Error loading webhook URL";
+      }
+    }
+  }
+
   async function fetchConfig() {
     try {
       const response = await fetch("/api/config");
@@ -84,7 +103,6 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
       }
-      updateWebhookUrl();
     } catch (error) {
       showToast("Error fetching configuration.");
     }
@@ -640,6 +658,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const fetchLibrariesStatus = document.getElementById("fetch-libraries-status");
   const librariesList = document.getElementById("libraries-list");
   const notificationLibrariesInput = document.getElementById("JELLYFIN_NOTIFICATION_LIBRARIES");
+  // Fetch and display Jellyfin libraries for exclusion
+  const fetchLibrariesBtn = document.getElementById("fetch-libraries-btn");
+  const fetchLibrariesStatus = document.getElementById("fetch-libraries-status");
+  const librariesList = document.getElementById("libraries-list");
+  const excludedLibrariesInput = document.getElementById("JELLYFIN_EXCLUDED_LIBRARIES");
 
   if (fetchLibrariesBtn) {
     fetchLibrariesBtn.addEventListener("click", async () => {
@@ -653,11 +676,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (!apiKey || !apiKey.trim()) {
         showToast("Please enter Jellyfin API Key first.");
+      
+      if (!url || !url.trim()) {
+        showToast("Please enter a Jellyfin URL first.");
         return;
       }
 
       fetchLibrariesBtn.disabled = true;
       librariesList.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--subtext0);"><i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: 0.5rem;"></i>Loading libraries...</div>';
+      fetchLibrariesStatus.textContent = "Loading...";
+      fetchLibrariesStatus.style.color = "var(--text)";
 
       try {
         const response = await fetch("/api/jellyfin-libraries", {
@@ -756,6 +784,43 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
           // Libraries loaded successfully
+          
+          if (libraries.length === 0) {
+            librariesList.innerHTML = '<div class="libraries-empty">No libraries found.</div>';
+          } else {
+            // Get currently excluded libraries from the hidden input
+            const excludedIds = excludedLibrariesInput.value.split(",").map(id => id.trim()).filter(id => id);
+            
+            // Render the libraries as checkboxes
+            librariesList.innerHTML = libraries.map(lib => `
+              <div class="library-item">
+                <label>
+                  <input 
+                    type="checkbox" 
+                    value="${lib.id}" 
+                    class="library-checkbox"
+                    ${excludedIds.includes(lib.id) ? 'checked' : ''}
+                  />
+                  <div class="library-info">
+                    <span class="library-name">${lib.name}</span>
+                    <span class="library-type">${lib.type}</span>
+                  </div>
+                </label>
+              </div>
+            `).join('');
+            
+            // Add event listeners to checkboxes to update the hidden input
+            const checkboxes = librariesList.querySelectorAll('.library-checkbox');
+            checkboxes.forEach(checkbox => {
+              checkbox.addEventListener('change', () => {
+                updateExcludedLibraries();
+              });
+            });
+          }
+          
+          librariesList.style.display = 'block';
+          fetchLibrariesStatus.textContent = `Found ${libraries.length} ${libraries.length === 1 ? 'library' : 'libraries'}`;
+          fetchLibrariesStatus.style.color = "var(--green)";
         } else {
           throw new Error(result.message || "Failed to fetch libraries");
         }
@@ -763,6 +828,9 @@ document.addEventListener("DOMContentLoaded", () => {
         librariesList.innerHTML = `<div style="padding: 1rem; color: var(--red); background: var(--surface0); border-radius: 6px;">
           <i class="bi bi-exclamation-triangle" style="margin-right: 0.5rem;"></i>${error.message || "Failed to load libraries. Please check your Jellyfin URL and API Key."}
         </div>`;
+        fetchLibrariesStatus.textContent = error.message || "Failed to load libraries.";
+        fetchLibrariesStatus.style.color = "#f38ba8"; // Red
+        librariesList.style.display = 'none';
       } finally {
         fetchLibrariesBtn.disabled = false;
       }
@@ -2024,4 +2092,44 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   });
+  // Update the hidden input with selected excluded libraries
+  function updateExcludedLibraries() {
+    const checkboxes = librariesList.querySelectorAll('.library-checkbox:checked');
+    const excludedIds = Array.from(checkboxes).map(cb => cb.value);
+    excludedLibrariesInput.value = excludedIds.join(',');
+  }
+
+  // Copy webhook URL to clipboard
+  const copyWebhookBtn = document.getElementById("copy-webhook-btn");
+  if (copyWebhookBtn) {
+    copyWebhookBtn.addEventListener("click", async () => {
+      const webhookUrlElement = document.getElementById("webhook-url");
+      const webhookUrl = webhookUrlElement.textContent;
+      
+      if (!webhookUrl || webhookUrl === "Error loading webhook URL") {
+        showToast("No webhook URL to copy");
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(webhookUrl);
+        showToast("Webhook URL copied to clipboard!");
+      } catch (error) {
+        // Fallback for older browsers
+        const textArea = document.createElement("textarea");
+        textArea.value = webhookUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        showToast("Webhook URL copied to clipboard!");
+      }
+    });
+  }
+
+  // --- Initial Load ---
+  fetchConfig();
+  fetchStatus();
+  fetchWebhookUrl();
+  setInterval(fetchStatus, 10000); // Poll status every 10 seconds
 });

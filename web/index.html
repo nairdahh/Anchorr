@@ -241,6 +241,15 @@
                         </div>
                       </div>
 
+                      <div class="form-group" style="margin-top: 1rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                          <input type="checkbox" id="EPHEMERAL_INTERACTIONS" name="EPHEMERAL_INTERACTIONS" />
+                          Ephemeral Interactions
+                        </label>
+                        <div class="form-text">
+                          If enabled, search and request responses are only visible to you.
+                        </div>
+                      </div>
                     </fieldset>
                   </div>
 
@@ -370,6 +379,7 @@
                         />
                         <div class="form-text">
                           API key for your Jellyfin server. Generate one in Jellyfin Dashboard → Administration → API Keys. Required for loading libraries and enhanced features.
+                          The API key for your Jellyfin server. You can generate one in your Jellyfin Dashboard under Administration → API Keys.
                         </div>
                       </div>
                       <div class="form-group">
@@ -427,6 +437,41 @@
 
                       <!-- Webhook Section -->
                       <div id="webhook-section" class="webhook-box" style="margin-top: 2rem;">
+                      <!-- API Key Field -->
+                      <div class="form-group">
+                        <label for="JELLYFIN_API_KEY">Jellyfin API Key</label>
+                        <input
+                          type="password"
+                          id="JELLYFIN_API_KEY"
+                          name="JELLYFIN_API_KEY"
+                          placeholder="a1b2c3d4e5f6g7h8i9j0"
+                        />
+                        <div class="form-text">
+                          Your Jellyfin API key for server authentication. Create one in Jellyfin Settings → API Keys
+                        </div>
+                      </div>
+
+                      <!-- Library Exclusion Section -->
+                      <div class="form-group" style="margin-top: 1.5rem;">
+                        <label>Excluded Libraries</label>
+                        <div class="form-text" style="margin-bottom: 0.75rem;">
+                          Select libraries to exclude from notifications. Webhook events from these libraries will be ignored.
+                          <br>
+                          <strong>Note:</strong> Make sure to enter the Jellyfin Public URL above before loading libraries.
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+                          <button type="button" id="fetch-libraries-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem;">
+                            Load Libraries
+                          </button>
+                          <span id="fetch-libraries-status" style="line-height: 2.5; opacity: 0.8;"></span>
+                        </div>
+                        <div id="libraries-list" class="libraries-container" style="display: none;">
+                          <!-- Libraries will be loaded here dynamically -->
+                        </div>
+                        <input type="hidden" id="JELLYFIN_EXCLUDED_LIBRARIES" name="JELLYFIN_EXCLUDED_LIBRARIES" />
+                      </div>
+
+                      <div id="webhook-section" class="webhook-box" style="margin-top: 1rem;">
                         <h3 class="webhook-title">Your Jellyfin Webhook URL</h3>
                         <div class="webhook-content">
                           <p>
