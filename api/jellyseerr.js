@@ -3,9 +3,9 @@
  * Handles all Jellyseerr API interactions
  */
 
-import axios from 'axios';
-import logger from '../utils/logger.js';
-import { TIMEOUTS, CACHE_TTL } from '../config/constants.js';
+import axios from "axios";
+import logger from "../utils/logger.js";
+import { TIMEOUTS, CACHE_TTL } from "../config/constants.js";
 
 // Cache for root folders and tags
 let rootFoldersCache = null;
@@ -22,11 +22,18 @@ let tagsCacheTime = 0;
  * @param {string} apiKey - Jellyseerr API key
  * @returns {Promise<Object>} Status object
  */
-export async function checkMediaStatus(tmdbId, mediaType, requestedSeasons = [], jellyseerrUrl, apiKey) {
+export async function checkMediaStatus(
+  tmdbId,
+  mediaType,
+  requestedSeasons = [],
+  jellyseerrUrl,
+  apiKey
+) {
   try {
-    const url = mediaType === "movie"
-      ? `${jellyseerrUrl}/movie/${tmdbId}`
-      : `${jellyseerrUrl}/tv/${tmdbId}`;
+    const url =
+      mediaType === "movie"
+        ? `${jellyseerrUrl}/movie/${tmdbId}`
+        : `${jellyseerrUrl}/tv/${tmdbId}`;
 
     const response = await axios.get(url, {
       headers: { "X-Api-Key": apiKey },
@@ -37,9 +44,11 @@ export async function checkMediaStatus(tmdbId, mediaType, requestedSeasons = [],
     if (mediaType === "movie") {
       return {
         exists: true,
-        available: response.data.mediaInfo?.status === 5 || response.data.mediaInfo?.status === 4,
+        available:
+          response.data.mediaInfo?.status === 5 ||
+          response.data.mediaInfo?.status === 4,
         status: response.data.mediaInfo?.status,
-        data: response.data
+        data: response.data,
       };
     }
 
@@ -54,39 +63,45 @@ export async function checkMediaStatus(tmdbId, mediaType, requestedSeasons = [],
             exists: true,
             available: false,
             status: response.data.mediaInfo?.status,
-            data: response.data
+            data: response.data,
           };
         }
 
-        const allAvailable = seasonStatuses.every(s => s.status === 5 || s.status === 4);
+        const allAvailable = seasonStatuses.every(
+          (s) => s.status === 5 || s.status === 4
+        );
         return {
           exists: true,
           available: allAvailable,
           status: response.data.mediaInfo?.status,
-          data: response.data
+          data: response.data,
         };
       }
 
       // If requesting specific seasons
-      const requestedSeasonNums = requestedSeasons.map(s => parseInt(s, 10));
-      const requestedSeasonAvailable = seasonStatuses.some(s =>
-        requestedSeasonNums.includes(s.seasonNumber) && (s.status === 5 || s.status === 4)
+      const requestedSeasonNums = requestedSeasons.map((s) => parseInt(s, 10));
+      const requestedSeasonAvailable = seasonStatuses.some(
+        (s) =>
+          requestedSeasonNums.includes(s.seasonNumber) &&
+          (s.status === 5 || s.status === 4)
       );
 
       return {
         exists: true,
         available: requestedSeasonAvailable,
         status: response.data.mediaInfo?.status,
-        data: response.data
+        data: response.data,
       };
     }
 
     // If no specific seasons requested, check overall status
     return {
       exists: true,
-      available: response.data.mediaInfo?.status === 5 || response.data.mediaInfo?.status === 4,
+      available:
+        response.data.mediaInfo?.status === 5 ||
+        response.data.mediaInfo?.status === 4,
       status: response.data.mediaInfo?.status,
-      data: response.data
+      data: response.data,
     };
   } catch (err) {
     // If 404, media doesn't exist in Jellyseerr
@@ -108,7 +123,7 @@ export async function fetchRootFolders(jellyseerrUrl, apiKey) {
   const now = Date.now();
 
   // Return cached folders if still valid
-  if (rootFoldersCache && (now - rootFoldersCacheTime) < CACHE_TTL.ROOT_FOLDERS) {
+  if (rootFoldersCache && now - rootFoldersCacheTime < CACHE_TTL.ROOT_FOLDERS) {
     return rootFoldersCache;
   }
 
@@ -117,17 +132,23 @@ export async function fetchRootFolders(jellyseerrUrl, apiKey) {
 
     // Fetch Radarr servers (for movies)
     try {
-      const radarrListResponse = await axios.get(`${jellyseerrUrl}/service/radarr`, {
-        headers: { "X-Api-Key": apiKey },
-        timeout: TIMEOUTS.JELLYSEERR_API,
-      });
+      const radarrListResponse = await axios.get(
+        `${jellyseerrUrl}/service/radarr`,
+        {
+          headers: { "X-Api-Key": apiKey },
+          timeout: TIMEOUTS.JELLYSEERR_API,
+        }
+      );
 
       for (const server of radarrListResponse.data) {
         try {
-          const detailsResponse = await axios.get(`${jellyseerrUrl}/service/radarr/${server.id}`, {
-            headers: { "X-Api-Key": apiKey },
-            timeout: TIMEOUTS.JELLYSEERR_API,
-          });
+          const detailsResponse = await axios.get(
+            `${jellyseerrUrl}/service/radarr/${server.id}`,
+            {
+              headers: { "X-Api-Key": apiKey },
+              timeout: TIMEOUTS.JELLYSEERR_API,
+            }
+          );
 
           if (detailsResponse.data.rootFolder) {
             detailsResponse.data.rootFolder.forEach((folder) => {
@@ -136,12 +157,15 @@ export async function fetchRootFolders(jellyseerrUrl, apiKey) {
                 path: folder.path,
                 serverId: server.id,
                 serverName: server.name || `Radarr ${server.id}`,
-                type: "radarr"
+                type: "radarr",
               });
             });
           }
         } catch (err) {
-          logger.warn(`Failed to fetch Radarr ${server.id} details:`, err?.message);
+          logger.warn(
+            `Failed to fetch Radarr ${server.id} details:`,
+            err?.message
+          );
         }
       }
     } catch (err) {
@@ -150,17 +174,23 @@ export async function fetchRootFolders(jellyseerrUrl, apiKey) {
 
     // Fetch Sonarr servers (for TV shows)
     try {
-      const sonarrListResponse = await axios.get(`${jellyseerrUrl}/service/sonarr`, {
-        headers: { "X-Api-Key": apiKey },
-        timeout: TIMEOUTS.JELLYSEERR_API,
-      });
+      const sonarrListResponse = await axios.get(
+        `${jellyseerrUrl}/service/sonarr`,
+        {
+          headers: { "X-Api-Key": apiKey },
+          timeout: TIMEOUTS.JELLYSEERR_API,
+        }
+      );
 
       for (const server of sonarrListResponse.data) {
         try {
-          const detailsResponse = await axios.get(`${jellyseerrUrl}/service/sonarr/${server.id}`, {
-            headers: { "X-Api-Key": apiKey },
-            timeout: TIMEOUTS.JELLYSEERR_API,
-          });
+          const detailsResponse = await axios.get(
+            `${jellyseerrUrl}/service/sonarr/${server.id}`,
+            {
+              headers: { "X-Api-Key": apiKey },
+              timeout: TIMEOUTS.JELLYSEERR_API,
+            }
+          );
 
           if (detailsResponse.data.rootFolder) {
             detailsResponse.data.rootFolder.forEach((folder) => {
@@ -169,12 +199,15 @@ export async function fetchRootFolders(jellyseerrUrl, apiKey) {
                 path: folder.path,
                 serverId: server.id,
                 serverName: server.name || `Sonarr ${server.id}`,
-                type: "sonarr"
+                type: "sonarr",
               });
             });
           }
         } catch (err) {
-          logger.warn(`Failed to fetch Sonarr ${server.id} details:`, err?.message);
+          logger.warn(
+            `Failed to fetch Sonarr ${server.id} details:`,
+            err?.message
+          );
         }
       }
     } catch (err) {
@@ -202,7 +235,7 @@ export async function fetchTags(jellyseerrUrl, apiKey) {
   const now = Date.now();
 
   // Return cached tags if still valid
-  if (tagsCache && (now - tagsCacheTime) < CACHE_TTL.TAGS) {
+  if (tagsCache && now - tagsCacheTime < CACHE_TTL.TAGS) {
     return tagsCache;
   }
 
@@ -211,17 +244,23 @@ export async function fetchTags(jellyseerrUrl, apiKey) {
 
     // Fetch Radarr servers (for movies)
     try {
-      const radarrListResponse = await axios.get(`${jellyseerrUrl}/service/radarr`, {
-        headers: { "X-Api-Key": apiKey },
-        timeout: TIMEOUTS.JELLYSEERR_API,
-      });
+      const radarrListResponse = await axios.get(
+        `${jellyseerrUrl}/service/radarr`,
+        {
+          headers: { "X-Api-Key": apiKey },
+          timeout: TIMEOUTS.JELLYSEERR_API,
+        }
+      );
 
       for (const server of radarrListResponse.data) {
         try {
-          const detailsResponse = await axios.get(`${jellyseerrUrl}/service/radarr/${server.id}`, {
-            headers: { "X-Api-Key": apiKey },
-            timeout: TIMEOUTS.JELLYSEERR_API,
-          });
+          const detailsResponse = await axios.get(
+            `${jellyseerrUrl}/service/radarr/${server.id}`,
+            {
+              headers: { "X-Api-Key": apiKey },
+              timeout: TIMEOUTS.JELLYSEERR_API,
+            }
+          );
 
           if (detailsResponse.data.tags) {
             detailsResponse.data.tags.forEach((tag) => {
@@ -230,12 +269,15 @@ export async function fetchTags(jellyseerrUrl, apiKey) {
                 label: tag.label,
                 serverId: server.id,
                 serverName: server.name || `Radarr ${server.id}`,
-                type: "radarr"
+                type: "radarr",
               });
             });
           }
         } catch (err) {
-          logger.warn(`Failed to fetch Radarr ${server.id} details:`, err?.message);
+          logger.warn(
+            `Failed to fetch Radarr ${server.id} details:`,
+            err?.message
+          );
         }
       }
     } catch (err) {
@@ -244,17 +286,23 @@ export async function fetchTags(jellyseerrUrl, apiKey) {
 
     // Fetch Sonarr servers (for TV shows)
     try {
-      const sonarrListResponse = await axios.get(`${jellyseerrUrl}/service/sonarr`, {
-        headers: { "X-Api-Key": apiKey },
-        timeout: TIMEOUTS.JELLYSEERR_API,
-      });
+      const sonarrListResponse = await axios.get(
+        `${jellyseerrUrl}/service/sonarr`,
+        {
+          headers: { "X-Api-Key": apiKey },
+          timeout: TIMEOUTS.JELLYSEERR_API,
+        }
+      );
 
       for (const server of sonarrListResponse.data) {
         try {
-          const detailsResponse = await axios.get(`${jellyseerrUrl}/service/sonarr/${server.id}`, {
-            headers: { "X-Api-Key": apiKey },
-            timeout: TIMEOUTS.JELLYSEERR_API,
-          });
+          const detailsResponse = await axios.get(
+            `${jellyseerrUrl}/service/sonarr/${server.id}`,
+            {
+              headers: { "X-Api-Key": apiKey },
+              timeout: TIMEOUTS.JELLYSEERR_API,
+            }
+          );
 
           if (detailsResponse.data.tags) {
             detailsResponse.data.tags.forEach((tag) => {
@@ -263,12 +311,15 @@ export async function fetchTags(jellyseerrUrl, apiKey) {
                 label: tag.label,
                 serverId: server.id,
                 serverName: server.name || `Sonarr ${server.id}`,
-                type: "sonarr"
+                type: "sonarr",
               });
             });
           }
         } catch (err) {
-          logger.warn(`Failed to fetch Sonarr ${server.id} details:`, err?.message);
+          logger.warn(
+            `Failed to fetch Sonarr ${server.id} details:`,
+            err?.message
+          );
         }
       }
     } catch (err) {
@@ -301,7 +352,7 @@ export async function sendRequest({
   tags = null,
   jellyseerrUrl,
   apiKey,
-  userMappings = {}
+  userMappings = {},
 }) {
   // Prepare seasons for TV shows
   let seasonsFormatted;
@@ -311,20 +362,21 @@ export async function sendRequest({
       seasonsFormatted = "all";
     } else {
       // Convert to array of numbers
-      seasonsFormatted = seasons.map(s => parseInt(s, 10));
+      seasonsFormatted = seasons.map((s) => parseInt(s, 10));
     }
   }
 
   const payload = {
     mediaType,
     mediaId: tmdbId,
-    ...(mediaType === "tv" && seasonsFormatted && { seasons: seasonsFormatted }),
+    ...(mediaType === "tv" &&
+      seasonsFormatted && { seasons: seasonsFormatted }),
   };
 
   // Add tags if provided
   if (tags && Array.isArray(tags) && tags.length > 0) {
-    payload.tags = tags.map(t => parseInt(t, 10));
-    logger.debug(`Using tags: ${tags.join(', ')}`);
+    payload.tags = tags.map((t) => parseInt(t, 10));
+    logger.debug(`Using tags: ${tags.join(", ")}`);
   }
 
   // Add root folder and server ID if provided
@@ -341,27 +393,34 @@ export async function sendRequest({
   // Check if we have a user mapping for this Discord user
   if (discordUserId) {
     try {
-      const mappings = typeof userMappings === 'string'
-        ? JSON.parse(userMappings)
-        : userMappings;
+      const mappings =
+        typeof userMappings === "string"
+          ? JSON.parse(userMappings)
+          : userMappings;
 
       let jellyseerrUserId = null;
 
       // Handle array format (current standard)
       if (Array.isArray(mappings)) {
-        const mapping = mappings.find(m => m.discordUserId === discordUserId);
+        const mapping = mappings.find((m) => m.discordUserId === discordUserId);
         if (mapping) {
           jellyseerrUserId = mapping.jellyseerrUserId;
         }
-      } 
+      }
       // Handle object format (legacy/fallback)
-      else if (mappings && typeof mappings === 'object' && mappings[discordUserId]) {
+      else if (
+        mappings &&
+        typeof mappings === "object" &&
+        mappings[discordUserId]
+      ) {
         jellyseerrUserId = mappings[discordUserId];
       }
 
       if (jellyseerrUserId) {
         payload.userId = parseInt(jellyseerrUserId, 10);
-        logger.debug(`Using Jellyseerr user ID ${payload.userId} for Discord user ${discordUserId}`);
+        logger.debug(
+          `Using Jellyseerr user ID ${payload.userId} for Discord user ${discordUserId}`
+        );
       }
     } catch (e) {
       logger.warn("Failed to parse USER_MAPPINGS:", e);

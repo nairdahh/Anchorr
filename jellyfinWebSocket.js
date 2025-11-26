@@ -78,7 +78,7 @@ export class JellyfinWebSocketClient {
         // This tells Jellyfin what events we want to subscribe to
         const initMessage = {
           MessageType: "SessionsStart",
-          Data: "0,1000"
+          Data: "0,1000",
         };
 
         try {
@@ -102,7 +102,11 @@ export class JellyfinWebSocketClient {
       });
 
       this.ws.on("close", (code, reason) => {
-        logger.warn(`❌ Disconnected from Jellyfin WebSocket (code: ${code}, reason: ${reason || 'N/A'})`);
+        logger.warn(
+          `❌ Disconnected from Jellyfin WebSocket (code: ${code}, reason: ${
+            reason || "N/A"
+          })`
+        );
 
         // Log close codes for debugging
         const closeCodeMap = {
@@ -115,7 +119,7 @@ export class JellyfinWebSocketClient {
           1008: "Policy violation",
           1009: "Message too big",
           1010: "Missing extension",
-          1011: "Internal server error"
+          1011: "Internal server error",
         };
         const codeDescription = closeCodeMap[code] || "Unknown code";
         logger.warn(`   Code: ${code} (${codeDescription})`);
@@ -145,7 +149,9 @@ export class JellyfinWebSocketClient {
     );
 
     logger.info(
-      `⏳ WebSocket reconnect attempt ${this.reconnectAttempts + 1} in ${delay}ms`
+      `⏳ WebSocket reconnect attempt ${
+        this.reconnectAttempts + 1
+      } in ${delay}ms`
     );
 
     setTimeout(() => {
@@ -193,7 +199,7 @@ export class JellyfinWebSocketClient {
       const messageStr = data.toString();
 
       // Skip empty messages
-      if (!messageStr || messageStr.trim() === '') {
+      if (!messageStr || messageStr.trim() === "") {
         return;
       }
 
@@ -203,7 +209,10 @@ export class JellyfinWebSocketClient {
       if (message.MessageType !== "KeepAlive") {
         logger.info(`📡 WebSocket message: ${message.MessageType}`);
         if (message.Data) {
-          const dataPreview = message.Data.length > 200 ? message.Data.substring(0, 200) + '...' : message.Data;
+          const dataPreview =
+            message.Data.length > 200
+              ? message.Data.substring(0, 200) + "..."
+              : message.Data;
           logger.debug(`   Data: ${dataPreview}`);
         }
       } else {
@@ -221,7 +230,9 @@ export class JellyfinWebSocketClient {
         // Ignore keepalive messages silently
       } else {
         // Log other message types for debugging
-        logger.debug(`Unhandled WebSocket message type: ${message.MessageType}`);
+        logger.debug(
+          `Unhandled WebSocket message type: ${message.MessageType}`
+        );
       }
     } catch (err) {
       logger.warn("Failed to parse WebSocket message:", err?.message || err);
@@ -242,7 +253,9 @@ export class JellyfinWebSocketClient {
       }
 
       logger.info(
-        `📡 LibraryChanged: ${itemsAdded.length} item(s) added (+ ${(libraryUpdate.ItemsUpdated || []).length} updated, - ${(libraryUpdate.ItemsRemoved || []).length} removed)`
+        `📡 LibraryChanged: ${itemsAdded.length} item(s) added (+ ${
+          (libraryUpdate.ItemsUpdated || []).length
+        } updated, - ${(libraryUpdate.ItemsRemoved || []).length} removed)`
       );
 
       const apiKey = process.env.JELLYFIN_API_KEY;
@@ -276,14 +289,14 @@ export class JellyfinWebSocketClient {
             defaultChannelId
           );
         } catch (err) {
-          logger.warn(
-            `Failed to process item ${itemId}:`,
-            err?.message || err
-          );
+          logger.warn(`Failed to process item ${itemId}:`, err?.message || err);
         }
       }
     } catch (err) {
-      logger.error("Failed to handle LibraryChanged event:", err?.message || err);
+      logger.error(
+        "Failed to handle LibraryChanged event:",
+        err?.message || err
+      );
     }
   }
 
@@ -306,7 +319,9 @@ export class JellyfinWebSocketClient {
 
     if (lastSeen && now - lastSeen < SEEN_THRESHOLD) {
       logger.info(
-        `⏭️ Skipping item ${itemId} - already notified recently (${Math.round((now - lastSeen) / 60000)} minutes ago)`
+        `⏭️ Skipping item ${itemId} - already notified recently (${Math.round(
+          (now - lastSeen) / 60000
+        )} minutes ago)`
       );
       return;
     }
@@ -381,7 +396,8 @@ export class JellyfinWebSocketClient {
     }
 
     // Determine target channel
-    const targetChannelId = libraryChannels[configLibraryId] || defaultChannelId;
+    const targetChannelId =
+      libraryChannels[configLibraryId] || defaultChannelId;
     logger.info(`✅ Will send to channel: ${targetChannelId}`);
 
     // Transform to webhook format and send notification

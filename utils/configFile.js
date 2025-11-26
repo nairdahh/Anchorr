@@ -1,6 +1,6 @@
-import fs from 'fs';
-import path from 'path';
-import logger from './logger.js';
+import fs from "fs";
+import path from "path";
+import logger from "./logger.js";
 
 /**
  * CONFIG_PATH determines where config.json is saved:
@@ -25,8 +25,8 @@ function restoreFromLatestBackup() {
     if (fs.existsSync(configDir)) {
       const configDirFiles = fs.readdirSync(configDir);
       const configBackups = configDirFiles
-        .filter(f => f.startsWith('config.backup.') && f.endsWith('.json'))
-        .map(f => ({ name: f, path: path.join(configDir, f) }));
+        .filter((f) => f.startsWith("config.backup.") && f.endsWith(".json"))
+        .map((f) => ({ name: f, path: path.join(configDir, f) }));
       allBackups.push(...configBackups);
     }
 
@@ -35,8 +35,8 @@ function restoreFromLatestBackup() {
     if (appRoot !== configDir && fs.existsSync(appRoot)) {
       const rootFiles = fs.readdirSync(appRoot);
       const rootBackups = rootFiles
-        .filter(f => f.startsWith('config.backup.') && f.endsWith('.json'))
-        .map(f => ({ name: f, path: path.join(appRoot, f) }));
+        .filter((f) => f.startsWith("config.backup.") && f.endsWith(".json"))
+        .map((f) => ({ name: f, path: path.join(appRoot, f) }));
       allBackups.push(...rootBackups);
     }
 
@@ -48,7 +48,7 @@ function restoreFromLatestBackup() {
     }
 
     const latestBackup = allBackups[0];
-    const backupContent = fs.readFileSync(latestBackup.path, 'utf-8');
+    const backupContent = fs.readFileSync(latestBackup.path, "utf-8");
 
     // Validate JSON
     JSON.parse(backupContent);
@@ -59,7 +59,10 @@ function restoreFromLatestBackup() {
       fs.mkdirSync(configDirPath, { recursive: true, mode: 0o777 });
     }
 
-    fs.writeFileSync(CONFIG_PATH, backupContent, { mode: 0o666, encoding: 'utf-8' });
+    fs.writeFileSync(CONFIG_PATH, backupContent, {
+      mode: 0o666,
+      encoding: "utf-8",
+    });
     logger.info(`✅ CONFIG RESTORED from backup: ${latestBackup.name}`);
     return true;
   } catch (error) {
@@ -115,7 +118,10 @@ function createConfigBackup() {
     }
 
     const configDir = path.dirname(CONFIG_PATH);
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .slice(0, -5);
     const backupPath = path.join(configDir, `config.backup.${timestamp}.json`);
 
     fs.copyFileSync(CONFIG_PATH, backupPath);
@@ -124,10 +130,16 @@ function createConfigBackup() {
     // Also save backup in app root (fallback location for Docker updates)
     try {
       const appRoot = process.cwd();
-      const rootBackupPath = path.join(appRoot, `config.backup.${timestamp}.json`);
+      const rootBackupPath = path.join(
+        appRoot,
+        `config.backup.${timestamp}.json`
+      );
 
-      const configContent = fs.readFileSync(CONFIG_PATH, 'utf-8');
-      fs.writeFileSync(rootBackupPath, configContent, { mode: 0o666, encoding: 'utf-8' });
+      const configContent = fs.readFileSync(CONFIG_PATH, "utf-8");
+      fs.writeFileSync(rootBackupPath, configContent, {
+        mode: 0o666,
+        encoding: "utf-8",
+      });
       logger.debug(`Backup also saved to app root: ${rootBackupPath}`);
     } catch (rootError) {
       logger.debug(`Could not save backup to app root: ${rootError.message}`);
@@ -158,29 +170,34 @@ export function writeConfig(config) {
     createConfigBackup();
 
     // Write with explicit permissions
-    fs.writeFileSync(
-      CONFIG_PATH,
-      JSON.stringify(config, null, 2),
-      {
-        mode: 0o666,
-        encoding: 'utf-8'
-      }
-    );
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), {
+      mode: 0o666,
+      encoding: "utf-8",
+    });
 
     logger.debug(`Config saved successfully to ${CONFIG_PATH}`);
     return true;
   } catch (error) {
-    logger.error(`❌ CRITICAL: Failed to write config to ${CONFIG_PATH}`, error);
+    logger.error(
+      `❌ CRITICAL: Failed to write config to ${CONFIG_PATH}`,
+      error
+    );
 
     // Detailed error diagnostics
-    if (error.code === 'EACCES') {
+    if (error.code === "EACCES") {
       logger.error(`❌ Permission denied writing to ${CONFIG_PATH}`);
-      logger.error(`   Try: chmod 666 ${CONFIG_PATH} or check Docker volume permissions`);
-      logger.error(`   Current user: uid=${process.getuid?.() || 'N/A'}, gid=${process.getgid?.() || 'N/A'}`);
-    } else if (error.code === 'ENOENT') {
+      logger.error(
+        `   Try: chmod 666 ${CONFIG_PATH} or check Docker volume permissions`
+      );
+      logger.error(
+        `   Current user: uid=${process.getuid?.() || "N/A"}, gid=${
+          process.getgid?.() || "N/A"
+        }`
+      );
+    } else if (error.code === "ENOENT") {
       logger.error(`❌ Directory does not exist: ${configDir}`);
       logger.error(`   Try: mkdir -p ${configDir} && chmod 777 ${configDir}`);
-    } else if (error.code === 'EROFS') {
+    } else if (error.code === "EROFS") {
       logger.error(`❌ Read-only file system: ${CONFIG_PATH}`);
       logger.error(`   Check Docker volume mount configuration`);
     }
@@ -215,21 +232,25 @@ export function loadConfigToEnv() {
   // --- AUTO-MIGRATIONS ---
 
   // 1. Normalize JELLYSEERR_URL (remove /api/v1 suffix)
-  if (config.JELLYSEERR_URL && typeof config.JELLYSEERR_URL === 'string') {
+  if (config.JELLYSEERR_URL && typeof config.JELLYSEERR_URL === "string") {
     const originalUrl = config.JELLYSEERR_URL;
-    config.JELLYSEERR_URL = config.JELLYSEERR_URL.replace(/\/api\/v1\/?$/, '');
+    config.JELLYSEERR_URL = config.JELLYSEERR_URL.replace(/\/api\/v1\/?$/, "");
     if (originalUrl !== config.JELLYSEERR_URL) {
-      logger.debug(`Normalized JELLYSEERR_URL: ${originalUrl} → ${config.JELLYSEERR_URL}`);
+      logger.debug(
+        `Normalized JELLYSEERR_URL: ${originalUrl} → ${config.JELLYSEERR_URL}`
+      );
     }
   }
 
   // 2. Auto-migrate JELLYFIN_NOTIFICATION_LIBRARIES from array to object
   if (Array.isArray(config.JELLYFIN_NOTIFICATION_LIBRARIES)) {
-    logger.info("🔄 Migrating JELLYFIN_NOTIFICATION_LIBRARIES from array to object format...");
-    const defaultChannel = config.JELLYFIN_CHANNEL_ID || '';
+    logger.info(
+      "🔄 Migrating JELLYFIN_NOTIFICATION_LIBRARIES from array to object format..."
+    );
+    const defaultChannel = config.JELLYFIN_CHANNEL_ID || "";
     const migratedLibraries = {};
 
-    config.JELLYFIN_NOTIFICATION_LIBRARIES.forEach(libId => {
+    config.JELLYFIN_NOTIFICATION_LIBRARIES.forEach((libId) => {
       migratedLibraries[libId] = defaultChannel;
     });
 
@@ -237,7 +258,11 @@ export function loadConfigToEnv() {
 
     // Save migrated version
     if (writeConfig(config)) {
-      logger.info(`✅ Successfully migrated ${Object.keys(migratedLibraries).length} libraries to default channel: ${defaultChannel || '(none set)'}`);
+      logger.info(
+        `✅ Successfully migrated ${
+          Object.keys(migratedLibraries).length
+        } libraries to default channel: ${defaultChannel || "(none set)"}`
+      );
     } else {
       logger.error("Failed to save migrated config");
     }
@@ -246,10 +271,13 @@ export function loadConfigToEnv() {
   // --- LOAD INTO PROCESS.ENV ---
   for (const [key, value] of Object.entries(config)) {
     // Convert objects/arrays to JSON strings to avoid "[object Object]"
-    process.env[key] = typeof value === 'object' ? JSON.stringify(value) : String(value);
+    process.env[key] =
+      typeof value === "object" ? JSON.stringify(value) : String(value);
   }
 
-  logger.debug(`Config loaded into process.env (${Object.keys(config).length} keys)`);
+  logger.debug(
+    `Config loaded into process.env (${Object.keys(config).length} keys)`
+  );
   return true;
 }
 
@@ -284,7 +312,7 @@ export function saveUser(username, passwordHash) {
     id: Date.now().toString(),
     username,
     password: passwordHash,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
   };
 
   config.USERS.push(newUser);
@@ -321,24 +349,30 @@ export function saveUserMapping(mapping) {
 
   // Check if mapping already exists for this Discord user
   const existingIndex = config.USER_MAPPINGS.findIndex(
-    m => m.discordUserId === mapping.discordUserId
+    (m) => m.discordUserId === mapping.discordUserId
   );
 
   const newMapping = {
     ...mapping,
-    createdAt: mapping.createdAt || new Date().toISOString()
+    createdAt: mapping.createdAt || new Date().toISOString(),
   };
 
   if (existingIndex >= 0) {
     config.USER_MAPPINGS[existingIndex] = newMapping;
-    logger.info(`✅ Updated user mapping for Discord user ${mapping.discordUserId}`);
+    logger.info(
+      `✅ Updated user mapping for Discord user ${mapping.discordUserId}`
+    );
   } else {
     config.USER_MAPPINGS.push(newMapping);
-    logger.info(`✅ Added new user mapping for Discord user ${mapping.discordUserId}`);
+    logger.info(
+      `✅ Added new user mapping for Discord user ${mapping.discordUserId}`
+    );
   }
 
   if (!writeConfig(config)) {
-    throw new Error("Failed to save user mapping to config.json - check permissions");
+    throw new Error(
+      "Failed to save user mapping to config.json - check permissions"
+    );
   }
 
   return newMapping;
@@ -358,7 +392,7 @@ export function deleteUserMapping(discordUserId) {
 
   const initialLength = config.USER_MAPPINGS.length;
   config.USER_MAPPINGS = config.USER_MAPPINGS.filter(
-    m => m.discordUserId !== discordUserId
+    (m) => m.discordUserId !== discordUserId
   );
 
   if (config.USER_MAPPINGS.length === initialLength) {
@@ -379,8 +413,8 @@ export function deleteUserMapping(discordUserId) {
  * @returns {string} Normalized URL
  */
 export function normalizeJellyseerrUrl(url) {
-  if (!url) return '';
-  return url.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '');
+  if (!url) return "";
+  return url.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
 }
 
 /**
@@ -390,5 +424,5 @@ export function normalizeJellyseerrUrl(url) {
  */
 export function getJellyseerrApiUrl(url) {
   const base = normalizeJellyseerrUrl(url);
-  return base ? `${base}/api/v1` : '';
+  return base ? `${base}/api/v1` : "";
 }

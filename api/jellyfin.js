@@ -16,7 +16,9 @@ export async function fetchLibraries(apiKey, baseUrl) {
     });
 
     const virtualFolders = response.data || [];
-    logger.debug(`Fetched ${virtualFolders.length} virtual folders from Jellyfin`);
+    logger.debug(
+      `Fetched ${virtualFolders.length} virtual folders from Jellyfin`
+    );
 
     // For each virtual folder, fetch the actual library item to get the real collection ID
     const libraries = [];
@@ -28,7 +30,7 @@ export async function fetchLibraries(apiKey, baseUrl) {
           headers: { "X-MediaBrowser-Token": apiKey },
           params: {
             Ids: vf.ItemId,
-            Fields: "Path,LibraryOptions"
+            Fields: "Path,LibraryOptions",
           },
           timeout: 5000,
         });
@@ -43,34 +45,44 @@ export async function fetchLibraries(apiKey, baseUrl) {
             Name: vf.Name,
             CollectionType: vf.CollectionType,
             Path: actualLibrary.Path || null,
-            Locations: vf.Locations || [] // Add locations from VirtualFolder
+            Locations: vf.Locations || [], // Add locations from VirtualFolder
           });
-          logger.debug(`Library "${vf.Name}": Locations=[${vf.Locations?.join(', ')}]`);
+          logger.debug(
+            `Library "${vf.Name}": Locations=[${vf.Locations?.join(", ")}]`
+          );
         } else {
           // Fallback: if we can't get the collection ID, use the virtual folder ID
           libraries.push({
             ...vf,
             ItemId: vf.ItemId,
             CollectionId: vf.ItemId,
-            Name: vf.Name
+            Name: vf.Name,
           });
-          logger.warn(`Could not fetch collection ID for library "${vf.Name}", using virtual folder ID`);
+          logger.warn(
+            `Could not fetch collection ID for library "${vf.Name}", using virtual folder ID`
+          );
         }
       } catch (err) {
-        logger.warn(`Failed to fetch collection ID for library "${vf.Name}":`, err?.message || err);
+        logger.warn(
+          `Failed to fetch collection ID for library "${vf.Name}":`,
+          err?.message || err
+        );
         // Fallback: use virtual folder ID as collection ID
         libraries.push({
           ...vf,
           ItemId: vf.ItemId,
           CollectionId: vf.ItemId,
-          Name: vf.Name
+          Name: vf.Name,
         });
       }
     }
 
     return libraries;
   } catch (err) {
-    logger.error("Failed to fetch libraries from Jellyfin:", err?.message || err);
+    logger.error(
+      "Failed to fetch libraries from Jellyfin:",
+      err?.message || err
+    );
     return [];
   }
 }
@@ -84,11 +96,20 @@ export async function fetchLibraries(apiKey, baseUrl) {
  * @param {Map} libraryMap - Map of library CollectionId -> library object
  * @returns {Promise<string|null>} Library ItemId (for config matching) or null
  */
-export async function findLibraryByAncestors(itemId, apiKey, baseUrl, libraryMap, itemType) {
+export async function findLibraryByAncestors(
+  itemId,
+  apiKey,
+  baseUrl,
+  libraryMap,
+  itemType
+) {
   try {
     // Use the Ancestors endpoint to get all parents of the item
-    const ancestorsUrl = `${baseUrl.replace(/\/$/, "")}/Items/${itemId}/Ancestors`;
-    
+    const ancestorsUrl = `${baseUrl.replace(
+      /\/$/,
+      ""
+    )}/Items/${itemId}/Ancestors`;
+
     const response = await axios.get(ancestorsUrl, {
       headers: { "X-MediaBrowser-Token": apiKey },
       timeout: 5000,
@@ -101,14 +122,22 @@ export async function findLibraryByAncestors(itemId, apiKey, baseUrl, libraryMap
       if (!libType || !itemType) return true;
       const lib = libType.toLowerCase();
       const item = itemType.toLowerCase();
-      
-      if (item === 'movie' && lib === 'movies') return true;
-      if ((item === 'series' || item === 'season' || item === 'episode') && lib === 'tvshows') return true;
-      if (item === 'audio' && lib === 'music') return true;
-      
-      if (item === 'movie' && lib === 'tvshows') return false;
-      if ((item === 'series' || item === 'season' || item === 'episode') && lib === 'movies') return false;
-      
+
+      if (item === "movie" && lib === "movies") return true;
+      if (
+        (item === "series" || item === "season" || item === "episode") &&
+        lib === "tvshows"
+      )
+        return true;
+      if (item === "audio" && lib === "music") return true;
+
+      if (item === "movie" && lib === "tvshows") return false;
+      if (
+        (item === "series" || item === "season" || item === "episode") &&
+        lib === "movies"
+      )
+        return false;
+
       return true;
     };
 
@@ -116,22 +145,33 @@ export async function findLibraryByAncestors(itemId, apiKey, baseUrl, libraryMap
     for (const ancestor of ancestors) {
       for (const [mapKey, library] of libraryMap.entries()) {
         // 1. Check ID match
-        if (ancestor.Id === library.CollectionId || ancestor.Id === library.ItemId) {
+        if (
+          ancestor.Id === library.CollectionId ||
+          ancestor.Id === library.ItemId
+        ) {
           if (isTypeMatch(library.CollectionType, itemType)) {
-
             return library.ItemId;
           }
         }
 
         // 2. Check Path match (Robust for Docker/Virtual folders)
-        if (ancestor.Path && library.Locations && library.Locations.length > 0) {
+        if (
+          ancestor.Path &&
+          library.Locations &&
+          library.Locations.length > 0
+        ) {
           for (const loc of library.Locations) {
-            const normAncestorPath = ancestor.Path.replace(/\\/g, '/').toLowerCase();
-            const normLibPath = loc.replace(/\\/g, '/').toLowerCase();
-            
-            if (normAncestorPath === normLibPath || normAncestorPath.startsWith(normLibPath)) {
-              if (isTypeMatch(library.CollectionType, itemType)) {
+            const normAncestorPath = ancestor.Path.replace(
+              /\\/g,
+              "/"
+            ).toLowerCase();
+            const normLibPath = loc.replace(/\\/g, "/").toLowerCase();
 
+            if (
+              normAncestorPath === normLibPath ||
+              normAncestorPath.startsWith(normLibPath)
+            ) {
+              if (isTypeMatch(library.CollectionType, itemType)) {
                 return library.ItemId;
               }
             }
@@ -155,13 +195,12 @@ export async function findLibraryByAncestors(itemId, apiKey, baseUrl, libraryMap
               ParentId: library.ItemId,
               Recursive: true,
               Ids: ancestor.Id,
-              Limit: 1
+              Limit: 1,
             },
             timeout: 5000,
           });
-          
-          if (libResponse.data?.Items?.length > 0) {
 
+          if (libResponse.data?.Items?.length > 0) {
             return library.ItemId;
           }
         } catch (err) {
@@ -173,7 +212,10 @@ export async function findLibraryByAncestors(itemId, apiKey, baseUrl, libraryMap
     logger.warn(`Could not determine library for item ${itemId}`);
     return null;
   } catch (err) {
-    logger.error(`Failed to find library by ancestors for item ${itemId}:`, err?.message || err);
+    logger.error(
+      `Failed to find library by ancestors for item ${itemId}:`,
+      err?.message || err
+    );
     return null;
   }
 }
@@ -186,7 +228,13 @@ export async function findLibraryByAncestors(itemId, apiKey, baseUrl, libraryMap
  * @param {Map} libraryMap - Map of library CollectionId -> library object
  * @returns {Promise<string|null>} Library ItemId (for config matching) or null
  */
-export async function findLibraryId(itemId, apiKey, baseUrl, libraryMap, depth = 0) {
+export async function findLibraryId(
+  itemId,
+  apiKey,
+  baseUrl,
+  libraryMap,
+  depth = 0
+) {
   // Prevent infinite recursion
   if (depth > 5) {
     logger.debug(`Max recursion depth reached for item ${itemId}`);
@@ -202,7 +250,7 @@ export async function findLibraryId(itemId, apiKey, baseUrl, libraryMap, depth =
       headers: { "X-MediaBrowser-Token": apiKey },
       params: {
         Ids: itemId,
-        Fields: "ParentId,Path"  // Request Path to help identify library
+        Fields: "ParentId,Path", // Request Path to help identify library
       },
       timeout: 5000,
     });
@@ -215,7 +263,9 @@ export async function findLibraryId(itemId, apiKey, baseUrl, libraryMap, depth =
     }
 
     const item = items[0];
-    logger.info(`[Depth ${depth}] Item ${itemId} has ParentId: ${item.ParentId}`);
+    logger.info(
+      `[Depth ${depth}] Item ${itemId} has ParentId: ${item.ParentId}`
+    );
     if (item.Path) {
       logger.debug(`[Depth ${depth}] Item path: ${item.Path}`);
     }
@@ -223,8 +273,13 @@ export async function findLibraryId(itemId, apiKey, baseUrl, libraryMap, depth =
     // Check if current item's ParentId matches any library's CollectionId
     if (item.ParentId) {
       for (const [collectionId, library] of libraryMap.entries()) {
-        if (item.ParentId === collectionId || item.ParentId === library.ItemId) {
-          logger.info(`✅ Found library: ${library.Name} (ItemId: ${library.ItemId}) for item ${itemId}`);
+        if (
+          item.ParentId === collectionId ||
+          item.ParentId === library.ItemId
+        ) {
+          logger.info(
+            `✅ Found library: ${library.Name} (ItemId: ${library.ItemId}) for item ${itemId}`
+          );
           return library.ItemId; // Return ItemId for config matching
         }
       }
@@ -243,14 +298,22 @@ export async function findLibraryId(itemId, apiKey, baseUrl, libraryMap, depth =
       // Check if this item is a library
       for (const [collectionId, library] of libraryMap.entries()) {
         if (itemId === collectionId || itemId === library.ItemId) {
-          logger.info(`✅ Item ${itemId} has no parent and is library: ${library.Name}`);
+          logger.info(
+            `✅ Item ${itemId} has no parent and is library: ${library.Name}`
+          );
           return library.ItemId;
         }
       }
-      
-      logger.warn(`⚠️ Item ${itemId} has no parent but is NOT a library. This might be a folder or collection.`);
-      logger.warn(`   Known libraries: ${Array.from(libraryMap.values()).map(lib => `${lib.Name} (${lib.ItemId})`).join(', ')}`);
-      
+
+      logger.warn(
+        `⚠️ Item ${itemId} has no parent but is NOT a library. This might be a folder or collection.`
+      );
+      logger.warn(
+        `   Known libraries: ${Array.from(libraryMap.values())
+          .map((lib) => `${lib.Name} (${lib.ItemId})`)
+          .join(", ")}`
+      );
+
       // REVERSE LOOKUP: Check if any library has THIS item as its parent
       // This handles cases where libraries are nested inside collections/folders
       logger.info(`   Checking if any library is a child of this folder...`);
@@ -263,27 +326,40 @@ export async function findLibraryId(itemId, apiKey, baseUrl, libraryMap, depth =
           });
           const libItems = libResponse.data?.Items || [];
           if (libItems.length > 0 && libItems[0].ParentId === itemId) {
-            logger.info(`   ✅ Library ${library.Name} has this folder as parent! Returning library: ${library.ItemId}`);
+            logger.info(
+              `   ✅ Library ${library.Name} has this folder as parent! Returning library: ${library.ItemId}`
+            );
             return library.ItemId;
           }
         } catch (err) {
-          logger.debug(`   Failed to check library ${library.Name}: ${err.message}`);
+          logger.debug(
+            `   Failed to check library ${library.Name}: ${err.message}`
+          );
         }
       }
-      
+
       return null;
     }
 
     // Recursively check parent
     if (item.ParentId) {
       logger.info(`[Depth ${depth}] Checking parent: ${item.ParentId}`);
-      return await findLibraryId(item.ParentId, apiKey, baseUrl, libraryMap, depth + 1);
+      return await findLibraryId(
+        item.ParentId,
+        apiKey,
+        baseUrl,
+        libraryMap,
+        depth + 1
+      );
     }
 
     logger.info(`No parent found for item ${itemId}`);
     return null;
   } catch (err) {
-    logger.warn(`Failed to find library for item ${itemId}:`, err?.message || err);
+    logger.warn(
+      `Failed to find library for item ${itemId}:`,
+      err?.message || err
+    );
     return null;
   }
 }
@@ -321,12 +397,17 @@ export async function fetchRecentlyAdded(apiKey, baseUrl, limit = 50) {
     // Log first item's library info for debugging
     if (items.length > 0) {
       const firstItem = items[0];
-      logger.debug(`First item: ${firstItem.Name} (Type: ${firstItem.Type}, ParentId: ${firstItem.ParentId})`);
+      logger.debug(
+        `First item: ${firstItem.Name} (Type: ${firstItem.Type}, ParentId: ${firstItem.ParentId})`
+      );
     }
 
     return items;
   } catch (err) {
-    logger.error("Failed to fetch recently added items from Jellyfin:", err?.message || err);
+    logger.error(
+      "Failed to fetch recently added items from Jellyfin:",
+      err?.message || err
+    );
     // Return empty array instead of failing
     return [];
   }
@@ -349,7 +430,10 @@ export async function fetchItemDetails(itemId, apiKey, baseUrl) {
 
     return response.data;
   } catch (err) {
-    logger.warn(`Failed to fetch item details for ${itemId}:`, err?.message || err);
+    logger.warn(
+      `Failed to fetch item details for ${itemId}:`,
+      err?.message || err
+    );
     return null;
   }
 }
@@ -406,7 +490,11 @@ export function transformToWebhookFormat(item, baseUrl, serverId) {
   }
 
   // Add library ID - use ParentIds[0] if available (most reliable), otherwise fallback to ParentId
-  if (item.ParentIds && Array.isArray(item.ParentIds) && item.ParentIds.length > 0) {
+  if (
+    item.ParentIds &&
+    Array.isArray(item.ParentIds) &&
+    item.ParentIds.length > 0
+  ) {
     data.LibraryId = item.ParentIds[0]; // First ParentId is the library
   } else {
     data.LibraryId = item.ParentId;
