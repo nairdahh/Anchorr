@@ -112,6 +112,7 @@ Configuration is managed through a **web dashboard** at `http://localhost:8282/`
 | `JELLYFIN_BASE_URL`   | Public Jellyfin URL               | `http://jellyfin.example.com`  |
 | `JELLYFIN_CHANNEL_ID` | Discord channel for notifications | `123456789...`                 |
 | `WEBHOOK_PORT`        | Port for webhook listener         | `8282`                         |
+| `WEBHOOK_DEBOUNCE_MS` | Episode grouping delay (ms)       | `60000` (60 seconds)           |
 
 ### 🔄 Automatic Migration from `.env`
 

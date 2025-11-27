@@ -52,7 +52,7 @@ function buildJellyfinUrl(baseUrl, appendPath, hash) {
 
 
 
-async function processAndSendNotification(data, client, pendingRequests, targetChannelId = null) {
+async function processAndSendNotification(data, client, pendingRequests, targetChannelId = null, episodeCount = 0) {
   const {
     ItemType,
     ItemId,
@@ -178,10 +178,15 @@ async function processAndSendNotification(data, client, pendingRequests, targetC
       }) - Season ${IndexNumber || "?"}`;
       break;
     case "Episode":
-      authorName = "📺 New episode added!";
-      embedTitle = `${SeriesName || "Unknown Series"} - S${String(
-        data.ParentIndexNumber
-      ).padStart(2, "0")}E${String(IndexNumber).padStart(2, "0")} - ${Name}`;
+      if (episodeCount > 1) {
+        authorName = `📺 ${episodeCount} new episodes added!`;
+        embedTitle = `${SeriesName || "Unknown Series"} - ${episodeCount} episodes`;
+      } else {
+        authorName = "📺 New episode added!";
+        embedTitle = `${SeriesName || "Unknown Series"} - S${String(
+          data.ParentIndexNumber
+        ).padStart(2, "0")}E${String(IndexNumber).padStart(2, "0")} - ${Name}`;
+      }
       break;
     default:
       authorName = "✨ New item added";
@@ -304,10 +309,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
     const data = req.body;
     if (!data || !data.ItemId) return res.status(400).send("No valid data");
 
-    // TEMPORARY: Ignore Episodes and Seasons as requested by user
-    if (data.ItemType === 'Episode' || data.ItemType === 'Season') {
-      return res.status(200).send("Notification skipped");
-    }
+    // Allow episodes and seasons with enhanced debouncing
 
     // Log the full webhook payload for debugging
     // console.log("=== WEBHOOK PAYLOAD ===");
@@ -429,8 +431,8 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
       // If we don't have a debounced function for this series yet, create one.
       if (!debouncedSenders.has(SeriesId)) {
-        const newDebouncedSender = debounce((latestData) => {
-          processAndSendNotification(latestData, client, pendingRequests, libraryChannelId);
+        const newDebouncedSender = debounce((latestData, episodeCount = 0) => {
+          processAndSendNotification(latestData, client, pendingRequests, libraryChannelId, episodeCount);
 
           const levelSent = getItemLevel(latestData.ItemType);
 
@@ -449,11 +451,12 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
           // The debounced function has fired, we can remove it.
           debouncedSenders.delete(SeriesId);
-        }, 30000); // 30-second debounce window
+        }, parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || 60000); // Configurable debounce window, default 60 seconds
 
         debouncedSenders.set(SeriesId, {
           sender: newDebouncedSender,
           latestData: data,
+          episodeCount: data.ItemType === 'Episode' ? 1 : 0,
         });
       }
 
@@ -464,9 +467,14 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       if (currentLevel >= existingLevel) {
         debouncer.latestData = data;
       }
+      
+      // Track episode count for better notifications
+      if (data.ItemType === 'Episode') {
+        debouncer.episodeCount = (debouncer.episodeCount || 0) + 1;
+      }
 
-      // Call the debounced function. It will only execute after 30s of inactivity.
-      debouncer.sender(debouncer.latestData);
+      // Call the debounced function. It will only execute after the configured debounce period of inactivity.
+      debouncer.sender(debouncer.latestData, debouncer.episodeCount || 0);
 
       return res
         .status(200)
