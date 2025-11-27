@@ -2,7 +2,7 @@ export const configTemplate = {
   DISCORD_TOKEN: "",
   BOT_ID: "",
   GUILD_ID: "",
-  JELLYSEERR_URL: "http://localhost:5055/api/v1",
+  JELLYSEERR_URL: "http://localhost:5055",
   JELLYSEERR_API_KEY: "",
   TMDB_API_KEY: "",
   OMDB_API_KEY: "",

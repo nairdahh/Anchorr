@@ -7,14 +7,27 @@
 </p>
 
 <p align="center">
-  <a href="#-features">Features</a> • 
-  <a href="#-quick-start">Quick Start</a> • 
-  <a href="#-configuration">Configuration</a> • 
+  <a href="#-features">Features</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-configuration">Configuration</a> •
   <a href="#-commands">Commands</a> •
   <a href="#-docker-deployment">Docker</a> •
   <a href="./CHANGELOG.md">Changelog</a> •
-  <a href="./CONTRIBUTING.md">Contributing</a>
+  <a href="./CONTRIBUTING.md">Contributing</a> •
+  <a href="https://discord.gg/S5JrsZe9mB">Discord</a>
 </p>
+
+## 💬 Discord Server
+
+**Before anything else, I invite you to join my Discord server for faster help, discussions, and important information such as an organizd list of known bugs that are currently being tracker or planned features scheduled for future releases!**
+
+##### This helps avoid duplicate requests and keeps everyone informed about what's coming next!
+
+### Join Here:
+
+[![](https://dcbadge.limes.pink/api/server/https://discord.gg/S5JrsZe9mB)](https://discord.gg/S5JrsZe9mB)
+
+I also have a dedicated channel on the [r/JellyfinCommunity](https://discord.gg/awFC5m4xkr) server (if you are already a member): [Join me here](https://discord.gg/awFC5m4xkr)
 
 ## 🌟 Features
 
@@ -25,7 +38,7 @@
 - **🚫 Duplicate Detection**: Automatically checks if content already exists in Jellyseerr before allowing requests
 - **🏷️ Tag Selection**: Select Radarr/Sonarr tags when requesting media for better organization and categorization
 - **📬 Jellyfin Notifications**: Automatic Discord notifications when new media is added to your library
-- **📚 Library Filtering**: Choose which Jellyfin libraries send Discord notifications
+- **📚 Library Filtering and Mapping**: Choose which Jellyfin libraries send Discord notifications and on what channel
 - **👤 User Mapping**: Map Discord users to Jellyseerr accounts so requests appear from the correct user
 - **🔐 Role-Based Permissions**: Control who can use bot commands through Discord roles (allowlist/blocklist)
 - **🔔 Private Notifications**: Optional PM when your requested content becomes available on Jellyfin
@@ -89,7 +102,7 @@ Generate an OAuth2 URL in [Discord Developer Portal](https://discord.com/develop
 
 In Jellyfin Dashboard → Webhooks:
 
-1. Click **+** to add new webhook
+1. Click **+** to add new Discord webhook
 2. Enter URL: `http://<bot-host>:<port>/jellyfin-webhook`
 3. Example: `http://192.168.1.100:8282/jellyfin-webhook`
 4. Save and you're done! 🎉
@@ -98,134 +111,81 @@ In Jellyfin Dashboard → Webhooks:
 
 Configuration is managed through a **web dashboard** at `http://localhost:8282/`. However, you can also configure it programmatically.
 
-### Configuration Variables
-
-| Variable              | Description                       | Example                        |
-| --------------------- | --------------------------------- | ------------------------------ |
-| `DISCORD_TOKEN`       | Your bot's secret token           | `MjU0...`                      |
-| `BOT_ID`              | Bot's Application ID              | `123456789...`                 |
-| `GUILD_ID`            | Discord server ID                 | `987654321...`                 |
-| `JELLYSEERR_URL`      | Jellyseerr API endpoint           | `http://localhost:5055/api/v1` |
-| `JELLYSEERR_API_KEY`  | Your Jellyseerr API key           | `abc123...`                    |
-| `TMDB_API_KEY`        | TMDB API key                      | `xyz789...`                    |
-| `OMDB_API_KEY`        | OMDb API key (optional)           | `abc123xyz...`                 |
-| `JELLYFIN_BASE_URL`   | Public Jellyfin URL               | `http://jellyfin.example.com`  |
-| `JELLYFIN_CHANNEL_ID` | Discord channel for notifications | `123456789...`                 |
-| `WEBHOOK_PORT`        | Port for webhook listener         | `8282`                         |
-| `WEBHOOK_DEBOUNCE_MS` | Episode grouping delay (ms)       | `60000` (60 seconds)           |
-
-### 🔄 Automatic Migration from `.env`
-
-If you're upgrading from an older version with a `.env` file:
-
-- Simply run the new version
-- The app will automatically detect and migrate your `.env` variables to `config.json`
-- You can then safely delete the `.env` file
-
-### 🔐 Role-Based Permissions
-
-Control who can use bot commands through Discord roles:
-
-| Variable           | Description                                    | Example                              |
-| ------------------ | ---------------------------------------------- | ------------------------------------ |
-| `ROLE_ALLOWLIST`   | Only these roles can use commands (empty = all)| `["Member", "VIP"]`                  |
-| `ROLE_BLOCKLIST`   | These roles cannot use commands                | `["Banned", "Guest"]`                |
-
-Configure in the web dashboard (Configuration → Step 6: Role Mapping).
-
-### 👤 User Mapping
-
-Map Discord users to Jellyseerr accounts so requests appear from the correct user:
-
-1. Enable **SERVER MEMBERS INTENT** in Discord Developer Portal → Bot → Privileged Gateway Intents
-2. Configure mappings in web dashboard (Configuration → Step 5: User Mapping)
-3. Requests will now appear from the mapped Jellyseerr user
-
-### 🔔 Notification Settings
-
-| Variable              | Description                                           | Default |
-| --------------------- | ----------------------------------------------------- | ------- |
-| `NOTIFY_ON_AVAILABLE` | Send PM to users when their requested content is ready| `false` |
-| `PRIVATE_MESSAGE_MODE`| Make all bot responses visible only to command user   | `false` |
-
-Configure in the web dashboard (Configuration → Step 7: Miscellaneous Settings).
-
-### 📚 Library-Specific Notifications
-
-Choose which Jellyfin libraries send Discord notifications:
-
-1. Configure Jellyfin connection in web dashboard
-2. Load available libraries (Configuration → Step 4: Jellyfin)
-3. Select which libraries should trigger notifications
-4. By default, all libraries are enabled
-5. Uncheck a library to exclude its content from Discord notifications
-
-## 💬 Commands
-
-### `/search <title>`
-
-Search for a movie or TV show and view detailed information.
-
-- Shows poster, backdrop, ratings, genres, and synopsis
-- Interactive buttons to request directly or view on IMDb/Letterboxd
-- For TV shows: Choose specific seasons to request
-- Optional tag selection when making requests
-
-### `/request <title> [tag]`
-
-Instantly request a movie or TV show (all seasons for TV).
-
-- Automatically sends to Jellyseerr
-- Shows confirmation with media details
-- Optional tag parameter for better organization
-
-### `/trending`
-
-Browse weekly trending movies and TV shows.
-
-- Shows top trending content from TMDB
-- Interactive autocomplete with real-time suggestions
-- Same action buttons and workflows as `/search`
-
-### Autocomplete
-
-Start typing in any command to see real-time suggestions with release year and the director/creator information.
-
-## 🔔 Jellyfin Notifications
-
-When new media is added to your Jellyfin library, the bot automatically posts to your configured Discord channel:
-
-- 🎬 **Movies**: Full details with IMDb and Letterboxd links
-- 📺 **TV Shows**: Series information with IMDb link and when available, a Letterboxd link
-- 🎞️ **Episodes**: Season and episode number with timestamps
-
-Each notification includes:
-
-- High-quality poster
-- Runtime, rating, genres and synopsis
-- "Watch Now" button linking directly to Jellyfin
-- IMDb and Letterboxd quick links
-
 ## 🐳 Docker Deployment
 
-### Using Docker Compose (Recommended)
+Deploying with Docker is the recommended method for running Anchorr. You can use Docker Compose (the easiest way) or run the container manually.
+
+### Method 1: Docker Compose
+
+**Option A: Clone the full repository**
 
 ```bash
-docker compose up -d --build
+git clone https://github.com/nairdahh/anchorr.git
+cd anchorr
+docker compose up -d
 ```
 
-### Custom Docker Build
+**Option B: Download only docker-compose.yml**
 
 ```bash
-docker build -t anchorr .
-docker run -p 8282:8282 \
-  -e DISCORD_TOKEN=your_token \
-  -e BOT_ID=your_bot_id \
-  -e GUILD_ID=your_guild_id \
-  anchorr
+mkdir anchorr && cd anchorr
+wget https://raw.githubusercontent.com/nairdahh/anchorr/main/docker-compose.yml
+# OR with curl: curl -O https://raw.githubusercontent.com/nairdahh/anchorr/main/docker-compose.yml
+docker compose up -d
 ```
 
-**Note**: For Docker, use `host.docker.internal` to reference services on the host machine.
+**Access:** Open browser at `http://<your-server-ip>:8282` (e.g., `http://192.168.1.100:8282` or `http://localhost:8282`)
+
+### Method 2: Manual Docker Run
+
+```bash
+# Run container (using port 8282)
+docker run -d \
+  --name anchorr \
+  -p 8282:8282 \
+  -v $(pwd)/anchorr-data:/config \
+  --restart unless-stopped \
+  nairdah/anchorr:latest
+```
+
+**Access:** Open browser at `http://<your-server-ip>:8282`
+
+**Important parameters:**
+
+- `-p 8282:8282` - **Port mapping** (host:container). First number is the port on your host.
+- `-v $(pwd)/anchorr-data:/config` - Persistent data storage
+- `--restart unless-stopped` - Auto-restart on failure
+
+**Example for Unraid:**
+When adding the container in Unraid Community Apps, add this volume mapping in the "Path" section:
+
+- **Container Path**: `/config`
+- **Host Path**: `/mnt/user/appdata/anchorr`
+- **Access Mode**: `RW` (Read-Write)
+
+### Using a Different Port
+
+If port 8282 is already in use:
+
+**Docker Compose:** Edit `docker-compose.yml`
+
+```yaml
+ports:
+  - "9000:8282" # Change 9000 to your desired port
+```
+
+**Docker Run:** Change the first port number
+
+```bash
+docker run -d \
+  --name anchorr \
+  -p 9000:8282 \              # Use port 9000 on host
+  -v $(pwd)/anchorr-data:/config \
+  --restart unless-stopped \
+  nairdah/anchorr:latest
+```
+
+Then access at: `http://localhost:9000`
 
 ## 📸 Screenshots (a bit outdated for now)
 
@@ -235,27 +195,6 @@ docker run -p 8282:8282 \
 | Search Results        | ![Search](./assets/screenshot-search.png)             |
 | Request Confirmation  | ![Request](./assets/screenshot-request.png)           |
 | Jellyfin Notification | ![New Media](./assets/screenshot-newmedia.png)        |
-
-## 🔧 Advanced Features
-
-### Web Dashboard
-
-- ✅ Real-time bot status monitoring
-- ✅ One-click start/stop controls
-- ✅ Connection testing for Jellyseerr and Jellyfin
-- ✅ Configuration editing and persistence
-- ✅ Webhook URL display with copy-to-clipboard
-- ✅ Tab-based organization (Discord, Jellyseerr, TMDB, Jellyfin)
-
-### API Endpoints (Internal)
-
-- `GET /api/config` - Fetch current configuration
-- `POST /api/save-config` - Save configuration changes
-- `GET /api/status` - Get bot status
-- `POST /api/start-bot` - Start the bot
-- `POST /api/stop-bot` - Stop the bot
-- `POST /api/test-jellyseerr` - Test Jellyseerr connection
-- `POST /api/test-jellyfin` - Test Jellyfin connection
 
 ## 🤝 Contributing
 

@@ -3,7 +3,7 @@
  * Defines all slash commands for the Discord bot
  */
 
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder } from "discord.js";
 
 /**
  * Get all command definitions
@@ -34,7 +34,9 @@ export function getCommands() {
       .addStringOption((opt) =>
         opt
           .setName("tag")
-          .setDescription("Select a tag for this request (optional, e.g., anime)")
+          .setDescription(
+            "Select a tag for this request (optional, e.g., anime)"
+          )
           .setRequired(false)
           .setAutocomplete(true)
       ),
@@ -61,21 +63,22 @@ export function getCommands() {
 export async function registerCommands(rest, botId, guildId, logger) {
   try {
     const commands = getCommands();
-    
+
     // Try global commands first (takes up to 1 hour to update globally)
     try {
       const globalEndpoint = `/applications/${botId}/commands`;
       await rest.put(globalEndpoint, { body: commands });
       logger.info("✅ Global commands registered successfully!");
     } catch (globalErr) {
-      logger.warn(`Global registration failed, falling back to guild-specific: ${globalErr.message}`);
+      logger.warn(
+        `Global registration failed, falling back to guild-specific: ${globalErr.message}`
+      );
 
       // Fallback to guild-specific commands
       const guildEndpoint = `/applications/${botId}/guilds/${guildId}/commands`;
       await rest.put(guildEndpoint, { body: commands });
       logger.info("✅ Guild commands registered successfully!");
     }
-
   } catch (err) {
     logger.error(`❌ Failed to register Discord commands: ${err.message}`);
     if (err.response) {

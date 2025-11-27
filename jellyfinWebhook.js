@@ -27,7 +27,6 @@ function getItemLevel(itemType) {
   }
 }
 
-
 // Build a Jellyfin URL that preserves a potential subpath (e.g., /jellyfin)
 // and appends the provided path and optional hash fragment safely.
 function buildJellyfinUrl(baseUrl, appendPath, hash) {
@@ -45,14 +44,22 @@ function buildJellyfinUrl(baseUrl, appendPath, hash) {
   } catch (_e) {
     const baseNoSlash = String(baseUrl || "").replace(/\/+$/, "");
     const pathNoLead = String(appendPath || "").replace(/^\/+/, "");
-    const h = hash ? (String(hash).startsWith("#") ? String(hash) : `#${hash}`) : "";
+    const h = hash
+      ? String(hash).startsWith("#")
+        ? String(hash)
+        : `#${hash}`
+      : "";
     return `${baseNoSlash}/${pathNoLead}${h}`;
   }
 }
 
-
-
-async function processAndSendNotification(data, client, pendingRequests, targetChannelId = null, episodeCount = 0) {
+async function processAndSendNotification(
+  data,
+  client,
+  pendingRequests,
+  targetChannelId = null,
+  episodeCount = 0
+) {
   const {
     ItemType,
     ItemId,
@@ -72,33 +79,48 @@ async function processAndSendNotification(data, client, pendingRequests, targetC
 
   // We need to fetch details from TMDB to get the backdrop
   const tmdbId = data.Provider_tmdb;
-  
-  logger.info(`Webhook received: ItemType=${ItemType}, Name=${Name}, tmdbId=${tmdbId}, Provider_imdb=${data.Provider_imdb}`);
-  
+
+  logger.info(
+    `Webhook received: ItemType=${ItemType}, Name=${Name}, tmdbId=${tmdbId}, Provider_imdb=${data.Provider_imdb}`
+  );
+
   // Check if anyone requested this content
   const notifyEnabled = process.env.NOTIFY_ON_AVAILABLE === "true";
   let usersToNotify = [];
-  
+
   if (notifyEnabled && tmdbId && pendingRequests) {
     const movieKey = `${tmdbId}-movie`;
     const tvKey = `${tmdbId}-tv`;
-    
-    logger.debug(`Checking pending requests. notifyEnabled=${notifyEnabled}, tmdbId=${tmdbId}`);
+
+    logger.debug(
+      `Checking pending requests. notifyEnabled=${notifyEnabled}, tmdbId=${tmdbId}`
+    );
     logger.debug(`Pending requests keys:`, Array.from(pendingRequests.keys()));
-    
+
     if (ItemType === "Movie" && pendingRequests.has(movieKey)) {
       usersToNotify = Array.from(pendingRequests.get(movieKey));
       pendingRequests.delete(movieKey);
-      logger.info(`Found ${usersToNotify.length} users to notify for movie ${tmdbId}`);
-    } else if ((ItemType === "Series" || ItemType === "Season" || ItemType === "Episode") && pendingRequests.has(tvKey)) {
+      logger.info(
+        `Found ${usersToNotify.length} users to notify for movie ${tmdbId}`
+      );
+    } else if (
+      (ItemType === "Series" ||
+        ItemType === "Season" ||
+        ItemType === "Episode") &&
+      pendingRequests.has(tvKey)
+    ) {
       usersToNotify = Array.from(pendingRequests.get(tvKey));
       pendingRequests.delete(tvKey);
-      logger.info(`Found ${usersToNotify.length} users to notify for TV show ${tmdbId}`);
+      logger.info(
+        `Found ${usersToNotify.length} users to notify for TV show ${tmdbId}`
+      );
     } else {
       logger.debug(`No matching pending requests found for ${tmdbId}`);
     }
   } else {
-    logger.debug(`Notification check skipped: notifyEnabled=${notifyEnabled}, tmdbId=${tmdbId}, hasPendingRequests=${!!pendingRequests}`);
+    logger.debug(
+      `Notification check skipped: notifyEnabled=${notifyEnabled}, tmdbId=${tmdbId}, hasPendingRequests=${!!pendingRequests}`
+    );
   }
   let details = null;
   if (tmdbId) {
@@ -251,7 +273,7 @@ async function processAndSendNotification(data, client, pendingRequests, targetC
   const channel = await client.channels.fetch(channelId);
   await channel.send({ embeds: [embed], components: [buttons] });
   logger.info(`Sent notification for: ${embedTitle}`);
-  
+
   // Send DMs to users who requested this content
   if (usersToNotify.length > 0) {
     for (const userId of usersToNotify) {
@@ -268,18 +290,22 @@ async function processAndSendNotification(data, client, pendingRequests, targetC
             )
           )
           .setColor("#a6d189")
-          .setDescription(`${Name || SeriesName || "Your requested content"} is now available on Jellyfin!`)
+          .setDescription(
+            `${
+              Name || SeriesName || "Your requested content"
+            } is now available on Jellyfin!`
+          )
           .addFields(
             { name: "Genre", value: genreList, inline: true },
             { name: "Runtime", value: runtime, inline: true },
             { name: "Rating", value: rating, inline: true }
           );
-        
+
         if (backdropPath) {
           const backdropUrl = `https://image.tmdb.org/t/p/w1280${backdropPath}`;
           dmEmbed.setImage(backdropUrl);
         }
-        
+
         const dmButtons = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setStyle(ButtonStyle.Link)
@@ -292,11 +318,14 @@ async function processAndSendNotification(data, client, pendingRequests, targetC
               )
             )
         );
-        
+
         await user.send({ embeds: [dmEmbed], components: [dmButtons] });
         logger.info(`Sent DM notification to user ${userId} for ${embedTitle}`);
       } catch (err) {
-        logger.error(`Failed to send DM to user ${userId}:`, err?.message || err);
+        logger.error(
+          `Failed to send DM to user ${userId}:`,
+          err?.message || err
+        );
       }
     }
   }
@@ -321,20 +350,23 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
     // If no library ID in webhook, use advanced detection (traverse parent chain)
     if (!libraryId && data.ItemId) {
-
       try {
         const apiKey = process.env.JELLYFIN_API_KEY;
         const baseUrl = process.env.JELLYFIN_BASE_URL;
 
         if (!apiKey || !baseUrl) {
-          logger.warn("Cannot detect library: JELLYFIN_API_KEY or JELLYFIN_BASE_URL not configured");
+          logger.warn(
+            "Cannot detect library: JELLYFIN_API_KEY or JELLYFIN_BASE_URL not configured"
+          );
         } else {
           // Import and use the library detection from api/jellyfin.js
-          const { fetchLibraries, findLibraryByAncestors } = await import("./api/jellyfin.js");
+          const { fetchLibraries, findLibraryByAncestors } = await import(
+            "./api/jellyfin.js"
+          );
 
           // Get libraries and create a Map: CollectionId -> library object
           const libraries = await fetchLibraries(apiKey, baseUrl);
-          
+
           const libraryMap = new Map();
           for (const lib of libraries) {
             // Map both CollectionId and ItemId to the library object
@@ -346,17 +378,20 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
           // Use new method: query Jellyfin to find which library contains this item
           // Pass ItemType to filter libraries (e.g. don't match Movies library for Episodes)
-          libraryId = await findLibraryByAncestors(data.ItemId, apiKey, baseUrl, libraryMap, data.ItemType);
+          libraryId = await findLibraryByAncestors(
+            data.ItemId,
+            apiKey,
+            baseUrl,
+            libraryMap,
+            data.ItemType
+          );
           if (libraryId) {
-
           }
         }
       } catch (err) {
         logger.warn(`Advanced library detection failed:`, err?.message || err);
       }
     }
-
-
 
     // Parse notification libraries from config (supports both array and object format)
     let notificationLibraries = {};
@@ -370,8 +405,8 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       // Handle both array (legacy) and object format
       if (Array.isArray(parsedLibraries)) {
         // Convert array to object with default channel
-        parsedLibraries.forEach(libId => {
-          notificationLibraries[libId] = process.env.JELLYFIN_CHANNEL_ID || '';
+        parsedLibraries.forEach((libId) => {
+          notificationLibraries[libId] = process.env.JELLYFIN_CHANNEL_ID || "";
         });
       } else {
         notificationLibraries = parsedLibraries;
@@ -381,26 +416,46 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       notificationLibraries = {};
     }
 
-    logger.debug(`Configured libraries: ${JSON.stringify(notificationLibraries)}`);
+    logger.debug(
+      `Configured libraries: ${JSON.stringify(notificationLibraries)}`
+    );
 
     // Check if library is enabled and get specific channel
     const libraryKeys = Object.keys(notificationLibraries);
-    if (libraryKeys.length > 0 && libraryId && libraryId in notificationLibraries) {
+    if (
+      libraryKeys.length > 0 &&
+      libraryId &&
+      libraryId in notificationLibraries
+    ) {
       // Library found in configuration - use its specific channel or default if empty
-      libraryChannelId = notificationLibraries[libraryId] || process.env.JELLYFIN_CHANNEL_ID;
-      logger.info(`✅ Using channel: ${libraryChannelId} for configured library: ${libraryId}`);
+      libraryChannelId =
+        notificationLibraries[libraryId] || process.env.JELLYFIN_CHANNEL_ID;
+      logger.info(
+        `✅ Using channel: ${libraryChannelId} for configured library: ${libraryId}`
+      );
     } else if (libraryKeys.length > 0 && libraryId) {
       // Library detected but not in configuration - disable notifications
-      logger.info(`🚫 Library ${libraryId} not enabled in JELLYFIN_NOTIFICATION_LIBRARIES. Skipping notification.`);
-      return res.status(200).send("OK: Notification skipped for disabled library.");
+      logger.info(
+        `🚫 Library ${libraryId} not enabled in JELLYFIN_NOTIFICATION_LIBRARIES. Skipping notification.`
+      );
+      return res
+        .status(200)
+        .send("OK: Notification skipped for disabled library.");
     } else {
       // No library detected - use default channel
       libraryChannelId = process.env.JELLYFIN_CHANNEL_ID;
-      logger.warn(`⚠️ Could not detect library. Using default channel: ${libraryChannelId}`);
+      logger.warn(
+        `⚠️ Could not detect library. Using default channel: ${libraryChannelId}`
+      );
     }
 
     if (data.ItemType === "Movie") {
-      await processAndSendNotification(data, client, pendingRequests, libraryChannelId);
+      await processAndSendNotification(
+        data,
+        client,
+        pendingRequests,
+        libraryChannelId
+      );
       return res.status(200).send("OK: Movie notification sent.");
     }
 
@@ -425,14 +480,25 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       }
 
       if (!SeriesId) {
-        await processAndSendNotification(data, client, pendingRequests, libraryChannelId);
+        await processAndSendNotification(
+          data,
+          client,
+          pendingRequests,
+          libraryChannelId
+        );
         return res.status(200).send("OK: TV notification sent (no SeriesId).");
       }
 
       // If we don't have a debounced function for this series yet, create one.
       if (!debouncedSenders.has(SeriesId)) {
         const newDebouncedSender = debounce((latestData, episodeCount = 0) => {
-          processAndSendNotification(latestData, client, pendingRequests, libraryChannelId, episodeCount);
+          processAndSendNotification(
+            latestData,
+            client,
+            pendingRequests,
+            libraryChannelId,
+            episodeCount
+          );
 
           const levelSent = getItemLevel(latestData.ItemType);
 

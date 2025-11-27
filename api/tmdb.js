@@ -3,9 +3,9 @@
  * Handles all TMDB API interactions with caching
  */
 
-import axios from 'axios';
-import cache from '../utils/cache.js';
-import { TIMEOUTS } from '../config/constants.js';
+import axios from "axios";
+import cache from "../utils/cache.js";
+import { TIMEOUTS } from "../config/constants.js";
 
 /**
  * Search for movies and TV shows

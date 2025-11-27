@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.3.0] - 2025-11-21
+## [1.3.1] - 2025-11-26
+
+### 🐛 Fixed
+
+- **Request Command Error**: Fixed `/request` command failing with "mediaId should be number" error by ensuring TMDB ID is properly converted to number before sending to Jellyseerr API
+- **Ephemeral Messages**: Error and informative messages (already exists, permission denied) are now always ephemeral (visible only to command user), while success messages respect the `PRIVATE_MESSAGE_MODE` setting
+- **Refresh Button Loading**: Fixed Discord users refresh button getting stuck in loading state when bot is not running
+
+### ✨ Added
+
+- **Refresh Discord Users Button**: Added refresh button in User Mapping section to manually reload Discord server members list without needing to restart the application
+
+---
+
+## [1.3.0] - 2025-11-26
+
+### ℹ️ Important
+
+- **New Requirement**: Please enable **SERVER MEMBERS INTENT** in your Discord bot configuration. Go to [Discord Developer Portal](https://discord.com/developers/applications) → Select your application → Bot section → Privileged Gateway Intents → Enable "SERVER MEMBERS INTENT". Without this, the bot will fail to start with "Used disallowed intents" error. I will make this optional for the bot to start in the future so you can set it up afterwards.
 
 ### ✨ Added
 
@@ -25,10 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Season selection: For TV shows, choose specific seasons first, then select a tag for those seasons
 - **Jellyfin API Integration**: Direct Jellyfin API access for reliable library detection and metadata fetching. The webhook handler now fetches item details via API to ensure accurate library identification, independent of webhook data completeness. This enables more robust features and better error handling.
 - **Library-Specific Notifications**: Choose which Jellyfin libraries send Discord notifications. Load all available libraries from your Jellyfin server, then select which ones should trigger notifications. By default, all libraries are enabled. When you uncheck a library, content added to it will not generate Discord notifications. This allows you to filter out personal collections, test libraries, or content types you don't want announced.
-
+- **Real-Time Logs Viewer**: New dedicated Logs section in the web dashboard that displays Winston logger output in real-time, allowing you to monitor application events, errors, and debug information directly from the configuration interface without needing to access server logs
 
 ### 🔒 Security
 
+- **User Authentication System**: Added account-based authentication system for the web dashboard to protect sensitive configuration and bot settings. Users must log in with credentials before accessing the configuration interface
 - **Config File Permissions**: Changed `config.json` file permissions from `0o666` to `0o600` (owner read/write only) to protect sensitive credentials
 - **API Abuse Prevention**: Rate limiting prevents DoS attacks and limits configuration modification attempts
 - **Input Sanitization**: Joi validation schemas prevent injection attacks and handle malformed data gracefully
@@ -55,8 +74,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Centralized Configuration**: All constants moved to single location (`config/constants.js`) for easier maintenance and consistency
 - **Proper Logging**: All logging now goes through Winston with appropriate log levels for better debugging and monitoring
 - **Validation Layer**: Consistent input validation across all API endpoints to prevent invalid data propagation
-- **app.js Reduction**: Reduced app.js by 80 lines (119 removed, 39 added) through proper module extraction and integration
-
 
 ### 🔄 Changed
 
