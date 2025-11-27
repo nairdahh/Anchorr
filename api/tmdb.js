@@ -5,7 +5,7 @@
 
 import axios from "axios";
 import cache from "../utils/cache.js";
-import { TIMEOUTS } from "../config/constants.js";
+import { TIMEOUTS } from "../lib/constants.js";
 
 /**
  * Search for movies and TV shows

@@ -4,7 +4,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import { handleJellyfinWebhook } from "./jellyfinWebhook.js";
-import { configTemplate } from "./config/config.js";
+import { configTemplate } from "./lib/config.js";
 import axios from "axios";
 
 import {
@@ -30,7 +30,7 @@ import {
   userMappingSchema,
 } from "./utils/validation.js";
 import cache from "./utils/cache.js";
-import { COLORS, TIMEOUTS } from "./config/constants.js";
+import { COLORS, TIMEOUTS } from "./lib/constants.js";
 import {
   login,
   register,
@@ -610,7 +610,7 @@ async function startBot() {
         );
 
         if (status.exists && status.available) {
-          // Media already available
+          // Media already available - always ephemeral for info messages
           await interaction.editReply({
             content: "✅ This content is already available in your library!",
             components: [],
@@ -746,7 +746,21 @@ async function startBot() {
         }
       }
 
-      await interaction.editReply({ embeds: [embed], components });
+      // Success message - check if should be public or ephemeral
+      const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
+
+      if (isPrivateMode) {
+        // Keep it ephemeral
+        await interaction.editReply({ embeds: [embed], components });
+      } else {
+        // Delete ephemeral reply and send public message
+        await interaction.deleteReply();
+        await interaction.followUp({
+          embeds: [embed],
+          components,
+          ephemeral: false,
+        });
+      }
     } catch (err) {
       logger.error("Error in handleSearchOrRequest:", err);
       await interaction.editReply({
@@ -1067,7 +1081,7 @@ async function startBot() {
           );
 
           if (status.exists && status.available) {
-            // Media already available
+            // Media already available - always ephemeral
             await interaction.followUp({
               content: "✅ This content is already available in your library!",
               flags: 64,
@@ -1751,12 +1765,10 @@ function configureWebServer() {
       } = req.body;
 
       if (!discordUserId || !jellyseerrUserId) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Discord user ID and Jellyseerr user ID are required.",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Discord user ID and Jellyseerr user ID are required.",
+        });
       }
 
       try {
@@ -1774,12 +1786,10 @@ function configureWebServer() {
         res.json({ success: true, message: "Mapping saved successfully." });
       } catch (error) {
         logger.error("Error saving user mapping:", error);
-        res
-          .status(500)
-          .json({
-            success: false,
-            message: "Failed to save mapping - check server logs.",
-          });
+        res.status(500).json({
+          success: false,
+          message: "Failed to save mapping - check server logs.",
+        });
       }
     }
   );
@@ -1803,12 +1813,10 @@ function configureWebServer() {
         res.json({ success: true, message: "Mapping deleted successfully." });
       } catch (error) {
         logger.error("Error deleting user mapping:", error);
-        res
-          .status(500)
-          .json({
-            success: false,
-            message: "Failed to delete mapping - check server logs.",
-          });
+        res.status(500).json({
+          success: false,
+          message: "Failed to delete mapping - check server logs.",
+        });
       }
     }
   );
@@ -2284,6 +2292,290 @@ function configureWebServer() {
     logger.info("Bot has been stopped.");
     res.status(200).json({ message: "Bot stopped successfully." });
   });
+
+  // ===== BOT STATUS MANAGEMENT =====
+  let botStatusConfig = {
+    mode: "off",
+    activity: "Watching",
+    selectedMediaId: null,
+    selectedMediaName: null,
+    interval: 3600000, // 1 hour default
+    statusInterval: null,
+  };
+
+  /**
+   * Get recently added items from Jellyfin
+   */
+  app.get("/api/bot-status/recent", authenticateToken, async (req, res) => {
+    if (!JELLYFIN_URL || !JELLYFIN_API_KEY) {
+      return res.status(400).json({ error: "Jellyfin not configured" });
+    }
+
+    try {
+      const items = await jellyfin.fetchRecentlyAdded(
+        JELLYFIN_API_KEY,
+        JELLYFIN_URL,
+        10
+      );
+
+      // Map items to simple format
+      const mapped = items
+        .filter((item) => item.Type === "Movie" || item.Type === "Series")
+        .map((item) => ({
+          id: item.Id,
+          name: item.Name,
+          type: item.Type,
+          year: item.ProductionYear,
+          overview: item.Overview,
+        }))
+        .slice(0, 10);
+
+      res.json({ items: mapped });
+    } catch (err) {
+      logger.error("Error fetching recent items for bot status:", err);
+      res.status(500).json({ error: "Failed to fetch recent items" });
+    }
+  });
+
+  /**
+   * Search for media in Jellyfin
+   */
+  app.get("/api/bot-status/search", authenticateToken, async (req, res) => {
+    const query = req.query.q;
+    if (!query || query.length < 2) {
+      return res.status(400).json({ error: "Search query too short" });
+    }
+
+    if (!JELLYFIN_URL || !JELLYFIN_API_KEY) {
+      return res.status(400).json({ error: "Jellyfin not configured" });
+    }
+
+    try {
+      const url = `${JELLYFIN_URL.replace(/\/$/, "")}/Items`;
+      const response = await axios.get(url, {
+        headers: { "X-MediaBrowser-Token": JELLYFIN_API_KEY },
+        params: {
+          searchTerm: query,
+          IncludeItemTypes: "Movie,Series",
+          Recursive: true,
+          Limit: 25,
+          Fields: "Overview,Genres,ProductionYear",
+        },
+        timeout: 10000,
+      });
+
+      const items = (response.data?.Items || [])
+        .filter((item) => item.Type === "Movie" || item.Type === "Series")
+        .map((item) => ({
+          id: item.Id,
+          name: item.Name,
+          type: item.Type,
+          year: item.ProductionYear,
+          overview: item.Overview,
+        }));
+
+      res.json({ items });
+    } catch (err) {
+      logger.error("Error searching media for bot status:", err);
+      res.status(500).json({ error: "Failed to search media" });
+    }
+  });
+
+  /**
+   * Set bot status (manual mode)
+   */
+  app.post(
+    "/api/bot-status/set-manual",
+    authenticateToken,
+    async (req, res) => {
+      const { mediaId, mediaName, activity } = req.body;
+
+      if (!mediaId || !mediaName || !activity) {
+        return res.status(400).json({ error: "Missing required parameters" });
+      }
+
+      if (!isBotRunning || !discordClient) {
+        return res.status(400).json({ error: "Bot is not running" });
+      }
+
+      try {
+        // Clear any existing random interval
+        if (botStatusConfig.statusInterval) {
+          clearInterval(botStatusConfig.statusInterval);
+          botStatusConfig.statusInterval = null;
+        }
+
+        botStatusConfig.mode = "manual";
+        botStatusConfig.activity = activity;
+        botStatusConfig.selectedMediaId = mediaId;
+        botStatusConfig.selectedMediaName = mediaName;
+
+        // Set the status on Discord
+        await discordClient.user.setPresence({
+          activities: [
+            {
+              name: `${mediaName}`,
+              type: discordActivityMap(activity),
+            },
+          ],
+          status: "online",
+        });
+
+        logger.info(`Bot status set to: ${activity} ${mediaName}`);
+        res.json({
+          success: true,
+          message: "Bot status updated",
+          status: botStatusConfig,
+        });
+      } catch (err) {
+        logger.error("Error setting bot status:", err);
+        res.status(500).json({ error: "Failed to set bot status" });
+      }
+    }
+  );
+
+  /**
+   * Set bot status (random mode)
+   */
+  app.post(
+    "/api/bot-status/set-random",
+    authenticateToken,
+    async (req, res) => {
+      const { activity, interval } = req.body;
+
+      if (!activity || !interval) {
+        return res.status(400).json({ error: "Missing required parameters" });
+      }
+
+      if (!isBotRunning || !discordClient) {
+        return res.status(400).json({ error: "Bot is not running" });
+      }
+
+      try {
+        // Clear any existing interval
+        if (botStatusConfig.statusInterval) {
+          clearInterval(botStatusConfig.statusInterval);
+        }
+
+        botStatusConfig.mode = "random";
+        botStatusConfig.activity = activity;
+        botStatusConfig.interval = parseInt(interval, 10);
+
+        // Function to update with random media
+        const updateRandomStatus = async () => {
+          try {
+            const items = await jellyfin.fetchRecentlyAdded(
+              JELLYFIN_API_KEY,
+              JELLYFIN_URL,
+              50
+            );
+
+            if (items.length === 0) {
+              logger.warn("No items found for random status");
+              return;
+            }
+
+            const randomItem = items[Math.floor(Math.random() * items.length)];
+
+            await discordClient.user.setPresence({
+              activities: [
+                {
+                  name: `${randomItem.Name}`,
+                  type: discordActivityMap(activity),
+                },
+              ],
+              status: "online",
+            });
+
+            logger.info(
+              `Bot random status updated to: ${activity} ${randomItem.Name}`
+            );
+          } catch (err) {
+            logger.error("Error updating random bot status:", err);
+          }
+        };
+
+        // Update immediately
+        await updateRandomStatus();
+
+        // Set interval for updates
+        botStatusConfig.statusInterval = setInterval(
+          updateRandomStatus,
+          botStatusConfig.interval
+        );
+
+        logger.info(
+          `Bot random status enabled with ${botStatusConfig.interval}ms interval`
+        );
+        res.json({
+          success: true,
+          message: "Random bot status enabled",
+          status: botStatusConfig,
+        });
+      } catch (err) {
+        logger.error("Error setting random bot status:", err);
+        res.status(500).json({ error: "Failed to set random bot status" });
+      }
+    }
+  );
+
+  /**
+   * Clear bot status
+   */
+  app.post("/api/bot-status/clear", authenticateToken, async (req, res) => {
+    if (!isBotRunning || !discordClient) {
+      return res.status(400).json({ error: "Bot is not running" });
+    }
+
+    try {
+      // Clear any existing interval
+      if (botStatusConfig.statusInterval) {
+        clearInterval(botStatusConfig.statusInterval);
+        botStatusConfig.statusInterval = null;
+      }
+
+      // Reset to default presence (no custom activity)
+      await discordClient.user.setPresence({
+        activities: [],
+        status: "online",
+      });
+
+      botStatusConfig.mode = "off";
+      botStatusConfig.selectedMediaId = null;
+      botStatusConfig.selectedMediaName = null;
+
+      logger.info("Bot custom status cleared");
+      res.json({
+        success: true,
+        message: "Bot status cleared",
+        status: botStatusConfig,
+      });
+    } catch (err) {
+      logger.error("Error clearing bot status:", err);
+      res.status(500).json({ error: "Failed to clear bot status" });
+    }
+  });
+
+  /**
+   * Get current bot status
+   */
+  app.get("/api/bot-status", authenticateToken, (req, res) => {
+    res.json({ status: botStatusConfig });
+  });
+
+  /**
+   * Helper function to map activity type to Discord ActivityType
+   */
+  function discordActivityMap(type) {
+    const { ActivityType } = require("discord.js");
+    const map = {
+      Watching: ActivityType.Watching,
+      Listening: ActivityType.Listening,
+      Playing: ActivityType.Playing,
+      Streaming: ActivityType.Streaming,
+    };
+    return map[type] || ActivityType.Watching;
+  }
 }
 
 // --- INITIALIZE AND START SERVER ---
@@ -2305,7 +2597,7 @@ function startServer() {
   loadConfig();
   port = process.env.WEBHOOK_PORT || 8282;
   logger.info(`Attempting to start server on port ${port}...`);
-  server = app.listen(port, "0.0.0.0");
+  server = app.listen(port, "localhost");
 
   server.on("listening", () => {
     const address = server.address();
