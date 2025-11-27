@@ -27,6 +27,7 @@ export const configSchema = Joi.object({
   JELLYFIN_NOTIFY_SEASONS: Joi.string().valid('true', 'false').optional(),
   JELLYFIN_NOTIFY_EPISODES: Joi.string().valid('true', 'false').optional(),
   WEBHOOK_PORT: Joi.alternatives(Joi.string(), Joi.number().port()).optional(),
+  WEBHOOK_DEBOUNCE_MS: Joi.alternatives(Joi.string(), Joi.number().integer().min(1000).max(300000)).optional(),
   AUTO_START_BOT: Joi.string().valid('true', 'false').optional(),
   NOTIFY_ON_AVAILABLE: Joi.string().valid('true', 'false').optional(),
   PRIVATE_MESSAGE_MODE: Joi.string().valid('true', 'false').optional(),

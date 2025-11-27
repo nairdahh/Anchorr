@@ -398,6 +398,23 @@
                         </div>
                       </div>
 
+                      <!-- Episode Debouncing Section -->
+                      <div class="form-group" style="margin-top: 1.5rem;">
+                        <label for="WEBHOOK_DEBOUNCE_MS">Episode Notification Debounce (milliseconds)</label>
+                        <input
+                          type="number"
+                          id="WEBHOOK_DEBOUNCE_MS"
+                          name="WEBHOOK_DEBOUNCE_MS"
+                          placeholder="60000"
+                          min="1000"
+                          max="300000"
+                          step="1000"
+                        />
+                        <div class="form-text">
+                          Controls how long to wait before sending episode notifications. When multiple episodes of the same series are added within this time window, they're grouped into a single "X episodes added" notification instead of sending individual messages. Default: 60000ms (60 seconds).
+                        </div>
+                      </div>
+
                       <!-- Library Notifications Section -->
                       <div class="form-group" style="margin-top: 2rem;">
                         <label style="font-size: 1.2rem; font-weight: 600; color: var(--mauve);">
