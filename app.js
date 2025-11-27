@@ -2597,7 +2597,7 @@ function startServer() {
   loadConfig();
   port = process.env.WEBHOOK_PORT || 8282;
   logger.info(`Attempting to start server on port ${port}...`);
-  server = app.listen(port, "localhost");
+  server = app.listen(port, "0.0.0.0");
 
   server.on("listening", () => {
     const address = server.address();
