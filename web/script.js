@@ -2212,4 +2212,230 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     });
+
+  // ===== BOT STATUS MANAGEMENT =====
+  const botStatusModeSelect = document.getElementById("bot-status-mode");
+  const botStatusActivitySelect = document.getElementById("bot-status-activity");
+  const manualModeControls = document.getElementById("manual-mode-controls");
+  const randomModeControls = document.getElementById("random-mode-controls");
+  const botStatusSearchInput = document.getElementById("bot-status-search");
+  const botStatusRecentItems = document.getElementById("bot-status-recent-items");
+  const botStatusSearchResults = document.getElementById("bot-status-search-results");
+  const botStatusSelected = document.getElementById("bot-status-selected");
+  const botStatusSelectedName = document.getElementById("bot-status-selected-name");
+  const botStatusSetManualBtn = document.getElementById("bot-status-set-manual");
+  const botStatusSetRandomBtn = document.getElementById("bot-status-set-random");
+  const botStatusClearBtn = document.getElementById("bot-status-clear");
+
+  let selectedMedia = null;
+  let searchTimeout = null;
+
+  // Load recent items when page loads
+  async function loadRecentItems() {
+    try {
+      const response = await fetch("/api/bot-status/recent");
+      if (!response.ok) throw new Error("Failed to fetch recent items");
+
+      const data = await response.json();
+      displayRecentItems(data.items);
+    } catch (error) {
+      botStatusRecentItems.innerHTML = '<p class="form-text" style="color: #ff6b6b;">Failed to load recent items</p>';
+      logger.error("Error loading recent items:", error);
+    }
+  }
+
+  function displayRecentItems(items) {
+    if (items.length === 0) {
+      botStatusRecentItems.innerHTML = '<p class="form-text">No items found in your library</p>';
+      return;
+    }
+
+    let html = '<p class="form-text" style="margin-bottom: 0.5rem; color: #bbb;">Recently Added:</p>';
+    items.forEach((item) => {
+      html += `
+        <div style="padding: 0.75rem; background-color: #1a1a1a; border-left: 3px solid #666; border-radius: 0.375rem; margin-bottom: 0.5rem; cursor: pointer; transition: all 0.2s;" class="bot-status-item" data-id="${item.id}" data-name="${item.name}" data-type="${item.type}">
+          <div style="font-weight: 500; color: #fff;">${item.name}</div>
+          <div style="font-size: 0.85rem; color: #aaa;">${item.type}${item.year ? ` • ${item.year}` : ""}</div>
+        </div>
+      `;
+    });
+    botStatusRecentItems.innerHTML = html;
+
+    // Add click handlers
+    document.querySelectorAll(".bot-status-item").forEach((elem) => {
+      elem.addEventListener("click", () => {
+        selectMedia(elem.dataset.id, elem.dataset.name);
+        // Highlight selection
+        document.querySelectorAll(".bot-status-item").forEach((e) => {
+          e.style.borderLeftColor = "#666";
+        });
+        elem.style.borderLeftColor = "#0099ff";
+      });
+    });
+  }
+
+  function displaySearchResults(items) {
+    if (items.length === 0) {
+      botStatusSearchResults.innerHTML = '<p class="form-text">No results found</p>';
+      return;
+    }
+
+    let html = '';
+    items.forEach((item) => {
+      html += `
+        <div style="padding: 0.75rem; background-color: #1a1a1a; border-left: 3px solid #666; border-radius: 0.375rem; margin-bottom: 0.5rem; cursor: pointer; transition: all 0.2s;" class="bot-status-search-item" data-id="${item.id}" data-name="${item.name}">
+          <div style="font-weight: 500; color: #fff;">${item.name}</div>
+          <div style="font-size: 0.85rem; color: #aaa;">${item.type}${item.year ? ` • ${item.year}` : ""}</div>
+        </div>
+      `;
+    });
+    botStatusSearchResults.innerHTML = html;
+
+    // Add click handlers
+    document.querySelectorAll(".bot-status-search-item").forEach((elem) => {
+      elem.addEventListener("click", () => {
+        selectMedia(elem.dataset.id, elem.dataset.name);
+        botStatusSearchResults.style.display = "none";
+        botStatusSearchInput.value = "";
+      });
+    });
+  }
+
+  function selectMedia(id, name) {
+    selectedMedia = { id, name };
+    botStatusSelectedName.textContent = name;
+    botStatusSelected.style.display = "block";
+    botStatusSetManualBtn.disabled = false;
+  }
+
+  // Mode switching
+  botStatusModeSelect.addEventListener("change", (e) => {
+    const mode = e.target.value;
+    if (mode === "manual") {
+      manualModeControls.style.display = "block";
+      randomModeControls.style.display = "none";
+      loadRecentItems();
+    } else if (mode === "random") {
+      manualModeControls.style.display = "none";
+      randomModeControls.style.display = "block";
+    } else {
+      manualModeControls.style.display = "none";
+      randomModeControls.style.display = "none";
+    }
+  });
+
+  // Search functionality
+  botStatusSearchInput.addEventListener("input", (e) => {
+    const query = e.target.value.trim();
+
+    clearTimeout(searchTimeout);
+
+    if (query.length < 2) {
+      botStatusSearchResults.style.display = "none";
+      return;
+    }
+
+    searchTimeout = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/bot-status/search?q=${encodeURIComponent(query)}`);
+        if (!response.ok) throw new Error("Search failed");
+
+        const data = await response.json();
+        botStatusSearchResults.style.display = "block";
+        displaySearchResults(data.items);
+      } catch (error) {
+        botStatusSearchResults.innerHTML = '<p class="form-text" style="color: #ff6b6b;">Search failed</p>';
+        logger.error("Search error:", error);
+      }
+    }, 300);
+  });
+
+  // Set manual status
+  botStatusSetManualBtn.addEventListener("click", async () => {
+    if (!selectedMedia) {
+      showToast("Please select a media item");
+      return;
+    }
+
+    const activity = botStatusActivitySelect.value;
+
+    try {
+      botStatusSetManualBtn.disabled = true;
+      const response = await fetch("/api/bot-status/set-manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mediaId: selectedMedia.id,
+          mediaName: selectedMedia.name,
+          activity: activity,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        showToast(`Bot status set to: ${activity} ${selectedMedia.name}`);
+      } else {
+        showToast(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      showToast("Failed to set bot status");
+      logger.error("Error setting status:", error);
+    } finally {
+      botStatusSetManualBtn.disabled = false;
+    }
+  });
+
+  // Set random status
+  botStatusSetRandomBtn.addEventListener("click", async () => {
+    const activity = botStatusActivitySelect.value;
+    const interval = document.getElementById("bot-status-interval").value;
+
+    try {
+      botStatusSetRandomBtn.disabled = true;
+      const response = await fetch("/api/bot-status/set-random", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activity, interval }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        showToast("Random bot status enabled!");
+      } else {
+        showToast(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      showToast("Failed to enable random status");
+      logger.error("Error setting random status:", error);
+    } finally {
+      botStatusSetRandomBtn.disabled = false;
+    }
+  });
+
+  // Clear status
+  botStatusClearBtn.addEventListener("click", async () => {
+    try {
+      botStatusClearBtn.disabled = true;
+      const response = await fetch("/api/bot-status/clear", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        showToast("Bot custom status cleared");
+        botStatusModeSelect.value = "off";
+        manualModeControls.style.display = "none";
+        randomModeControls.style.display = "none";
+        selectedMedia = null;
+        botStatusSelected.style.display = "none";
+      } else {
+        showToast(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      showToast("Failed to clear bot status");
+      logger.error("Error clearing status:", error);
+    } finally {
+      botStatusClearBtn.disabled = false;
+    }
+  });
 });

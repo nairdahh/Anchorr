@@ -4,12 +4,10 @@ import logger from "./logger.js";
 
 /**
  * CONFIG_PATH determines where config.json is saved:
- * - Docker: /config/config.json (volume mount - user must configure)
- * - Local (Windows/Linux): ./config/config.json (config folder)
+ * - Always uses ./config/config.json in the project directory
+ * - This ensures proper permissions and keeps config with the application
  */
-export const CONFIG_PATH = fs.existsSync("/config")
-  ? path.join("/config", "config.json")
-  : path.join(process.cwd(), "config", "config.json");
+export const CONFIG_PATH = path.join(process.cwd(), "config", "config.json");
 
 /**
  * Attempt to restore from latest backup if config is missing

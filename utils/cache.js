@@ -4,7 +4,7 @@
  */
 
 import NodeCache from "node-cache";
-import { CACHE_TTL } from "../config/constants.js";
+import { CACHE_TTL } from "../lib/constants.js";
 import logger from "./logger.js";
 
 class APICache {

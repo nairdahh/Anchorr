@@ -5,7 +5,7 @@
 
 import axios from "axios";
 import logger from "../utils/logger.js";
-import { TIMEOUTS, CACHE_TTL } from "../config/constants.js";
+import { TIMEOUTS, CACHE_TTL } from "../lib/constants.js";
 
 // Cache for root folders and tags
 let rootFoldersCache = null;
