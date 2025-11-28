@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.2] - 2025-11-28
+
+### 🐛 Fixed
+
+- **Message Handling**: Fixed `/request` and `/search` commands creating duplicate messages - now only edits the original message on success instead of creating a followUp message
+- **Ephemeral Errors**: Error and info messages (e.g., "Already available in library") are now always ephemeral (flags: 64), while success messages respect `PRIVATE_MESSAGE_MODE` setting
+- **Message Visibility**: Original command messages now remain visible in public mode, showing which user triggered the bot response
+
+### 🔒 Security
+
+- **Config Path Security**: Fixed critical security issue where application could attempt to write to system root `/config` directory - now ALWAYS writes config.json exclusively to project directory (`./config/config.json`)
+- **Directory Restructure**: Renamed `config/` directory to `lib/` for static code files (config.js, constants.js) and created new `config/` directory exclusively for config.json storage
+- **Docker Volume Updates**: Updated Dockerfile and docker-compose.yml to use `/usr/src/app/config` instead of `/config` for safer volume mapping
+- **Permission Handling**: Improved config file permission management for Debian/manual installations
+
+### ✨ Added
+
+- **Bot Status Management**: New dashboard feature (in Miscellaneous section) to set custom bot status/presence in Discord
+  - **Manual Mode**: Search for specific media or select from 10 most recently added items to display as bot status
+  - **Random Mode**: Automatically rotate through recently added media at configurable intervals (1-60 minutes)
+  - **Activity Types**: Choose between Watching, Listening, Playing, or Streaming
+  - **Dashboard-Only**: Feature accessible only through web dashboard for security
+  - Real-time search with 300ms debounce for smooth user experience
+
+### 🔄 Changed
+
+- **API Deprecation**: Replaced deprecated `ephemeral: true` parameter with `flags: 64` in Discord.js v14 interaction replies to eliminate deprecation warnings
+- **Message Flow**: Improved `/request` and `/search` command interaction flow - deferred reply visibility now depends on `PRIVATE_MESSAGE_MODE` setting
+- **Documentation**: Updated README.md with corrected Docker volume paths and configuration storage locations
+
+### 📚 Documentation
+
+- Updated Docker deployment instructions to reflect new `/usr/src/app/config` volume path
+- Added clarification about config.json storage location in project directory
+- Improved Unraid deployment example with correct volume mapping
+
+---
+
 ## [1.3.1] - 2025-11-26
 
 ### 🐛 Fixed

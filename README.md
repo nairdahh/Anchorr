@@ -142,9 +142,11 @@ docker compose up -d
 # Run container (using port 8282)
 docker run -d \
   --name anchorr \
-  -p 8282:8282 \
-  -v $(pwd)/anchorr-data:/config \
   --restart unless-stopped \
+  -p 8282:8282 \
+  -v ./anchorr-data:/usr/src/app/config \
+  -e WEBHOOK_PORT=8282 \
+  -e NODE_ENV=production \
   nairdah/anchorr:latest
 ```
 
@@ -153,13 +155,15 @@ docker run -d \
 **Important parameters:**
 
 - `-p 8282:8282` - **Port mapping** (host:container). First number is the port on your host.
-- `-v $(pwd)/anchorr-data:/config` - Persistent data storage
+- `-v ./anchorr-data:/usr/src/app/config` - Persistent config storage (saves to `./anchorr-data/config.json`)
 - `--restart unless-stopped` - Auto-restart on failure
+- `-e WEBHOOK_PORT=8282` - Web dashboard port
+- `-e NODE_ENV=production` - Production mode
 
 **Example for Unraid:**
 When adding the container in Unraid Community Apps, add this volume mapping in the "Path" section:
 
-- **Container Path**: `/config`
+- **Container Path**: `/usr/src/app/config`
 - **Host Path**: `/mnt/user/appdata/anchorr`
 - **Access Mode**: `RW` (Read-Write)
 
@@ -179,9 +183,11 @@ ports:
 ```bash
 docker run -d \
   --name anchorr \
-  -p 9000:8282 \              # Use port 9000 on host
-  -v $(pwd)/anchorr-data:/config \
   --restart unless-stopped \
+  -p 9000:8282 \              # Use port 9000 on host
+  -v ./anchorr-data:/usr/src/app/config \
+  -e WEBHOOK_PORT=8282 \
+  -e NODE_ENV=production \
   nairdah/anchorr:latest
 ```
 

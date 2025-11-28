@@ -32,13 +32,13 @@ LABEL org.opencontainers.image.title="Anchorr" \
       org.opencontainers.image.source="https://github.com/nairdahh/anchorr" \
       org.opencontainers.image.version="1.2.0" \
       org.opencontainers.image.icon="https://raw.githubusercontent.com/nairdahh/anchorr/main/assets/logo.png" \
-      org.opencontainers.image.volumes="/config" \
+      org.opencontainers.image.volumes="/usr/src/app/config" \
       com.example.webui="http://localhost:8282" \
       org.unraid.icon="https://raw.githubusercontent.com/nairdahh/anchorr/main/assets/logo.png" \
       org.unraid.category="MediaServer:Other" \
       org.unraid.support="https://github.com/nairdahh/anchorr/issues" \
       org.unraid.webui="http://[IP]:[PORT:8282]" \
-      org.unraid.volume.config="/config" \
+      org.unraid.volume.config="/usr/src/app/config" \
       org.unraid.volume.config.description="Configuration files (REQUIRED for persistence)" \
       webui.port="8282" \
       webui.protocol="http"
@@ -46,12 +46,12 @@ LABEL org.opencontainers.image.title="Anchorr" \
 # set production mode
 ENV NODE_ENV=production
 
-# Create /config directory for persistent config storage
-# Must exist at startup so CONFIG_PATH detection works correctly
-RUN mkdir -p /config && chmod 777 /config
+# Create config directory inside the app for persistent storage
+# This keeps config with the application and avoids permission issues
+RUN mkdir -p /usr/src/app/config && chmod 777 /usr/src/app/config
 
-# Declare /config as a persistent volume for config.json storage
-# This ensures data persists when container is recreated/updated on Docker registries
-VOLUME ["/config"]
+# Declare config directory as a persistent volume
+# This ensures data persists when container is recreated/updated
+VOLUME ["/usr/src/app/config"]
 
 CMD ["node", "app.js"]

@@ -1,6 +1,6 @@
 import axios from "axios";
 import logger from "../utils/logger.js";
-import { TIMEOUTS } from "../config/constants.js";
+import { TIMEOUTS } from "../lib/constants.js";
 
 /**
  * Fetches movie/TV data from OMDb API

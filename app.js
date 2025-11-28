@@ -4,7 +4,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import { handleJellyfinWebhook } from "./jellyfinWebhook.js";
-import { configTemplate } from "./config/config.js";
+import { configTemplate } from "./lib/config.js";
 import axios from "axios";
 
 import {
@@ -30,7 +30,7 @@ import {
   userMappingSchema,
 } from "./utils/validation.js";
 import cache from "./utils/cache.js";
-import { COLORS, TIMEOUTS } from "./config/constants.js";
+import { COLORS, TIMEOUTS } from "./lib/constants.js";
 import {
   login,
   register,
@@ -589,9 +589,9 @@ async function startBot() {
       });
     }
 
-    // Always start with ephemeral for safety (errors/info messages should always be ephemeral)
-    // Success messages will be handled separately based on PRIVATE_MESSAGE_MODE
-    await interaction.deferReply({ ephemeral: true });
+    // Start with public reply - will be edited on success or deleted on error
+    const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
+    await interaction.deferReply({ ephemeral: isPrivateMode });
 
     try {
       const details = await tmdbApi.tmdbGetDetails(
@@ -612,11 +612,20 @@ async function startBot() {
 
         if (status.exists && status.available) {
           // Media already available - always ephemeral for info messages
-          await interaction.editReply({
-            content: "✅ This content is already available in your library!",
-            components: [],
-            embeds: [],
-          });
+          if (isPrivateMode) {
+            await interaction.editReply({
+              content: "✅ This content is already available in your library!",
+              components: [],
+              embeds: [],
+            });
+          } else {
+            // Delete public message and send ephemeral info
+            await interaction.deleteReply();
+            await interaction.followUp({
+              content: "✅ This content is already available in your library!",
+              flags: 64,
+            });
+          }
           return;
         }
 
@@ -746,25 +755,26 @@ async function startBot() {
         }
       }
 
-      // Success message - check if should be public or ephemeral
-      const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
-
-      if (isPrivateMode) {
-        // Keep it ephemeral
-        await interaction.editReply({ embeds: [embed], components });
-      } else {
-        // Delete ephemeral reply and send public message
-        await interaction.deleteReply();
-        await interaction.followUp({ embeds: [embed], components, ephemeral: false });
-      }
+      // Success - just edit the original reply directly (already public or ephemeral based on mode)
+      await interaction.editReply({ embeds: [embed], components });
     } catch (err) {
       logger.error("Error in handleSearchOrRequest:", err);
-      // Error messages are always ephemeral - handled by deferReply with ephemeral: true
-      await interaction.editReply({
-        content: "⚠️ An error occurred.",
-        components: [],
-        embeds: [],
-      });
+      // Error messages should always be ephemeral
+      if (isPrivateMode) {
+        // Already ephemeral, just edit
+        await interaction.editReply({
+          content: "⚠️ An error occurred.",
+          components: [],
+          embeds: [],
+        });
+      } else {
+        // Was public, delete and send ephemeral error
+        await interaction.deleteReply();
+        await interaction.followUp({
+          content: "⚠️ An error occurred.",
+          flags: 64,
+        });
+      }
     }
   }
 
@@ -986,7 +996,7 @@ async function startBot() {
           return interaction.reply({
             content:
               "⚠️ This command is disabled because Jellyseerr or TMDB configuration is missing.",
-            ephemeral: true,
+            flags: 64,
           });
         }
         const raw = getOptionStringRobust(interaction);
@@ -1171,7 +1181,7 @@ async function startBot() {
         if (!tmdbId || !selectedSeasons.length) {
           return interaction.reply({
             content: "⚠️ Invalid selection.",
-            ephemeral: true,
+            flags: 64,
           });
         }
 
