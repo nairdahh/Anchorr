@@ -13,6 +13,7 @@ import { findBestBackdrop } from "./api/tmdb.js";
 
 const debouncedSenders = new Map();
 const sentNotifications = new Map();
+const episodeMessages = new Map(); // Track Discord messages for editing: SeriesId -> { messageId, channelId }
 
 function getItemLevel(itemType) {
   switch (itemType) {
@@ -234,27 +235,11 @@ async function processAndSendNotification(
       break;
     case "Episode":
       if (episodeCount > 1 && episodeDetails) {
-        authorName = `📺 ${episodeCount} new episodes added!`;
+        authorName = `📺 New Episodes Added!`;
+        embedTitle = `${SeriesName || "Unknown Series"}`;
         
-        // Smart episode range display
-        const { episodes, firstEpisode, lastEpisode } = episodeDetails;
-        const sortedEpisodes = episodes.sort((a, b) => (a.EpisodeNumber || 0) - (b.EpisodeNumber || 0));
-        
-        // Check if episodes are consecutive
-        const isConsecutive = sortedEpisodes.every((ep, index) => {
-          if (index === 0) return true;
-          const prevEp = sortedEpisodes[index - 1];
-          return (ep.EpisodeNumber || 0) === (prevEp.EpisodeNumber || 0) + 1;
-        });
-        
-        if (isConsecutive && sortedEpisodes.length > 1) {
-          const season = String(firstEpisode.SeasonNumber || 1).padStart(2, "0");
-          const firstEp = String(firstEpisode.EpisodeNumber || 1).padStart(2, "0");
-          const lastEp = String(lastEpisode.EpisodeNumber || 1).padStart(2, "0");
-          embedTitle = `${SeriesName || "Unknown Series"} - S${season}E${firstEp}-E${lastEp}`;
-        } else {
-          embedTitle = `${SeriesName || "Unknown Series"} - ${episodeCount} episodes`;
-        }
+        // Use simple format for batched episodes
+        Overview = `${episodeCount} new episodes were added to your library.`;
       } else {
         authorName = "📺 New episode added!";
         const season = String(SeasonNumber || 1).padStart(2, "0");
@@ -380,7 +365,39 @@ async function processAndSendNotification(
 
   const channelId = targetChannelId || process.env.JELLYFIN_CHANNEL_ID;
   const channel = await client.channels.fetch(channelId);
-  await channel.send({ embeds: [embed], components: [buttons] });
+  // Check if this is a batched episode notification and we have an existing message to edit
+  if (ItemType === 'Episode' && episodeCount > 1 && episodeDetails && SeriesId) {
+    const existingMessage = episodeMessages.get(SeriesId);
+    
+    if (existingMessage) {
+      try {
+        const channel = await client.channels.fetch(existingMessage.channelId);
+        const message = await channel.messages.fetch(existingMessage.messageId);
+        await message.edit({ embeds: [embed], components: [buttons] });
+        logger.info(`Updated existing message for: ${embedTitle} (${episodeCount} episodes total)`);
+        return; // Early return, don't send a new message
+      } catch (err) {
+        logger.warn(`Failed to edit existing message for ${SeriesId}, sending new one:`, err);
+        // Continue to send new message
+      }
+    }
+  }
+
+  const sentMessage = await channel.send({ embeds: [embed], components: [buttons] });
+  
+  // Store message reference for future edits (batched episodes only)
+  if (ItemType === 'Episode' && episodeCount > 1 && episodeDetails && SeriesId) {
+    episodeMessages.set(SeriesId, {
+      messageId: sentMessage.id,
+      channelId: channel.id
+    });
+    
+    // Clean up message reference after some time (prevent memory leaks)
+    setTimeout(() => {
+      episodeMessages.delete(SeriesId);
+      logger.debug(`Cleaned up message reference for SeriesId: ${SeriesId}`);
+    }, 6 * 60 * 60 * 1000); // 6 hours
+  }
   logger.info(`Sent notification for: ${embedTitle}`);
 
   // Send DMs to users who requested this content
@@ -622,7 +639,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
           // The debounced function has fired, we can remove it.
           debouncedSenders.delete(SeriesId);
-        }, parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || 30000); // Configurable debounce window, default 30 seconds
+        }, parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || 300000); // Configurable debounce window, default 5 minutes (300000ms)
 
         debouncedSenders.set(SeriesId, {
           sender: newDebouncedSender,
@@ -646,14 +663,26 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       if (data.ItemType === 'Episode') {
         debouncer.episodeCount = (debouncer.episodeCount || 0) + 1;
         debouncer.episodes = debouncer.episodes || [];
-        debouncer.episodes.push(data);
         
-        // Track first and last episode for range display
-        if (!debouncer.firstEpisode || data.EpisodeNumber < debouncer.firstEpisode.EpisodeNumber) {
-          debouncer.firstEpisode = data;
-        }
-        if (!debouncer.lastEpisode || data.EpisodeNumber > debouncer.lastEpisode.EpisodeNumber) {
-          debouncer.lastEpisode = data;
+        // Check for duplicates by EpisodeNumber before adding
+        const existingEpisode = debouncer.episodes.find(ep => 
+          ep.EpisodeNumber === data.EpisodeNumber && 
+          ep.SeasonNumber === data.SeasonNumber
+        );
+        
+        if (!existingEpisode) {
+          debouncer.episodes.push(data);
+          
+          // Track first and last episode for range display
+          if (!debouncer.firstEpisode || data.EpisodeNumber < debouncer.firstEpisode.EpisodeNumber) {
+            debouncer.firstEpisode = data;
+          }
+          if (!debouncer.lastEpisode || data.EpisodeNumber > debouncer.lastEpisode.EpisodeNumber) {
+            debouncer.lastEpisode = data;
+          }
+        } else {
+          // Don't increment count for duplicate
+          debouncer.episodeCount = Math.max(0, (debouncer.episodeCount || 1) - 1);
         }
       }
 
