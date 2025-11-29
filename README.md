@@ -167,6 +167,21 @@ When adding the container in Unraid Community Apps, add this volume mapping in t
 - **Host Path**: `/mnt/user/appdata/anchorr`
 - **Access Mode**: `RW` (Read-Write)
 
+### Method 3: Install Directly from Docker Hub
+
+If you use **Docker Desktop** or other GUI tools (Portainer, Unraid, etc.), you can install directly from Docker Hub without cloning the repository:
+
+1. Open Docker Desktop → Images (or search in your GUI)
+2. Search for `nairdah/anchorr` or just `anchorr`
+3. Pull the latest image
+4. Create a new container with these settings:
+   - **Port:** `8282:8282` (or change as needed)
+   - **Volume:** `./anchorr-data` → `/usr/src/app/config`
+   - **Environment variables:**
+     - `WEBHOOK_PORT=8282`
+     - `NODE_ENV=production`
+   - **Restart policy:** Unless stopped
+
 ### Using a Different Port
 
 If port 8282 is already in use:
@@ -192,6 +207,41 @@ docker run -d \
 ```
 
 Then access at: `http://localhost:9000`
+
+## 🔄 Updates
+
+### Node.js Installation
+
+```bash
+cd anchorr
+git pull origin main
+npm install
+# Restart the application (Ctrl+C, then run: node app.js)
+```
+
+### Docker Compose
+
+```bash
+cd anchorr
+git pull origin main
+docker compose up -d --pull always
+```
+
+### Docker Manual Run
+
+```bash
+docker pull nairdah/anchorr:latest
+docker stop anchorr
+docker rm anchorr
+docker run -d \
+  --name anchorr \
+  --restart unless-stopped \
+  -p 8282:8282 \
+  -v ./anchorr-data:/usr/src/app/config \
+  -e WEBHOOK_PORT=8282 \
+  -e NODE_ENV=production \
+  nairdah/anchorr:latest
+```
 
 ## 📸 Screenshots (a bit outdated for now)
 
