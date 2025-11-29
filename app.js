@@ -565,6 +565,10 @@ async function startBot() {
 
   // ----------------- COMMON SEARCH LOGIC -----------------
   async function handleSearchOrRequest(interaction, rawInput, mode, tags = []) {
+    // Start with public reply - will be edited on success or deleted on error
+    const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
+    await interaction.deferReply({ ephemeral: isPrivateMode });
+
     let tmdbId, mediaType;
 
     // Check if input is direct ID (format: "12345|movie")
@@ -583,15 +587,18 @@ async function startBot() {
     }
 
     if (!tmdbId || !mediaType) {
-      return interaction.reply({
-        content: "⚠️ The title seems to be invalid.",
-        flags: 64,
-      });
+      if (isPrivateMode) {
+        return interaction.editReply({
+          content: "⚠️ The title seems to be invalid.",
+        });
+      } else {
+        await interaction.deleteReply();
+        return interaction.followUp({
+          content: "⚠️ The title seems to be invalid.",
+          flags: 64,
+        });
+      }
     }
-
-    // Start with public reply - will be edited on success or deleted on error
-    const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
-    await interaction.deferReply({ ephemeral: isPrivateMode });
 
     try {
       const details = await tmdbApi.tmdbGetDetails(
@@ -1144,16 +1151,8 @@ async function startBot() {
             selectedTagNames
           );
 
-          // Success message - check if should be public or ephemeral
-          const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
-
-          if (isPrivateMode) {
-            // Keep it ephemeral (edit the deferred update)
-            await interaction.editReply({ embeds: [embed], components });
-          } else {
-            // Send as public followUp (deferUpdate already acknowledged)
-            await interaction.followUp({ embeds: [embed], components, ephemeral: false });
-          }
+          // Success message - always edit the original message
+          await interaction.editReply({ embeds: [embed], components });
         } catch (err) {
           logger.error("Button request error:", err);
           try {
