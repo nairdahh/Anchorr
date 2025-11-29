@@ -66,7 +66,9 @@ Before getting started, ensure you have:
 
 ## 🚀 Quick Start
 
-### 1️⃣ Clone and Install
+> **💡 For production use, we recommend the [Docker deployment](#-docker-deployment) method below.**
+
+### 1️⃣ Clone and Install (Development/Manual Setup)
 
 ```bash
 git clone https://github.com/nairdahh/anchorr.git
@@ -115,17 +117,9 @@ Configuration is managed through a **web dashboard** at `http://localhost:8282/`
 
 Deploying with Docker is the recommended method for running Anchorr. You can use Docker Compose (the easiest way) or run the container manually.
 
-### Method 1: Docker Compose
+### Method 1: Docker Compose (Recommended)
 
-**Option A: Clone the full repository**
-
-```bash
-git clone https://github.com/nairdahh/anchorr.git
-cd anchorr
-docker compose up -d
-```
-
-**Option B: Download only docker-compose.yml**
+Simply download the docker-compose.yml file and run:
 
 ```bash
 mkdir anchorr && cd anchorr
@@ -133,6 +127,8 @@ wget https://raw.githubusercontent.com/nairdahh/anchorr/main/docker-compose.yml
 # OR with curl: curl -O https://raw.githubusercontent.com/nairdahh/anchorr/main/docker-compose.yml
 docker compose up -d
 ```
+
+> **Note:** You don't need to clone the entire repository when using Docker - the image contains everything needed to run Anchorr.
 
 **Access:** Open browser at `http://<your-server-ip>:8282` (e.g., `http://192.168.1.100:8282` or `http://localhost:8282`)
 
