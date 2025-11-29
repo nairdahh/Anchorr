@@ -7,7 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.2] - 2025-11-28
+
+### 🐛 Fixed
+
+- **Message Handling**: Fixed `/request` and `/search` commands creating duplicate messages - now only edits the original message on success instead of creating a followUp message
+- **Message Visibility**: Original command messages now remain visible in public mode, showing which user triggered the bot response
+
+### 🔒 Security
+
+- **Config Path Security**: Fixed critical security issue where application could attempt to write to system root `/config` directory - now ALWAYS writes config.json exclusively to project directory (`./config/config.json`)
+- **Directory Restructure**: Renamed `config/` directory to `lib/` for static code files (config.js, constants.js) and created new `config/` directory exclusively for config.json storage
+- **Docker Volume Updates**: Updated Dockerfile and docker-compose.yml to use `/usr/src/app/config` instead of `/config` for safer volume mapping
+- **Permission Handling**: Improved config file permission management for Debian/manual installations
+
+### 📚 Documentation
+
+- Updated Docker deployment instructions to reflect new `/usr/src/app/config` volume path
+- Added clarification about config.json storage location in project directory
+- Improved Unraid deployment example with correct volume mapping
+
+---
+
+## [1.3.1] - 2025-11-26
+
+### 🐛 Fixed
+
+- **Request Command Error**: Fixed `/request` command failing with "mediaId should be number" error by ensuring TMDB ID is properly converted to number before sending to Jellyseerr API
+- **Ephemeral Messages**: Error and informative messages (already exists, permission denied) are now always ephemeral (visible only to command user), while success messages respect the `PRIVATE_MESSAGE_MODE` setting
+- **Refresh Button Loading**: Fixed Discord users refresh button getting stuck in loading state when bot is not running
+
+### ✨ Added
+
+- **Refresh Discord Users Button**: Added refresh button in User Mapping section to manually reload Discord server members list without needing to restart the application
+
+---
+
 ## [1.3.0] - 2025-11-26
+
+### ℹ️ Important
+
+- **New Requirement**: Please enable **SERVER MEMBERS INTENT** in your Discord bot configuration. Go to [Discord Developer Portal](https://discord.com/developers/applications) → Select your application → Bot section → Privileged Gateway Intents → Enable "SERVER MEMBERS INTENT". Without this, the bot will fail to start with "Used disallowed intents" error. I will make this optional for the bot to start in the future so you can set it up afterwards.
 
 ### ✨ Added
 

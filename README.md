@@ -7,14 +7,27 @@
 </p>
 
 <p align="center">
-  <a href="#-features">Features</a> • 
-  <a href="#-quick-start">Quick Start</a> • 
-  <a href="#-configuration">Configuration</a> • 
+  <a href="#-features">Features</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-configuration">Configuration</a> •
   <a href="#-commands">Commands</a> •
   <a href="#-docker-deployment">Docker</a> •
   <a href="./CHANGELOG.md">Changelog</a> •
-  <a href="./CONTRIBUTING.md">Contributing</a>
+  <a href="./CONTRIBUTING.md">Contributing</a> •
+  <a href="https://discord.gg/S5JrsZe9mB">Discord</a>
 </p>
+
+## 💬 Discord Server
+
+**Before anything else, I invite you to join my Discord server for faster help, discussions, and important information such as an organizd list of known bugs that are currently being tracker or planned features scheduled for future releases!**
+
+##### This helps avoid duplicate requests and keeps everyone informed about what's coming next!
+
+### Join Here:
+
+[![](https://dcbadge.limes.pink/api/server/https://discord.gg/S5JrsZe9mB)](https://discord.gg/S5JrsZe9mB)
+
+I also have a dedicated channel on the [r/JellyfinCommunity](https://discord.gg/awFC5m4xkr) server (if you are already a member): [Join me here](https://discord.gg/awFC5m4xkr)
 
 ## 🌟 Features
 
@@ -129,9 +142,11 @@ docker compose up -d
 # Run container (using port 8282)
 docker run -d \
   --name anchorr \
-  -p 8282:8282 \
-  -v $(pwd)/anchorr-data:/config \
   --restart unless-stopped \
+  -p 8282:8282 \
+  -v ./anchorr-data:/usr/src/app/config \
+  -e WEBHOOK_PORT=8282 \
+  -e NODE_ENV=production \
   nairdah/anchorr:latest
 ```
 
@@ -140,15 +155,32 @@ docker run -d \
 **Important parameters:**
 
 - `-p 8282:8282` - **Port mapping** (host:container). First number is the port on your host.
-- `-v $(pwd)/anchorr-data:/config` - Persistent data storage
+- `-v ./anchorr-data:/usr/src/app/config` - Persistent config storage (saves to `./anchorr-data/config.json`)
 - `--restart unless-stopped` - Auto-restart on failure
+- `-e WEBHOOK_PORT=8282` - Web dashboard port
+- `-e NODE_ENV=production` - Production mode
 
 **Example for Unraid:**
 When adding the container in Unraid Community Apps, add this volume mapping in the "Path" section:
 
-- **Container Path**: `/config`
+- **Container Path**: `/usr/src/app/config`
 - **Host Path**: `/mnt/user/appdata/anchorr`
 - **Access Mode**: `RW` (Read-Write)
+
+### Method 3: Install Directly from Docker Hub
+
+If you use **Docker Desktop** or other GUI tools (Portainer, Unraid, etc.), you can install directly from Docker Hub without cloning the repository:
+
+1. Open Docker Desktop → Images (or search in your GUI)
+2. Search for `nairdah/anchorr` or just `anchorr`
+3. Pull the latest image
+4. Create a new container with these settings:
+   - **Port:** `8282:8282` (or change as needed)
+   - **Volume:** `./anchorr-data` → `/usr/src/app/config`
+   - **Environment variables:**
+     - `WEBHOOK_PORT=8282`
+     - `NODE_ENV=production`
+   - **Restart policy:** Unless stopped
 
 ### Using a Different Port
 
@@ -166,13 +198,50 @@ ports:
 ```bash
 docker run -d \
   --name anchorr \
-  -p 9000:8282 \              # Use port 9000 on host
-  -v $(pwd)/anchorr-data:/config \
   --restart unless-stopped \
+  -p 9000:8282 \              # Use port 9000 on host
+  -v ./anchorr-data:/usr/src/app/config \
+  -e WEBHOOK_PORT=8282 \
+  -e NODE_ENV=production \
   nairdah/anchorr:latest
 ```
 
 Then access at: `http://localhost:9000`
+
+## 🔄 Updates
+
+### Node.js Installation
+
+```bash
+cd anchorr
+git pull origin main
+npm install
+# Restart the application (Ctrl+C, then run: node app.js)
+```
+
+### Docker Compose
+
+```bash
+cd anchorr
+git pull origin main
+docker compose up -d --pull always
+```
+
+### Docker Manual Run
+
+```bash
+docker pull nairdah/anchorr:latest
+docker stop anchorr
+docker rm anchorr
+docker run -d \
+  --name anchorr \
+  --restart unless-stopped \
+  -p 8282:8282 \
+  -v ./anchorr-data:/usr/src/app/config \
+  -e WEBHOOK_PORT=8282 \
+  -e NODE_ENV=production \
+  nairdah/anchorr:latest
+```
 
 ## 📸 Screenshots (a bit outdated for now)
 
