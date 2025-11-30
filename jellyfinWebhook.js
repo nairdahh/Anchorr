@@ -13,6 +13,7 @@ import { findBestBackdrop } from "./api/tmdb.js";
 
 const debouncedSenders = new Map();
 const sentNotifications = new Map();
+const episodeMessages = new Map(); // Track Discord messages for editing: SeriesId -> { messageId, channelId }
 
 function getItemLevel(itemType) {
   switch (itemType) {
@@ -57,7 +58,9 @@ async function processAndSendNotification(
   data,
   client,
   pendingRequests,
-  targetChannelId = null
+  targetChannelId = null,
+  episodeCount = 0,
+  episodeDetails = null
 ) {
   const {
     ItemType,
@@ -74,6 +77,14 @@ async function processAndSendNotification(
     Provider_imdb: imdbIdFromWebhook, // Renamed to avoid conflict
     ServerUrl,
     ServerId,
+    SeasonNumber,
+    EpisodeNumber,
+    Video_0_Height,
+    Video_0_Codec,
+    Video_0_VideoRange,
+    Audio_0_Codec,
+    Audio_0_Channels,
+    Audio_0_Language,
   } = data;
 
   // We need to fetch details from TMDB to get the backdrop
@@ -147,14 +158,16 @@ async function processAndSendNotification(
   const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
 
   let runtime = "Unknown";
-  if (omdb?.Runtime && omdb.Runtime !== "N/A") {
+  // Prioritize webhook runtime data for episodes
+  if (ItemType === "Episode" && RunTime) {
+    runtime = RunTime; // Webhook already provides formatted runtime like "00:25:02"
+  } else if (omdb?.Runtime && omdb.Runtime !== "N/A") {
     const match = String(omdb.Runtime).match(/(\d+)/);
     if (match) runtime = minutesToHhMm(parseInt(match[1], 10));
   } else if (ItemType === "Movie" && details?.runtime > 0) {
     runtime = minutesToHhMm(details.runtime);
   } else if (
     (ItemType === "Series" ||
-      ItemType === "Episode" ||
       ItemType === "Season") &&
     details &&
     Array.isArray(details.episode_run_time) &&
@@ -180,6 +193,28 @@ async function processAndSendNotification(
     }
   }
 
+  // Build quality info from webhook data
+  let qualityInfo = "";
+  if (Video_0_Height && Video_0_Codec) {
+    const videoQuality = Video_0_Height >= 2160 ? "4K" : 
+                        Video_0_Height >= 1440 ? "1440p" :
+                        Video_0_Height >= 1080 ? "1080p" :
+                        Video_0_Height >= 720 ? "720p" : `${Video_0_Height}p`;
+    
+    const videoCodec = Video_0_Codec.toUpperCase();
+    const hdr = Video_0_VideoRange && Video_0_VideoRange !== "SDR" ? ` ${Video_0_VideoRange}` : "";
+    
+    qualityInfo = `${videoQuality} ${videoCodec}${hdr}`;
+    
+    if (Audio_0_Codec && Audio_0_Channels) {
+      const audioCodec = Audio_0_Codec.toUpperCase();
+      const channels = Audio_0_Channels === 6 ? "5.1" : 
+                      Audio_0_Channels === 8 ? "7.1" :
+                      Audio_0_Channels === 2 ? "Stereo" : `${Audio_0_Channels}ch`;
+      qualityInfo += ` • ${audioCodec} ${channels}`;
+    }
+  }
+
   let embedTitle = "";
   let authorName = "";
 
@@ -196,17 +231,43 @@ async function processAndSendNotification(
       authorName = "📺 New season added!";
       embedTitle = `${SeriesName || "Unknown Series"} (${
         Year || "?"
-      }) - Season ${IndexNumber || "?"}`;
+      }) - Season ${SeasonNumber || IndexNumber || "?"}`;
       break;
     case "Episode":
-      authorName = "📺 New episode added!";
-      embedTitle = `${SeriesName || "Unknown Series"} - S${String(
-        data.ParentIndexNumber
-      ).padStart(2, "0")}E${String(IndexNumber).padStart(2, "0")} - ${Name}`;
+      if (episodeCount > 1 && episodeDetails) {
+        authorName = `📺 New Episodes Added!`;
+        embedTitle = `${SeriesName || "Unknown Series"}`;
+        
+        // Use simple format for batched episodes
+        Overview = `${episodeCount} new episodes were added to your library.`;
+      } else {
+        authorName = "📺 New episode added!";
+        const season = String(SeasonNumber || 1).padStart(2, "0");
+        const episode = String(EpisodeNumber || IndexNumber || 1).padStart(2, "0");
+        embedTitle = `${SeriesName || "Unknown Series"} - S${season}E${episode} - ${Name}`;
+      }
       break;
     default:
       authorName = "✨ New item added";
       embedTitle = Name || "Unknown Title";
+  }
+
+  // Smart color coding based on content type and count
+  let embedColor = "#cba6f7"; // Default purple
+  if (ItemType === "Movie") {
+    embedColor = "#f38ba8"; // Pink for movies
+  } else if (ItemType === "Series") {
+    embedColor = "#a6e3a1"; // Green for new series
+  } else if (ItemType === "Season") {
+    embedColor = "#fab387"; // Orange for seasons
+  } else if (ItemType === "Episode") {
+    if (episodeCount > 5) {
+      embedColor = "#f9e2af"; // Yellow for many episodes
+    } else if (episodeCount > 1) {
+      embedColor = "#89dceb"; // Light blue for few episodes
+    } else {
+      embedColor = "#cba6f7"; // Purple for single episode
+    }
   }
 
   const embed = new EmbedBuilder()
@@ -219,13 +280,52 @@ async function processAndSendNotification(
         `!/details?id=${ItemId}&serverId=${ServerId}`
       )
     )
-    .setColor("#cba6f7")
+    .setColor(embedColor)
     .addFields(
       { name: headerLine, value: overviewText },
       { name: "Genre", value: genreList, inline: true },
       { name: "Runtime", value: runtime, inline: true },
       { name: "Rating", value: rating, inline: true }
     );
+
+  // Add quality info if available
+  if (qualityInfo) {
+    embed.addFields({ name: "Quality", value: qualityInfo, inline: true });
+  }
+
+  // Add language info for episodes/series if available
+  if ((ItemType === "Episode" || ItemType === "Series") && Audio_0_Language) {
+    const languageMap = {
+      'deu': '🇩🇪 German',
+      'eng': '🇺🇸 English',
+      'fra': '🇫🇷 French',
+      'spa': '🇪🇸 Spanish',
+      'ita': '🇮🇹 Italian',
+      'jpn': '🇯🇵 Japanese',
+      'kor': '🇰🇷 Korean'
+    };
+    const language = languageMap[Audio_0_Language] || Audio_0_Language.toUpperCase();
+    embed.addFields({ name: "Audio Language", value: language, inline: true });
+  }
+
+  // Add episode list for multiple episodes
+  if (episodeCount > 1 && episodeDetails && episodeDetails.episodes.length <= 10) {
+    const episodeList = episodeDetails.episodes
+      .sort((a, b) => (a.EpisodeNumber || 0) - (b.EpisodeNumber || 0))
+      .map(ep => {
+        const epNum = String(ep.EpisodeNumber || 0).padStart(2, "0");
+        return `E${epNum}: ${ep.Name || "Unknown Episode"}`;
+      })
+      .join("\n");
+    
+    embed.addFields({ name: `Episodes (${episodeCount})`, value: episodeList, inline: false });
+  } else if (episodeCount > 10) {
+    embed.addFields({ 
+      name: `Episodes (${episodeCount})`, 
+      value: `Too many episodes to list individually. Added episodes 1-${episodeCount}.`, 
+      inline: false 
+    });
+  }
 
   const backdropPath = details ? findBestBackdrop(details) : null;
   const backdrop = backdropPath
@@ -265,7 +365,39 @@ async function processAndSendNotification(
 
   const channelId = targetChannelId || process.env.JELLYFIN_CHANNEL_ID;
   const channel = await client.channels.fetch(channelId);
-  await channel.send({ embeds: [embed], components: [buttons] });
+  // Check if this is a batched episode notification and we have an existing message to edit
+  if (ItemType === 'Episode' && episodeCount > 1 && episodeDetails && SeriesId) {
+    const existingMessage = episodeMessages.get(SeriesId);
+    
+    if (existingMessage) {
+      try {
+        const channel = await client.channels.fetch(existingMessage.channelId);
+        const message = await channel.messages.fetch(existingMessage.messageId);
+        await message.edit({ embeds: [embed], components: [buttons] });
+        logger.info(`Updated existing message for: ${embedTitle} (${episodeCount} episodes total)`);
+        return; // Early return, don't send a new message
+      } catch (err) {
+        logger.warn(`Failed to edit existing message for ${SeriesId}, sending new one:`, err);
+        // Continue to send new message
+      }
+    }
+  }
+
+  const sentMessage = await channel.send({ embeds: [embed], components: [buttons] });
+  
+  // Store message reference for future edits (batched episodes only)
+  if (ItemType === 'Episode' && episodeCount > 1 && episodeDetails && SeriesId) {
+    episodeMessages.set(SeriesId, {
+      messageId: sentMessage.id,
+      channelId: channel.id
+    });
+    
+    // Clean up message reference after some time (prevent memory leaks)
+    setTimeout(() => {
+      episodeMessages.delete(SeriesId);
+      logger.debug(`Cleaned up message reference for SeriesId: ${SeriesId}`);
+    }, 6 * 60 * 60 * 1000); // 6 hours
+  }
   logger.info(`Sent notification for: ${embedTitle}`);
 
   // Send DMs to users who requested this content
@@ -332,15 +464,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
     const data = req.body;
     if (!data || !data.ItemId) return res.status(400).send("No valid data");
 
-    // TEMPORARY: Ignore Episodes and Seasons
-    if (data.ItemType === "Episode" || data.ItemType === "Season") {
-      return res.status(200).send("Notification skipped");
-    }
-
-    // Log the full webhook payload for debugging
-    // console.log("=== WEBHOOK PAYLOAD ===");
-    // console.log(JSON.stringify(data, null, 2));
-    // console.log("======================");
+    // Allow episodes and seasons with enhanced debouncing
 
     // Get library ID - try multiple sources from webhook data
     let libraryId = data.LibraryId || data.CollectionId || data.Library_Id;
@@ -488,12 +612,14 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
       // If we don't have a debounced function for this series yet, create one.
       if (!debouncedSenders.has(SeriesId)) {
-        const newDebouncedSender = debounce((latestData) => {
+        const newDebouncedSender = debounce((latestData, episodeCount = 0, episodeDetails = null) => {
           processAndSendNotification(
             latestData,
             client,
             pendingRequests,
-            libraryChannelId
+            libraryChannelId,
+            episodeCount,
+            episodeDetails
           );
 
           const levelSent = getItemLevel(latestData.ItemType);
@@ -513,11 +639,15 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
           // The debounced function has fired, we can remove it.
           debouncedSenders.delete(SeriesId);
-        }, 30000); // 30-second debounce window
+        }, parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || 300000); // Configurable debounce window, default 5 minutes (300000ms)
 
         debouncedSenders.set(SeriesId, {
           sender: newDebouncedSender,
           latestData: data,
+          episodeCount: data.ItemType === 'Episode' ? 1 : 0,
+          episodes: data.ItemType === 'Episode' ? [data] : [], // Track individual episodes
+          firstEpisode: data.ItemType === 'Episode' ? data : null,
+          lastEpisode: data.ItemType === 'Episode' ? data : null,
         });
       }
 
@@ -528,9 +658,42 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       if (currentLevel >= existingLevel) {
         debouncer.latestData = data;
       }
+      
+      // Track episode count for better notifications
+      if (data.ItemType === 'Episode') {
+        debouncer.episodeCount = (debouncer.episodeCount || 0) + 1;
+        debouncer.episodes = debouncer.episodes || [];
+        
+        // Check for duplicates by EpisodeNumber before adding
+        const existingEpisode = debouncer.episodes.find(ep => 
+          ep.EpisodeNumber === data.EpisodeNumber && 
+          ep.SeasonNumber === data.SeasonNumber
+        );
+        
+        if (!existingEpisode) {
+          debouncer.episodes.push(data);
+          
+          // Track first and last episode for range display
+          if (!debouncer.firstEpisode || data.EpisodeNumber < debouncer.firstEpisode.EpisodeNumber) {
+            debouncer.firstEpisode = data;
+          }
+          if (!debouncer.lastEpisode || data.EpisodeNumber > debouncer.lastEpisode.EpisodeNumber) {
+            debouncer.lastEpisode = data;
+          }
+        } else {
+          // Don't increment count for duplicate
+          debouncer.episodeCount = Math.max(0, (debouncer.episodeCount || 1) - 1);
+        }
+      }
 
-      // Call the debounced function. It will only execute after 30s of inactivity.
-      debouncer.sender(debouncer.latestData);
+      // Call the debounced function. It will only execute after the configured debounce period of inactivity.
+      const episodeDetails = debouncer.episodes ? {
+        episodes: debouncer.episodes,
+        firstEpisode: debouncer.firstEpisode,
+        lastEpisode: debouncer.lastEpisode
+      } : null;
+      
+      debouncer.sender(debouncer.latestData, debouncer.episodeCount || 0, episodeDetails);
 
       return res
         .status(200)

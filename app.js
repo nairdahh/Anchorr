@@ -606,6 +606,10 @@ async function startBot() {
       }
     }
 
+    // Always start with ephemeral for safety (errors/info messages should always be ephemeral)
+    // Success messages will be handled separately based on PRIVATE_MESSAGE_MODE
+    await interaction.deferReply({ ephemeral: true });
+
     try {
       const details = await tmdbApi.tmdbGetDetails(
         tmdbId,
@@ -625,6 +629,11 @@ async function startBot() {
 
         if (status.exists && status.available) {
           // Media already available - always ephemeral for info messages
+          await interaction.editReply({
+            content: "✅ This content is already available in your library!",
+            components: [],
+            embeds: [],
+          });
           if (isPrivateMode) {
             await interaction.editReply({
               content: "✅ This content is already available in your library!",
