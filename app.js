@@ -565,9 +565,15 @@ async function startBot() {
 
   // ----------------- COMMON SEARCH LOGIC -----------------
   async function handleSearchOrRequest(interaction, rawInput, mode, tags = []) {
-    // Start with public reply - will be edited on success or deleted on error
+    // IMPORTANT: Defer reply FIRST to prevent timeout
     const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
-    await interaction.deferReply({ ephemeral: isPrivateMode });
+
+    try {
+      await interaction.deferReply({ ephemeral: isPrivateMode });
+    } catch (err) {
+      logger.error(`Failed to defer reply: ${err.message}`);
+      return;
+    }
 
     let tmdbId, mediaType;
 
@@ -916,80 +922,35 @@ async function startBot() {
             .filter((r) => r.media_type === "movie" || r.media_type === "tv")
             .slice(0, 25);
 
-          const choicePromises = filtered.map(async (item) => {
-            try {
-              const emoji = item.media_type === "movie" ? "🎬" : "📺";
-              const date = item.release_date || item.first_air_date || "";
-              const year = date ? ` (${date.slice(0, 4)})` : "";
-
-              // Fetch detailed info from TMDB
-              const details = await tmdbApi.tmdbGetDetails(
-                item.id,
-                item.media_type,
-                TMDB_API_KEY
-              );
-
-              let extraInfo = "";
-
-              if (item.media_type === "movie") {
-                // Get director
-                const director = details.credits?.crew?.find(
-                  (c) => c.job === "Director"
-                )?.name;
-                if (director) {
-                  extraInfo += ` — directed by ${director}`;
-                }
-                // Get runtime
-                if (details.runtime) {
-                  const hours = Math.floor(details.runtime / 60);
-                  const mins = details.runtime % 60;
-                  const runtime = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-                  extraInfo += ` — runtime: ${runtime}`;
-                }
-              } else if (item.media_type === "tv") {
-                // Get creator
-                const creator = details.created_by?.[0]?.name;
-                if (creator) {
-                  extraInfo += ` — created by ${creator}`;
-                }
-                // Get seasons count
-                if (details.number_of_seasons) {
-                  const seasons = details.number_of_seasons;
-                  extraInfo += ` — ${seasons} season${seasons > 1 ? "s" : ""}`;
-                }
-              }
-
-              let fullName = `${emoji} ${
-                item.title || item.name
-              }${year}${extraInfo}`;
-
-              // Discord requires choice names to be 1-100 characters
-              // Keep it safe at 98 and add ... within that limit if needed
-              if (fullName.length > 98) {
-                fullName = fullName.substring(0, 95) + "...";
-              }
-
-              return {
-                name: fullName,
-                value: `${item.id}|${item.media_type}`,
-              };
-            } catch (e) {
-              // Fallback to basic info if details fetch fails
-              const emoji = item.media_type === "movie" ? "🎬" : "📺";
-              const date = item.release_date || item.first_air_date || "";
-              const year = date ? ` (${date.slice(0, 4)})` : "";
-              let fallback = `${emoji} ${item.title || item.name}${year}`;
-              if (fallback.length > 98)
-                fallback = fallback.substring(0, 95) + "...";
-              return {
-                name: fallback,
-                value: `${item.id}|${item.media_type}`,
-              };
+          // Respond IMMEDIATELY with basic info to avoid timeout
+          const basicChoices = filtered.map((item) => {
+            const emoji = item.media_type === "movie" ? "🎬" : "📺";
+            const date = item.release_date || item.first_air_date || "";
+            const year = date ? ` (${date.slice(0, 4)})` : "";
+            let basicName = `${emoji} ${item.title || item.name}${year}`;
+            if (basicName.length > 98) {
+              basicName = basicName.substring(0, 95) + "...";
             }
+            return {
+              name: basicName,
+              value: `${item.id}|${item.media_type}`,
+            };
           });
 
-          const choices = await Promise.all(choicePromises);
-          return await interaction.respond(choices);
+          await interaction.respond(basicChoices);
+
+          // Fetch detailed info in the background (non-blocking) to enrich cache
+          // This doesn't affect the user experience but helps future requests
+          filtered.forEach((item) => {
+            tmdbApi
+              .tmdbGetDetails(item.id, item.media_type, TMDB_API_KEY)
+              .catch((err) => {
+                logger.debug(
+                  `Background detail fetch failed for ${item.id}:`,
+                  err?.message
+                );
+              });
+          });
         } catch (e) {
           logger.error("Autocomplete error:", e);
           return await interaction.respond([]);
