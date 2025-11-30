@@ -565,6 +565,16 @@ async function startBot() {
 
   // ----------------- COMMON SEARCH LOGIC -----------------
   async function handleSearchOrRequest(interaction, rawInput, mode, tags = []) {
+    // IMPORTANT: Defer reply FIRST to prevent timeout
+    const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
+
+    try {
+      await interaction.deferReply({ ephemeral: isPrivateMode });
+    } catch (err) {
+      logger.error(`Failed to defer reply: ${err.message}`);
+      return;
+    }
+
     let tmdbId, mediaType;
 
     // Check if input is direct ID (format: "12345|movie")
@@ -583,10 +593,17 @@ async function startBot() {
     }
 
     if (!tmdbId || !mediaType) {
-      return interaction.reply({
-        content: "⚠️ The title seems to be invalid.",
-        flags: 64,
-      });
+      if (isPrivateMode) {
+        return interaction.editReply({
+          content: "⚠️ The title seems to be invalid.",
+        });
+      } else {
+        await interaction.deleteReply();
+        return interaction.followUp({
+          content: "⚠️ The title seems to be invalid.",
+          flags: 64,
+        });
+      }
     }
 
     // Always start with ephemeral for safety (errors/info messages should always be ephemeral)
@@ -617,6 +634,20 @@ async function startBot() {
             components: [],
             embeds: [],
           });
+          if (isPrivateMode) {
+            await interaction.editReply({
+              content: "✅ This content is already available in your library!",
+              components: [],
+              embeds: [],
+            });
+          } else {
+            // Delete public message and send ephemeral info
+            await interaction.deleteReply();
+            await interaction.followUp({
+              content: "✅ This content is already available in your library!",
+              flags: 64,
+            });
+          }
           return;
         }
 
@@ -746,25 +777,26 @@ async function startBot() {
         }
       }
 
-      // Success message - check if should be public or ephemeral
-      const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
-
-      if (isPrivateMode) {
-        // Keep it ephemeral
-        await interaction.editReply({ embeds: [embed], components });
-      } else {
-        // Delete ephemeral reply and send public message
-        await interaction.deleteReply();
-        await interaction.followUp({ embeds: [embed], components, ephemeral: false });
-      }
+      // Success - just edit the original reply directly (already public or ephemeral based on mode)
+      await interaction.editReply({ embeds: [embed], components });
     } catch (err) {
       logger.error("Error in handleSearchOrRequest:", err);
-      // Error messages are always ephemeral - handled by deferReply with ephemeral: true
-      await interaction.editReply({
-        content: "⚠️ An error occurred.",
-        components: [],
-        embeds: [],
-      });
+      // Error messages should always be ephemeral
+      if (isPrivateMode) {
+        // Already ephemeral, just edit
+        await interaction.editReply({
+          content: "⚠️ An error occurred.",
+          components: [],
+          embeds: [],
+        });
+      } else {
+        // Was public, delete and send ephemeral error
+        await interaction.deleteReply();
+        await interaction.followUp({
+          content: "⚠️ An error occurred.",
+          flags: 64,
+        });
+      }
     }
   }
 
@@ -899,80 +931,35 @@ async function startBot() {
             .filter((r) => r.media_type === "movie" || r.media_type === "tv")
             .slice(0, 25);
 
-          const choicePromises = filtered.map(async (item) => {
-            try {
-              const emoji = item.media_type === "movie" ? "🎬" : "📺";
-              const date = item.release_date || item.first_air_date || "";
-              const year = date ? ` (${date.slice(0, 4)})` : "";
-
-              // Fetch detailed info from TMDB
-              const details = await tmdbApi.tmdbGetDetails(
-                item.id,
-                item.media_type,
-                TMDB_API_KEY
-              );
-
-              let extraInfo = "";
-
-              if (item.media_type === "movie") {
-                // Get director
-                const director = details.credits?.crew?.find(
-                  (c) => c.job === "Director"
-                )?.name;
-                if (director) {
-                  extraInfo += ` — directed by ${director}`;
-                }
-                // Get runtime
-                if (details.runtime) {
-                  const hours = Math.floor(details.runtime / 60);
-                  const mins = details.runtime % 60;
-                  const runtime = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-                  extraInfo += ` — runtime: ${runtime}`;
-                }
-              } else if (item.media_type === "tv") {
-                // Get creator
-                const creator = details.created_by?.[0]?.name;
-                if (creator) {
-                  extraInfo += ` — created by ${creator}`;
-                }
-                // Get seasons count
-                if (details.number_of_seasons) {
-                  const seasons = details.number_of_seasons;
-                  extraInfo += ` — ${seasons} season${seasons > 1 ? "s" : ""}`;
-                }
-              }
-
-              let fullName = `${emoji} ${
-                item.title || item.name
-              }${year}${extraInfo}`;
-
-              // Discord requires choice names to be 1-100 characters
-              // Keep it safe at 98 and add ... within that limit if needed
-              if (fullName.length > 98) {
-                fullName = fullName.substring(0, 95) + "...";
-              }
-
-              return {
-                name: fullName,
-                value: `${item.id}|${item.media_type}`,
-              };
-            } catch (e) {
-              // Fallback to basic info if details fetch fails
-              const emoji = item.media_type === "movie" ? "🎬" : "📺";
-              const date = item.release_date || item.first_air_date || "";
-              const year = date ? ` (${date.slice(0, 4)})` : "";
-              let fallback = `${emoji} ${item.title || item.name}${year}`;
-              if (fallback.length > 98)
-                fallback = fallback.substring(0, 95) + "...";
-              return {
-                name: fallback,
-                value: `${item.id}|${item.media_type}`,
-              };
+          // Respond IMMEDIATELY with basic info to avoid timeout
+          const basicChoices = filtered.map((item) => {
+            const emoji = item.media_type === "movie" ? "🎬" : "📺";
+            const date = item.release_date || item.first_air_date || "";
+            const year = date ? ` (${date.slice(0, 4)})` : "";
+            let basicName = `${emoji} ${item.title || item.name}${year}`;
+            if (basicName.length > 98) {
+              basicName = basicName.substring(0, 95) + "...";
             }
+            return {
+              name: basicName,
+              value: `${item.id}|${item.media_type}`,
+            };
           });
 
-          const choices = await Promise.all(choicePromises);
-          return await interaction.respond(choices);
+          await interaction.respond(basicChoices);
+
+          // Fetch detailed info in the background (non-blocking) to enrich cache
+          // This doesn't affect the user experience but helps future requests
+          filtered.forEach((item) => {
+            tmdbApi
+              .tmdbGetDetails(item.id, item.media_type, TMDB_API_KEY)
+              .catch((err) => {
+                logger.debug(
+                  `Background detail fetch failed for ${item.id}:`,
+                  err?.message
+                );
+              });
+          });
         } catch (e) {
           logger.error("Autocomplete error:", e);
           return await interaction.respond([]);
@@ -986,7 +973,7 @@ async function startBot() {
           return interaction.reply({
             content:
               "⚠️ This command is disabled because Jellyseerr or TMDB configuration is missing.",
-            ephemeral: true,
+            flags: 64,
           });
         }
         const raw = getOptionStringRobust(interaction);
@@ -1078,7 +1065,7 @@ async function startBot() {
           );
 
           if (status.exists && status.available) {
-            // Media already available - always ephemeral
+            // Media already available
             await interaction.followUp({
               content: "✅ This content is already available in your library!",
               flags: 64,
@@ -1134,16 +1121,8 @@ async function startBot() {
             selectedTagNames
           );
 
-          // Success message - check if should be public or ephemeral
-          const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
-
-          if (isPrivateMode) {
-            // Keep it ephemeral (edit the deferred update)
-            await interaction.editReply({ embeds: [embed], components });
-          } else {
-            // Send as public followUp (deferUpdate already acknowledged)
-            await interaction.followUp({ embeds: [embed], components, ephemeral: false });
-          }
+          // Success message - always edit the original message
+          await interaction.editReply({ embeds: [embed], components });
         } catch (err) {
           logger.error("Button request error:", err);
           try {
@@ -1171,7 +1150,7 @@ async function startBot() {
         if (!tmdbId || !selectedSeasons.length) {
           return interaction.reply({
             content: "⚠️ Invalid selection.",
-            ephemeral: true,
+            flags: 64,
           });
         }
 
@@ -1771,10 +1750,12 @@ function configureWebServer() {
       } = req.body;
 
       if (!discordUserId || !jellyseerrUserId) {
-        return res.status(400).json({
-          success: false,
-          message: "Discord user ID and Jellyseerr user ID are required.",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "Discord user ID and Jellyseerr user ID are required.",
+          });
       }
 
       try {
@@ -1792,10 +1773,12 @@ function configureWebServer() {
         res.json({ success: true, message: "Mapping saved successfully." });
       } catch (error) {
         logger.error("Error saving user mapping:", error);
-        res.status(500).json({
-          success: false,
-          message: "Failed to save mapping - check server logs.",
-        });
+        res
+          .status(500)
+          .json({
+            success: false,
+            message: "Failed to save mapping - check server logs.",
+          });
       }
     }
   );
@@ -1819,10 +1802,12 @@ function configureWebServer() {
         res.json({ success: true, message: "Mapping deleted successfully." });
       } catch (error) {
         logger.error("Error deleting user mapping:", error);
-        res.status(500).json({
-          success: false,
-          message: "Failed to delete mapping - check server logs.",
-        });
+        res
+          .status(500)
+          .json({
+            success: false,
+            message: "Failed to delete mapping - check server logs.",
+          });
       }
     }
   );
@@ -2298,290 +2283,6 @@ function configureWebServer() {
     logger.info("Bot has been stopped.");
     res.status(200).json({ message: "Bot stopped successfully." });
   });
-
-  // ===== BOT STATUS MANAGEMENT =====
-  let botStatusConfig = {
-    mode: "off",
-    activity: "Watching",
-    selectedMediaId: null,
-    selectedMediaName: null,
-    interval: 3600000, // 1 hour default
-    statusInterval: null,
-  };
-
-  /**
-   * Get recently added items from Jellyfin
-   */
-  app.get("/api/bot-status/recent", authenticateToken, async (req, res) => {
-    if (!JELLYFIN_URL || !JELLYFIN_API_KEY) {
-      return res.status(400).json({ error: "Jellyfin not configured" });
-    }
-
-    try {
-      const items = await jellyfin.fetchRecentlyAdded(
-        JELLYFIN_API_KEY,
-        JELLYFIN_URL,
-        10
-      );
-
-      // Map items to simple format
-      const mapped = items
-        .filter((item) => item.Type === "Movie" || item.Type === "Series")
-        .map((item) => ({
-          id: item.Id,
-          name: item.Name,
-          type: item.Type,
-          year: item.ProductionYear,
-          overview: item.Overview,
-        }))
-        .slice(0, 10);
-
-      res.json({ items: mapped });
-    } catch (err) {
-      logger.error("Error fetching recent items for bot status:", err);
-      res.status(500).json({ error: "Failed to fetch recent items" });
-    }
-  });
-
-  /**
-   * Search for media in Jellyfin
-   */
-  app.get("/api/bot-status/search", authenticateToken, async (req, res) => {
-    const query = req.query.q;
-    if (!query || query.length < 2) {
-      return res.status(400).json({ error: "Search query too short" });
-    }
-
-    if (!JELLYFIN_URL || !JELLYFIN_API_KEY) {
-      return res.status(400).json({ error: "Jellyfin not configured" });
-    }
-
-    try {
-      const url = `${JELLYFIN_URL.replace(/\/$/, "")}/Items`;
-      const response = await axios.get(url, {
-        headers: { "X-MediaBrowser-Token": JELLYFIN_API_KEY },
-        params: {
-          searchTerm: query,
-          IncludeItemTypes: "Movie,Series",
-          Recursive: true,
-          Limit: 25,
-          Fields: "Overview,Genres,ProductionYear",
-        },
-        timeout: 10000,
-      });
-
-      const items = (response.data?.Items || [])
-        .filter((item) => item.Type === "Movie" || item.Type === "Series")
-        .map((item) => ({
-          id: item.Id,
-          name: item.Name,
-          type: item.Type,
-          year: item.ProductionYear,
-          overview: item.Overview,
-        }));
-
-      res.json({ items });
-    } catch (err) {
-      logger.error("Error searching media for bot status:", err);
-      res.status(500).json({ error: "Failed to search media" });
-    }
-  });
-
-  /**
-   * Set bot status (manual mode)
-   */
-  app.post(
-    "/api/bot-status/set-manual",
-    authenticateToken,
-    async (req, res) => {
-      const { mediaId, mediaName, activity } = req.body;
-
-      if (!mediaId || !mediaName || !activity) {
-        return res.status(400).json({ error: "Missing required parameters" });
-      }
-
-      if (!isBotRunning || !discordClient) {
-        return res.status(400).json({ error: "Bot is not running" });
-      }
-
-      try {
-        // Clear any existing random interval
-        if (botStatusConfig.statusInterval) {
-          clearInterval(botStatusConfig.statusInterval);
-          botStatusConfig.statusInterval = null;
-        }
-
-        botStatusConfig.mode = "manual";
-        botStatusConfig.activity = activity;
-        botStatusConfig.selectedMediaId = mediaId;
-        botStatusConfig.selectedMediaName = mediaName;
-
-        // Set the status on Discord
-        await discordClient.user.setPresence({
-          activities: [
-            {
-              name: `${mediaName}`,
-              type: discordActivityMap(activity),
-            },
-          ],
-          status: "online",
-        });
-
-        logger.info(`Bot status set to: ${activity} ${mediaName}`);
-        res.json({
-          success: true,
-          message: "Bot status updated",
-          status: botStatusConfig,
-        });
-      } catch (err) {
-        logger.error("Error setting bot status:", err);
-        res.status(500).json({ error: "Failed to set bot status" });
-      }
-    }
-  );
-
-  /**
-   * Set bot status (random mode)
-   */
-  app.post(
-    "/api/bot-status/set-random",
-    authenticateToken,
-    async (req, res) => {
-      const { activity, interval } = req.body;
-
-      if (!activity || !interval) {
-        return res.status(400).json({ error: "Missing required parameters" });
-      }
-
-      if (!isBotRunning || !discordClient) {
-        return res.status(400).json({ error: "Bot is not running" });
-      }
-
-      try {
-        // Clear any existing interval
-        if (botStatusConfig.statusInterval) {
-          clearInterval(botStatusConfig.statusInterval);
-        }
-
-        botStatusConfig.mode = "random";
-        botStatusConfig.activity = activity;
-        botStatusConfig.interval = parseInt(interval, 10);
-
-        // Function to update with random media
-        const updateRandomStatus = async () => {
-          try {
-            const items = await jellyfin.fetchRecentlyAdded(
-              JELLYFIN_API_KEY,
-              JELLYFIN_URL,
-              50
-            );
-
-            if (items.length === 0) {
-              logger.warn("No items found for random status");
-              return;
-            }
-
-            const randomItem = items[Math.floor(Math.random() * items.length)];
-
-            await discordClient.user.setPresence({
-              activities: [
-                {
-                  name: `${randomItem.Name}`,
-                  type: discordActivityMap(activity),
-                },
-              ],
-              status: "online",
-            });
-
-            logger.info(
-              `Bot random status updated to: ${activity} ${randomItem.Name}`
-            );
-          } catch (err) {
-            logger.error("Error updating random bot status:", err);
-          }
-        };
-
-        // Update immediately
-        await updateRandomStatus();
-
-        // Set interval for updates
-        botStatusConfig.statusInterval = setInterval(
-          updateRandomStatus,
-          botStatusConfig.interval
-        );
-
-        logger.info(
-          `Bot random status enabled with ${botStatusConfig.interval}ms interval`
-        );
-        res.json({
-          success: true,
-          message: "Random bot status enabled",
-          status: botStatusConfig,
-        });
-      } catch (err) {
-        logger.error("Error setting random bot status:", err);
-        res.status(500).json({ error: "Failed to set random bot status" });
-      }
-    }
-  );
-
-  /**
-   * Clear bot status
-   */
-  app.post("/api/bot-status/clear", authenticateToken, async (req, res) => {
-    if (!isBotRunning || !discordClient) {
-      return res.status(400).json({ error: "Bot is not running" });
-    }
-
-    try {
-      // Clear any existing interval
-      if (botStatusConfig.statusInterval) {
-        clearInterval(botStatusConfig.statusInterval);
-        botStatusConfig.statusInterval = null;
-      }
-
-      // Reset to default presence (no custom activity)
-      await discordClient.user.setPresence({
-        activities: [],
-        status: "online",
-      });
-
-      botStatusConfig.mode = "off";
-      botStatusConfig.selectedMediaId = null;
-      botStatusConfig.selectedMediaName = null;
-
-      logger.info("Bot custom status cleared");
-      res.json({
-        success: true,
-        message: "Bot status cleared",
-        status: botStatusConfig,
-      });
-    } catch (err) {
-      logger.error("Error clearing bot status:", err);
-      res.status(500).json({ error: "Failed to clear bot status" });
-    }
-  });
-
-  /**
-   * Get current bot status
-   */
-  app.get("/api/bot-status", authenticateToken, (req, res) => {
-    res.json({ status: botStatusConfig });
-  });
-
-  /**
-   * Helper function to map activity type to Discord ActivityType
-   */
-  function discordActivityMap(type) {
-    const { ActivityType } = require("discord.js");
-    const map = {
-      Watching: ActivityType.Watching,
-      Listening: ActivityType.Listening,
-      Playing: ActivityType.Playing,
-      Streaming: ActivityType.Streaming,
-    };
-    return map[type] || ActivityType.Watching;
-  }
 }
 
 // --- INITIALIZE AND START SERVER ---

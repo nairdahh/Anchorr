@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.2] - 2025-11-28
+
+### 🐛 Fixed
+
+- **Message Handling**: Fixed `/request` and `/search` commands creating duplicate messages - now only edits the original message on success instead of creating a followUp message
+- **Message Visibility**: Original command messages now remain visible in public mode, showing which user triggered the bot response
+
+### 🔒 Security
+
+- **Config Path Security**: Fixed critical security issue where application could attempt to write to system root `/config` directory - now ALWAYS writes config.json exclusively to project directory (`./config/config.json`)
+- **Directory Restructure**: Renamed `config/` directory to `lib/` for static code files (config.js, constants.js) and created new `config/` directory exclusively for config.json storage
+- **Docker Volume Updates**: Updated Dockerfile and docker-compose.yml to use `/usr/src/app/config` instead of `/config` for safer volume mapping
+- **Permission Handling**: Improved config file permission management for Debian/manual installations
+
+### 📚 Documentation
+
+- Updated Docker deployment instructions to reflect new `/usr/src/app/config` volume path
+- Added clarification about config.json storage location in project directory
+- Improved Unraid deployment example with correct volume mapping
+
+---
+
 ## [1.3.1] - 2025-11-26
 
 ### 🐛 Fixed
