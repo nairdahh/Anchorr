@@ -15,6 +15,30 @@ const debouncedSenders = new Map();
 const sentNotifications = new Map();
 const episodeMessages = new Map(); // Track Discord messages for editing: SeriesId -> { messageId, channelId }
 
+// Cleanup configuration
+const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const CLEANUP_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const DEFAULT_DEBOUNCE_MS = 60000; // 60 seconds (1 minute)
+
+// Periodic cleanup for old debouncer entries (prevent memory leaks on long-running servers)
+setInterval(() => {
+  const now = Date.now();
+  const sevenDaysAgo = now - CLEANUP_THRESHOLD_MS;
+  
+  let cleanedCount = 0;
+  for (const [seriesId, data] of debouncedSenders.entries()) {
+    // Check if debouncer has a timestamp and is older than 7 days
+    if (data.timestamp && data.timestamp < sevenDaysAgo) {
+      debouncedSenders.delete(seriesId);
+      cleanedCount++;
+    }
+  }
+  
+  if (cleanedCount > 0) {
+    logger.debug(`Periodic cleanup: Removed ${cleanedCount} old debouncer(s)`);
+  }
+}, CLEANUP_INTERVAL_MS);
+
 function getItemLevel(itemType) {
   switch (itemType) {
     case "Series":
@@ -280,33 +304,33 @@ async function processAndSendNotification(
         `!/details?id=${ItemId}&serverId=${ServerId}`
       )
     )
-    .setColor(embedColor)
-    .addFields(
-      { name: headerLine, value: overviewText },
-      { name: "Genre", value: genreList, inline: true },
-      { name: "Runtime", value: runtime, inline: true },
-      { name: "Rating", value: rating, inline: true }
+    .setColor(embedColor);
+
+  // Add fields based on ItemType
+  if (ItemType === "Episode") {
+    // Episodes: Only Summary and Runtime
+    embed.addFields(
+      { name: headerLine, value: overviewText || "No description available." }
     );
-
-  // Add quality info if available
-  if (qualityInfo) {
-    embed.addFields({ name: "Quality", value: qualityInfo, inline: true });
+    if (runtime && runtime !== "Unknown") {
+      embed.addFields({ name: "Runtime", value: runtime, inline: true });
+    }
+  } else if (ItemType === "Season") {
+    // Seasons: Only Summary
+    embed.addFields(
+      { name: headerLine, value: overviewText || "No description available." }
+    );
+  } else {
+    // Movies and Series: Summary, Genre, Runtime, Rating
+    embed.addFields(
+      { name: headerLine, value: overviewText || "No description available." },
+      { name: "Genre", value: genreList || "Unknown", inline: true },
+      { name: "Runtime", value: runtime || "Unknown", inline: true },
+      { name: "Rating", value: rating || "N/A", inline: true }
+    );
   }
 
-  // Add language info for episodes/series if available
-  if ((ItemType === "Episode" || ItemType === "Series") && Audio_0_Language) {
-    const languageMap = {
-      'deu': '🇩🇪 German',
-      'eng': '🇺🇸 English',
-      'fra': '🇫🇷 French',
-      'spa': '🇪🇸 Spanish',
-      'ita': '🇮🇹 Italian',
-      'jpn': '🇯🇵 Japanese',
-      'kor': '🇰🇷 Korean'
-    };
-    const language = languageMap[Audio_0_Language] || Audio_0_Language.toUpperCase();
-    embed.addFields({ name: "Audio Language", value: language, inline: true });
-  }
+
 
   // Add episode list for multiple episodes
   if (episodeCount > 1 && episodeDetails && episodeDetails.episodes.length <= 10) {
@@ -639,7 +663,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
           // The debounced function has fired, we can remove it.
           debouncedSenders.delete(SeriesId);
-        }, parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || 300000); // Configurable debounce window, default 5 minutes (300000ms)
+        }, parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || DEFAULT_DEBOUNCE_MS);
 
         debouncedSenders.set(SeriesId, {
           sender: newDebouncedSender,
@@ -648,6 +672,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
           episodes: data.ItemType === 'Episode' ? [data] : [], // Track individual episodes
           firstEpisode: data.ItemType === 'Episode' ? data : null,
           lastEpisode: data.ItemType === 'Episode' ? data : null,
+          timestamp: Date.now(), // Track creation time for periodic cleanup
         });
       }
 
@@ -661,7 +686,6 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       
       // Track episode count for better notifications
       if (data.ItemType === 'Episode') {
-        debouncer.episodeCount = (debouncer.episodeCount || 0) + 1;
         debouncer.episodes = debouncer.episodes || [];
         
         // Check for duplicates by EpisodeNumber before adding
@@ -671,6 +695,8 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
         );
         
         if (!existingEpisode) {
+          // Only increment count and add episode if it's not a duplicate
+          debouncer.episodeCount = (debouncer.episodeCount || 0) + 1;
           debouncer.episodes.push(data);
           
           // Track first and last episode for range display
@@ -681,8 +707,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
             debouncer.lastEpisode = data;
           }
         } else {
-          // Don't increment count for duplicate
-          debouncer.episodeCount = Math.max(0, (debouncer.episodeCount || 1) - 1);
+          logger.debug(`Duplicate episode detected: S${data.SeasonNumber}E${data.EpisodeNumber} - ${data.Name}`);
         }
       }
 

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.3] - 2025-11-30
+
+### 🐛 Fixed
+
+- **Configurable Debounce**: New `WEBHOOK_DEBOUNCE_MS` setting (default: 60 seconds, range: 1-600 seconds) to control how long to wait before sending batched notifications
+- **Custom UI Controls**: User-friendly seconds input with custom vertical arrow buttons (hold-to-repeat functionality) in the web dashboard
+
+### 🚀 Performance
+
+- **Memory Leak Prevention**: Added periodic cleanup (runs daily) to remove old debouncer entries after 7 days, preventing unbounded memory growth on long-running server
+
+### 🐛 Fixed
+
+- **Webhook Copy Function**: Fixed copy webhook URL button functionality
+
+---
+
 ## [1.3.2] - 2025-11-28
 
 ### 🐛 Fixed
