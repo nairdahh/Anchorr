@@ -1489,7 +1489,8 @@ function configureWebServer() {
 
       // Process webhook asynchronously
       if (discordClient && isBotRunning) {
-        await handleJellyfinWebhook(req, res, discordClient, pendingRequests);
+        // Don't pass res since we already responded
+        await handleJellyfinWebhook(req, null, discordClient, pendingRequests);
       } else {
         logger.warn(
           "⚠️ Jellyfin webhook received but Discord bot is not running"
