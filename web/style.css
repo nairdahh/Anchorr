@@ -1974,6 +1974,7 @@ input:checked + .slider:before {
 }
 
 .log-entry {
+  z-index: 1100;
   display: flex;
   gap: 0.75rem;
   padding: 0.65rem 0.85rem;
@@ -1994,7 +1995,6 @@ input:checked + .slider:before {
 }
 
 .log-timestamp {
-  color: var(--blue);
   flex-shrink: 0;
   font-size: 0.85rem;
   opacity: 0.85;
@@ -2412,4 +2412,115 @@ body.auth-mode .footer {
   .library-channel-select {
     max-width: none;
   }
+}
+
+/* Hide Header Button Styles (circular, hover-only) */
+.hide-header-btn {
+  position: fixed;
+  top: 70px;
+  right: 2rem;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: var(--ctp-surface0);
+  border: 1px solid var(--ctp-surface1);
+  border-radius: 6px;
+  color: var(--ctp-text);
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  font-size: 1.25rem;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Visible when hovering hero or the button (keeps clickable) */
+.hero:not(.collapsed):hover .hide-header-btn,
+.hide-header-btn:hover,
+.hide-header-btn:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hero.collapsed .hide-header-btn {
+  display: none !important;
+}
+
+/* Hide header buttons during authentication */
+body.auth-mode .hide-header-btn,
+body.auth-mode .show-header-btn {
+  display: none !important;
+}
+
+.hide-header-btn:hover {
+  background: var(--ctp-surface1);
+  transform: scale(1.02);
+}
+
+.hide-header-btn:active {
+  transform: scale(0.95);
+}
+
+/* Show Header Button Styles */
+.show-header-btn {
+  position: fixed;
+  top: 70px;
+  right: 2rem;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: var(--ctp-mauve);
+  border: 1px solid var(--ctp-mauve);
+  border-radius: 6px;
+  color: var(--ctp-base);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1.25rem;
+  opacity: 1;
+}
+
+.show-header-btn:hover {
+  opacity: 1;
+  background: var(--ctp-surface1);
+  transform: scale(1.02);
+}
+
+.show-header-btn:active {
+  transform: scale(0.95);
+}
+
+/* Hero collapse animation */
+body:not(.auth-mode) .hero {
+  max-height: 2000px;
+  overflow: hidden;
+  will-change: max-height, opacity, margin;
+}
+
+/* Disable transitions during initialization */
+body:not(.auth-mode) .hero.no-animate {
+  transition: none !important;
+}
+
+body:not(.auth-mode) .hero .container {
+  width: 100%;
+}
+
+body:not(.auth-mode) .hero.collapsed {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  margin: 0 !important;
+  padding-bottom: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+}
+
+.hide-header-btn:active {
+  transform: scale(0.95);
 }

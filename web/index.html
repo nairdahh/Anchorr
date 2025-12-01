@@ -39,9 +39,13 @@
       </nav>
 
       <!-- Shared Hero Section -->
-      <header id="main-hero" class="hero full-screen">
+      <header id="main-hero" class="hero full-screen no-animate">
         <div class="container">
           <div class="hero-aurora"></div>
+          <!-- Hide Header Button -->
+          <button id="hide-header-btn" class="hide-header-btn" title="Hide header">
+            <i class="bi bi-chevron-up"></i>
+          </button>
           <div class="page-content">
             <div class="hero-content">
               <!-- Auth Text -->
@@ -103,6 +107,11 @@
           </div>
         </div>
       </header>
+
+      <!-- Show Header Button (outside hero, hidden by default) -->
+      <button id="show-header-btn" class="show-header-btn" title="Show header" style="display: none;">
+        <i class="bi bi-chevron-down"></i>
+      </button>
 
       <!-- Dashboard Content (Initially Hidden) -->
       <main id="dashboard-content" class="page-content" style="flex-grow: 1; display: none;">
@@ -663,6 +672,66 @@
                           When enabled, all bot responses (search and request results) are sent as ephemeral messages (only visible to the user who used the command). When disabled, successful results are visible to everyone in the channel, but warning messages (e.g., "already on Jellyfin") are always ephemeral.
                         </div>
                       </div>
+
+                      <!-- Discord Embed Colors Section -->
+                      <div class="form-group" style="margin-top: 2rem;">
+                        <label style="font-size: 1.2rem; font-weight: 700; color: var(--mauve);">
+                          <strong>Discord Embed Colors</strong>
+                        </label>
+                        <div class="form-text" style="margin-bottom: 1rem;">
+                          Customize the colors of Discord notification embeds for different content types.
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                          <!-- Movie Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_MOVIE" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">🎬 Movies</label>
+                            <input type="text" id="EMBED_COLOR_MOVIE" name="EMBED_COLOR_MOVIE" data-coloris value="#cba6f7" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Series Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_SERIES" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📺 TV Series</label>
+                            <input type="text" id="EMBED_COLOR_SERIES" name="EMBED_COLOR_SERIES" data-coloris value="#cba6f7" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Season Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_SEASON" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📺 Seasons</label>
+                            <input type="text" id="EMBED_COLOR_SEASON" name="EMBED_COLOR_SEASON" data-coloris value="#89b4fa" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Single Episode Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_EPISODE_SINGLE" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📺 Single Episode</label>
+                            <input type="text" id="EMBED_COLOR_EPISODE_SINGLE" name="EMBED_COLOR_EPISODE_SINGLE" data-coloris value="#89b4fa" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Few Episodes Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_EPISODE_FEW" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📺 Few Episodes (2-5)</label>
+                            <input type="text" id="EMBED_COLOR_EPISODE_FEW" name="EMBED_COLOR_EPISODE_FEW" data-coloris value="#89b4fa" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Many Episodes Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_EPISODE_MANY" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📺 Many Episodes (6+)</label>
+                            <input type="text" id="EMBED_COLOR_EPISODE_MANY" name="EMBED_COLOR_EPISODE_MANY" data-coloris value="#89b4fa" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Search Result Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_SEARCH" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">🔍 Search Results</label>
+                            <input type="text" id="EMBED_COLOR_SEARCH" name="EMBED_COLOR_SEARCH" data-coloris value="#fab387" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Request Success Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_SUCCESS" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">✅ Request Success</label>
+                            <input type="text" id="EMBED_COLOR_SUCCESS" name="EMBED_COLOR_SUCCESS" data-coloris value="#a6e3a1" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+                        </div>
+                      </div>
                     </fieldset>
                   </div>
 
@@ -937,3 +1006,4 @@
     </script>
   </body>
 </html>
+

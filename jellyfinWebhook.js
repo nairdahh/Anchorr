@@ -204,7 +204,7 @@ async function processAndSendNotification(
   const genreList = Array.isArray(Genres)
     ? Genres.join(", ")
     : Genres || omdb?.Genre || "Unknown";
-  const overviewText =
+  let overviewText =
     Overview?.trim() || omdb?.Plot || "No description available.";
 
   let headerLine = "Summary";
@@ -259,11 +259,8 @@ async function processAndSendNotification(
       break;
     case "Episode":
       if (episodeCount > 1 && episodeDetails) {
-        authorName = `📺 New Episodes Added!`;
+        authorName = `📺 New episodes added!`;
         embedTitle = `${SeriesName || "Unknown Series"}`;
-        
-        // Use simple format for batched episodes
-        Overview = `${episodeCount} new episodes were added to your library.`;
       } else {
         authorName = "📺 New episode added!";
         const season = String(SeasonNumber || 1).padStart(2, "0");
@@ -277,20 +274,21 @@ async function processAndSendNotification(
   }
 
   // Smart color coding based on content type and count
-  let embedColor = "#cba6f7"; // Default purple
+  // Use custom colors from config or fallback to defaults
+  let embedColor = process.env.EMBED_COLOR_EPISODE_SINGLE || "#89b4fa"; // Default blue for episodes
   if (ItemType === "Movie") {
-    embedColor = "#f38ba8"; // Pink for movies
+    embedColor = process.env.EMBED_COLOR_MOVIE || "#cba6f7"; // Purple/Mauve for movies
   } else if (ItemType === "Series") {
-    embedColor = "#a6e3a1"; // Green for new series
+    embedColor = process.env.EMBED_COLOR_SERIES || "#cba6f7"; // Purple/Mauve for new series
   } else if (ItemType === "Season") {
-    embedColor = "#fab387"; // Orange for seasons
+    embedColor = process.env.EMBED_COLOR_SEASON || "#89b4fa"; // Blue for seasons
   } else if (ItemType === "Episode") {
     if (episodeCount > 5) {
-      embedColor = "#f9e2af"; // Yellow for many episodes
+      embedColor = process.env.EMBED_COLOR_EPISODE_MANY || "#89b4fa"; // Blue for many episodes
     } else if (episodeCount > 1) {
-      embedColor = "#89dceb"; // Light blue for few episodes
+      embedColor = process.env.EMBED_COLOR_EPISODE_FEW || "#89b4fa"; // Blue for few episodes
     } else {
-      embedColor = "#cba6f7"; // Purple for single episode
+      embedColor = process.env.EMBED_COLOR_EPISODE_SINGLE || "#89b4fa"; // Blue for single episode
     }
   }
 
@@ -308,18 +306,14 @@ async function processAndSendNotification(
 
   // Add fields based on ItemType
   if (ItemType === "Episode") {
-    // Episodes: Only Summary and Runtime
-    embed.addFields(
-      { name: headerLine, value: overviewText || "No description available." }
-    );
-    if (runtime && runtime !== "Unknown") {
+    // Single episode: Only runtime
+    if (episodeCount <= 1 && runtime && runtime !== "Unknown") {
       embed.addFields({ name: "Runtime", value: runtime, inline: true });
     }
+    // Batched episodes: Episode list will be added below with custom field name
   } else if (ItemType === "Season") {
-    // Seasons: Only Summary
-    embed.addFields(
-      { name: headerLine, value: overviewText || "No description available." }
-    );
+    // Seasons: No fields, only episode list below
+    // Fields will be added by episode list logic
   } else {
     // Movies and Series: Summary, Genre, Runtime, Rating
     embed.addFields(
@@ -337,15 +331,21 @@ async function processAndSendNotification(
     const episodeList = episodeDetails.episodes
       .sort((a, b) => (a.EpisodeNumber || 0) - (b.EpisodeNumber || 0))
       .map(ep => {
+        const seasonNum = String(ep.SeasonNumber || 1).padStart(2, "0");
         const epNum = String(ep.EpisodeNumber || 0).padStart(2, "0");
-        return `E${epNum}: ${ep.Name || "Unknown Episode"}`;
+        return `S${seasonNum}E${epNum}: ${ep.Name || "Unknown Episode"}`;
       })
       .join("\n");
     
-    embed.addFields({ name: `Episodes (${episodeCount})`, value: episodeList, inline: false });
+    // Use episode count message as field name
+    embed.addFields({ 
+      name: `${episodeCount} new episodes were added to your library.`, 
+      value: episodeList, 
+      inline: false 
+    });
   } else if (episodeCount > 10) {
     embed.addFields({ 
-      name: `Episodes (${episodeCount})`, 
+      name: `${episodeCount} new episodes were added to your library.`, 
       value: `Too many episodes to list individually. Added episodes 1-${episodeCount}.`, 
       inline: false 
     });
@@ -453,7 +453,7 @@ async function processAndSendNotification(
               `!/details?id=${ItemId}&serverId=${ServerId}`
             )
           )
-          .setColor("#a6d189")
+          .setColor(process.env.EMBED_COLOR_SUCCESS || "#a6e3a1")
           .setDescription(
             `${
               Name || SeriesName || "Your requested content"

@@ -11,17 +11,18 @@ import {
 
 // Generate or retrieve JWT_SECRET
 function getOrGenerateJwtSecret() {
-  if (process.env.JWT_SECRET) {
-    return process.env.JWT_SECRET;
-  }
-
-  // Try to load from config file
+  // ALWAYS try to load from config file first (most important)
   const config = readConfig();
   if (config?.JWT_SECRET && config.JWT_SECRET.trim() !== "") {
     return config.JWT_SECRET;
   }
 
-  // Generate a new secure JWT secret
+  // Then check process.env
+  if (process.env.JWT_SECRET) {
+    return process.env.JWT_SECRET;
+  }
+
+  // Generate a new secure JWT secret only as last resort
   logger.warn(
     "JWT_SECRET not found in config. Generating a new secure secret..."
   );
@@ -32,6 +33,7 @@ function getOrGenerateJwtSecret() {
     logger.info(
       "✅ JWT_SECRET generated and saved to config.json successfully"
     );
+    process.env.JWT_SECRET = newSecret;
   } else {
     logger.error("❌ Failed to save JWT_SECRET to config");
     logger.warn(
@@ -42,6 +44,7 @@ function getOrGenerateJwtSecret() {
   return newSecret;
 }
 
+// Initialize JWT_SECRET once at module load (CRITICAL: must be constant for token verification)
 const JWT_SECRET = getOrGenerateJwtSecret();
 
 export const authenticateToken = (req, res, next) => {
