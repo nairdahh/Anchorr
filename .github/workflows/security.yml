@@ -1,0 +1,116 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    # Run weekly security scans
+    - cron: '0 2 * * 1'
+
+jobs:
+  secrets-scan:
+    runs-on: ubuntu-latest
+    name: Scan for Secrets
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Trufflehog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  dependency-scan:
+    runs-on: ubuntu-latest
+    name: Dependency Security Scan
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level high --production
+          
+      - name: Run Snyk security test
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  config-security:
+    runs-on: ubuntu-latest
+    name: Configuration Security
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for sensitive files
+        run: |
+          echo "🔍 Checking for sensitive configuration files..."
+          
+          # Check for config files that shouldn't be committed
+          if [ -f "config/config.json" ]; then
+            echo "❌ config/config.json found in repository!"
+            echo "This file contains sensitive data and should be in .gitignore"
+            exit 1
+          fi
+          
+          # Check for backup files
+          if find . -name "*.backup" -o -name "config.backup*" -o -name "*.bak" | grep -q .; then
+            echo "❌ Backup files found in repository:"
+            find . -name "*.backup" -o -name "config.backup*" -o -name "*.bak"
+            exit 1
+          fi
+          
+          # Check for common sensitive patterns
+          if grep -r "password.*=" --include="*.js" --include="*.json" . | grep -v node_modules; then
+            echo "❌ Potential hardcoded passwords found"
+            exit 1
+          fi
+          
+          if grep -r "token.*=" --include="*.js" --include="*.json" . | grep -v node_modules; then
+            echo "⚠️  Potential hardcoded tokens found - please verify these are not sensitive"
+          fi
+          
+          if grep -r "api_key.*=" --include="*.js" --include="*.json" . | grep -v node_modules; then
+            echo "⚠️  Potential hardcoded API keys found - please verify these are not sensitive"
+          fi
+          
+          echo "✅ Configuration security check completed"
+
+      - name: Validate .gitignore coverage
+        run: |
+          echo "🔍 Validating .gitignore patterns..."
+          
+          # Required patterns for this project
+          required_patterns=(
+            "config/config.json"
+            "config/*.backup"
+            "config/backup/"
+            ".env"
+            "*.log"
+            "logs/"
+          )
+          
+          for pattern in "${required_patterns[@]}"; do
+            if ! grep -q "^${pattern}" .gitignore; then
+              echo "⚠️  Missing .gitignore pattern: $pattern"
+            fi
+          done
+          
+          echo "✅ .gitignore validation completed"

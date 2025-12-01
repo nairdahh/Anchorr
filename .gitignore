@@ -4,6 +4,9 @@
 # Environment variables
 .env
 config.json
+config/config.json
+config/*.backup
+config/backup/
 
 # Logs
 logs/

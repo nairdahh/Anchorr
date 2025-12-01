@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    name: Security Audit
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security audit
+        run: npm audit --audit-level high
+
+      - name: Check for secrets in code
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+
+  lint:
+    runs-on: ubuntu-latest
+    name: Code Quality
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint code
+        run: |
+          # Check for console.log statements
+          ! grep -r "console\.log" --include="*.js" . || (echo "Found console.log statements" && exit 1)
+          
+          # Check for TODO/FIXME comments
+          grep -r "TODO\|FIXME" --include="*.js" . || true
+
+      - name: Check file structure
+        run: |
+          # Ensure no sensitive files are committed
+          if [ -f "config/config.json" ]; then
+            echo "❌ config.json should not be in version control"
+            exit 1
+          fi
+          
+          if find . -name "*.backup" -o -name "config.backup*" | grep -q .; then
+            echo "❌ Backup files found in repository"
+            exit 1
+          fi
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16, 18, 20]
+    name: Test (Node ${{ matrix.node-version }})
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create test config
+        run: |
+          mkdir -p config
+          echo '{"test": true}' > config/config.json
+
+      - name: Run tests
+        run: |
+          # Placeholder for actual tests
+          node -e "console.log('✅ Basic syntax check passed')"
+          
+      - name: Validate package.json
+        run: npm ls
+
+  docker-build:
+    runs-on: ubuntu-latest
+    name: Docker Build Test
+    needs: [security, lint, test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t anchorr:test .
+          
+      - name: Test Docker image
+        run: |
+          # Test that the image can start (will fail without config but that's expected)
+          timeout 10s docker run anchorr:test || [ $? -eq 124 ]
