@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.3] - 2025-12-01
+
+### 🔄 Changed
+
+- **Seasons and Episodes Notifications**: Re-enabled notifications for TV series seasons and episodes using the debouncing functionality to batch multiple episode updates into a single notification, reducing notification spam
+
+### ✨ Added
+
+- **Configurable Debounce**: New `WEBHOOK_DEBOUNCE_MS` setting (default: 60 seconds, range: 1-600 seconds) to control how long to wait before sending batched notifications
+- **Custom UI Controls**: User-friendly seconds input with custom vertical arrow buttons (hold-to-repeat functionality) in the web dashboard
+- **Configurable Embed Colors**: New color options for embeds, allowing full customization of embed colors for different media types and notifications
+- **Header Visibility Toggle**: New feature to hide/show header in web dashboard
+
+### 🚀 Performance
+
+- **Memory Leak Prevention**: Added periodic cleanup (runs daily) to remove old debouncer entries after 7 days, preventing unbounded memory growth on long-running server
+
+### 🐛 Fixed
+
+- **Webhook Copy Function**: Fixed copy webhook URL button functionality
+
+---
+
 ## [1.3.2] - 2025-11-28
 
 ### 🐛 Fixed

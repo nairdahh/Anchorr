@@ -39,9 +39,13 @@
       </nav>
 
       <!-- Shared Hero Section -->
-      <header id="main-hero" class="hero full-screen">
+      <header id="main-hero" class="hero full-screen no-animate">
         <div class="container">
           <div class="hero-aurora"></div>
+          <!-- Hide Header Button -->
+          <button id="hide-header-btn" class="hide-header-btn" title="Hide header">
+            <i class="bi bi-chevron-up"></i>
+          </button>
           <div class="page-content">
             <div class="hero-content">
               <!-- Auth Text -->
@@ -103,6 +107,11 @@
           </div>
         </div>
       </header>
+
+      <!-- Show Header Button (outside hero, hidden by default) -->
+      <button id="show-header-btn" class="show-header-btn" title="Show header" style="display: none;">
+        <i class="bi bi-chevron-down"></i>
+      </button>
 
       <!-- Dashboard Content (Initially Hidden) -->
       <main id="dashboard-content" class="page-content" style="flex-grow: 1; display: none;">
@@ -401,6 +410,86 @@
                         </div>
                       </div>
 
+                      <!-- Episode Debouncing Section -->
+                      <div class="form-group" style="margin-top: 1.5rem;">
+                        <label for="WEBHOOK_DEBOUNCE_SECONDS" style="font-size: 1.2rem; font-weight: 700; color: var(--mauve);">
+                          Episode Notification Debounce
+                        </label>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                          <div style="position: relative; display: inline-block;">
+                            <input
+                              type="number"
+                              id="WEBHOOK_DEBOUNCE_SECONDS"
+                              value="60"
+                              min="1"
+                              max="600"
+                              step="1"
+                              style="width: 60px; background-color: var(--surface0); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem 3rem 0.75rem 1rem; border-radius: 8px; font-size: 1rem; font-weight: 500; appearance: textfield; -moz-appearance: textfield;"
+                            />
+                            <style>
+                              #WEBHOOK_DEBOUNCE_SECONDS::-webkit-outer-spin-button,
+                              #WEBHOOK_DEBOUNCE_SECONDS::-webkit-inner-spin-button {
+                                -webkit-appearance: none;
+                                margin: 0;
+                              }
+                              .debounce-arrows {
+                                position: absolute;
+                                right: 8px;
+                                top: 50%;
+                                transform: translateY(-50%);
+                                display: flex;
+                                gap: 4px;
+                              }
+                              .debounce-arrow {
+                                width: 24px;
+                                height: 24px;
+                                background-color: var(--surface1);
+                                border: 1px solid var(--surface2);
+                                border-radius: 4px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                cursor: pointer;
+                                transition: all 0.2s ease;
+                                user-select: none;
+                              }
+                              .debounce-arrow:hover {
+                                background-color: var(--surface2);
+                                border-color: var(--mauve);
+                              }
+                              .debounce-arrow:active {
+                                background-color: var(--mauve);
+                                transform: scale(0.95);
+                              }
+                              .debounce-arrow svg {
+                                width: 12px;
+                                height: 12px;
+                                fill: var(--text);
+                              }
+                              .debounce-arrow:hover svg {
+                                fill: var(--mauve);
+                              }
+                              .debounce-arrow:active svg {
+                                fill: var(--crust);
+                              }
+                            </style>
+                            <div class="debounce-arrows">
+                              <div class="debounce-arrow" id="debounce-down" title="Decrease">
+                                <svg viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg>
+                              </div>
+                              <div class="debounce-arrow" id="debounce-up" title="Increase">
+                                <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+                              </div>
+                            </div>
+                          </div>
+                          <span style="color: var(--subtext0); font-weight: 500; font-size: 1rem;">seconds <span style="opacity: 0.7; font-size: 0.9rem;">(range: 1 second - 10 minutes)</span></span>
+                        </div>
+                        <input type="hidden" id="WEBHOOK_DEBOUNCE_MS" name="WEBHOOK_DEBOUNCE_MS" value="60000" />
+                        <div class="form-text" style="margin-top: 0.5rem;">
+                          Debounce function to determine how long to wait before sending notifications for multiple episodes/seasons, bundling them into a single notification message.
+                        </div>
+                      </div>
+
                       <!-- Library Notifications Section -->
                       <div class="form-group" style="margin-top: 2rem;">
                         <label style="font-size: 1.2rem; font-weight: 700; color: var(--mauve);">
@@ -583,6 +672,66 @@
                           When enabled, all bot responses (search and request results) are sent as ephemeral messages (only visible to the user who used the command). When disabled, successful results are visible to everyone in the channel, but warning messages (e.g., "already on Jellyfin") are always ephemeral.
                         </div>
                       </div>
+
+                      <!-- Discord Embed Colors Section -->
+                      <div class="form-group" style="margin-top: 2rem;">
+                        <label style="font-size: 1.2rem; font-weight: 700; color: var(--mauve);">
+                          <strong>Discord Embed Colors</strong>
+                        </label>
+                        <div class="form-text" style="margin-bottom: 1rem;">
+                          Customize the colors of Discord notification embeds for different content types.
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                          <!-- Movie Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_MOVIE" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">🎬 Movies</label>
+                            <input type="text" id="EMBED_COLOR_MOVIE" name="EMBED_COLOR_MOVIE" data-coloris value="#cba6f7" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Series Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_SERIES" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📺 TV Series</label>
+                            <input type="text" id="EMBED_COLOR_SERIES" name="EMBED_COLOR_SERIES" data-coloris value="#cba6f7" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Season Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_SEASON" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📺 Seasons</label>
+                            <input type="text" id="EMBED_COLOR_SEASON" name="EMBED_COLOR_SEASON" data-coloris value="#89b4fa" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Single Episode Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_EPISODE_SINGLE" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📺 Single Episode</label>
+                            <input type="text" id="EMBED_COLOR_EPISODE_SINGLE" name="EMBED_COLOR_EPISODE_SINGLE" data-coloris value="#89b4fa" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Few Episodes Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_EPISODE_FEW" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📺 Few Episodes (2-5)</label>
+                            <input type="text" id="EMBED_COLOR_EPISODE_FEW" name="EMBED_COLOR_EPISODE_FEW" data-coloris value="#89b4fa" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Many Episodes Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_EPISODE_MANY" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📺 Many Episodes (6+)</label>
+                            <input type="text" id="EMBED_COLOR_EPISODE_MANY" name="EMBED_COLOR_EPISODE_MANY" data-coloris value="#89b4fa" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Search Result Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_SEARCH" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">🔍 Search Results</label>
+                            <input type="text" id="EMBED_COLOR_SEARCH" name="EMBED_COLOR_SEARCH" data-coloris value="#fab387" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+
+                          <!-- Request Success Color -->
+                          <div class="color-picker-group">
+                            <label for="EMBED_COLOR_SUCCESS" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">✅ Request Success</label>
+                            <input type="text" id="EMBED_COLOR_SUCCESS" name="EMBED_COLOR_SUCCESS" data-coloris value="#a6e3a1" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+                        </div>
+                      </div>
                     </fieldset>
                   </div>
 
@@ -758,7 +907,103 @@
             "#f9e2af", // Yellow
           ],
         });
+
+        // Sync debounce seconds input with milliseconds hidden field
+        const secondsInput = document.getElementById('WEBHOOK_DEBOUNCE_SECONDS');
+        const msInput = document.getElementById('WEBHOOK_DEBOUNCE_MS');
+        const upArrow = document.getElementById('debounce-up');
+        const downArrow = document.getElementById('debounce-down');
+        
+        if (secondsInput && msInput) {
+          // Convert seconds to milliseconds on input
+          secondsInput.addEventListener('input', function() {
+            let seconds = parseInt(this.value) || 60;
+            // Clamp to valid range
+            if (seconds < 1) seconds = 1;
+            if (seconds > 600) seconds = 600;
+            this.value = seconds;
+            msInput.value = seconds * 1000;
+          });
+          
+          // Hold-to-repeat functionality
+          let repeatInterval = null;
+          let repeatTimeout = null;
+          
+          const startRepeat = function(direction) {
+            const increment = function() {
+              let current = parseInt(secondsInput.value) || 60;
+              if (direction === 'up' && current < 600) {
+                secondsInput.value = current + 1;
+                msInput.value = (current + 1) * 1000;
+              } else if (direction === 'down' && current > 1) {
+                secondsInput.value = current - 1;
+                msInput.value = (current - 1) * 1000;
+              }
+            };
+            
+            // Immediate increment on first click
+            increment();
+            
+            // Start repeating after 300ms delay at max speed (50ms interval)
+            repeatTimeout = setTimeout(function() {
+              repeatInterval = setInterval(increment, 50);
+            }, 300);
+          };
+          
+          const stopRepeat = function() {
+            if (repeatTimeout) {
+              clearTimeout(repeatTimeout);
+              repeatTimeout = null;
+            }
+            if (repeatInterval) {
+              clearInterval(repeatInterval);
+              repeatInterval = null;
+            }
+          };
+          
+          // Up arrow events
+          if (upArrow) {
+            upArrow.addEventListener('mousedown', () => startRepeat('up'));
+            upArrow.addEventListener('mouseup', stopRepeat);
+            upArrow.addEventListener('mouseleave', stopRepeat);
+            upArrow.addEventListener('touchstart', (e) => {
+              e.preventDefault();
+              startRepeat('up');
+            });
+            upArrow.addEventListener('touchend', stopRepeat);
+          }
+          
+          // Down arrow events
+          if (downArrow) {
+            downArrow.addEventListener('mousedown', () => startRepeat('down'));
+            downArrow.addEventListener('mouseup', stopRepeat);
+            downArrow.addEventListener('mouseleave', stopRepeat);
+            downArrow.addEventListener('touchstart', (e) => {
+              e.preventDefault();
+              startRepeat('down');
+            });
+            downArrow.addEventListener('touchend', stopRepeat);
+          }
+          
+          // Convert milliseconds to seconds when loading config
+          // This runs when the config is loaded from the server
+          const updateSecondsFromMs = function() {
+            const ms = parseInt(msInput.value);
+            if (!isNaN(ms) && ms > 0) {
+              const seconds = Math.round(ms / 1000);
+              secondsInput.value = seconds;
+            }
+          };
+          
+          // Watch for changes to the hidden field (when config loads)
+          const observer = new MutationObserver(updateSecondsFromMs);
+          observer.observe(msInput, { attributes: true, attributeFilter: ['value'] });
+          
+          // Also update immediately if there's already a value
+          updateSecondsFromMs();
+        }
       });
     </script>
   </body>
 </html>
+

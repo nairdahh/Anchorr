@@ -149,44 +149,43 @@ function loadConfig() {
 
 /**
  * Verify volume persistence configuration for Docker deployments
- * Detects if /config is mounted as a proper volume and warns if misconfigured
+ * Detects if config directory is mounted as a proper volume and warns if misconfigured
  */
 function verifyVolumeConfiguration() {
-  // Check if running in Docker (Docker always has /config directory created)
-  const isDocker = fs.existsSync("/config");
+  const configDir = path.dirname(CONFIG_PATH);
 
-  if (!isDocker) {
-    logger.debug(
-      "Running in local mode (not Docker) - config will be stored in ./config/"
-    );
-    return;
+  // Ensure config directory exists
+  if (!fs.existsSync(configDir)) {
+    try {
+      fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
+      logger.info(`✅ Created config directory at ${configDir}`);
+    } catch (error) {
+      logger.error(
+        `❌ Failed to create config directory at ${configDir}:`,
+        error
+      );
+      return;
+    }
   }
 
-  // In Docker - verify /config is writable
+  // Verify config directory is writable
   try {
-    const testFile = path.join("/config", ".volume-test");
+    const testFile = path.join(configDir, ".volume-test");
     fs.writeFileSync(testFile, "test", { mode: 0o666 });
     fs.unlinkSync(testFile);
-    logger.info("✅ Volume /config is properly configured and writable");
+    logger.info(
+      `✅ Config directory ${configDir} is properly configured and writable`
+    );
   } catch (error) {
     if (error.code === "EACCES") {
       logger.error(
-        "❌ CRITICAL: /config directory exists but is NOT writable!"
+        `❌ CRITICAL: Cannot write to ${configDir} - check Docker volume permissions`
       );
-      logger.error(
-        "   Ensure container volume mapping is correctly configured:"
-      );
-      logger.error("   - Container Path: /config");
-      logger.error("   - Host Path: [your-host-directory]");
-      logger.error("   - Access Mode: Read-Write (RW)");
-      logger.error("   Restart the container after fixing the volume mapping");
-    } else if (error.code === "EROFS") {
-      logger.error("❌ CRITICAL: /config is on a read-only file system!");
-      logger.error(
-        "   Check your Docker volume configuration - /config should be writable"
-      );
+      logger.error(`   On Unraid: Ensure host path is mapped to /config`);
+      logger.error(`   On Docker: Verify volume mount in docker-compose.yml`);
+      logger.error(`   Current config path: ${CONFIG_PATH}`);
     } else {
-      logger.warn("⚠️  Could not verify /config writability:", error.message);
+      logger.error(`❌ Error verifying volume configuration:`, error);
     }
   }
 }
@@ -438,7 +437,9 @@ async function startBot() {
     if (requested) {
       // Show success state with full info
       let successLabel = "Requested";
-      if (requestedSeasons.length > 0) {
+      
+      // Only show seasons info for TV shows, not for movies
+      if (mediaType === "tv" && requestedSeasons.length > 0) {
         if (requestedSeasons.includes("all")) {
           successLabel = "Requested all seasons";
         } else if (requestedSeasons.length === 1) {
@@ -461,6 +462,8 @@ async function startBot() {
           requestedTags.length > 1 ? "s" : ""
         }`;
       }
+
+      // Always add "stay tuned!" for all requests
       successLabel += ", stay tuned!";
 
       buttons.push(
@@ -565,9 +568,15 @@ async function startBot() {
 
   // ----------------- COMMON SEARCH LOGIC -----------------
   async function handleSearchOrRequest(interaction, rawInput, mode, tags = []) {
-    // Start with public reply - will be edited on success or deleted on error
+    // IMPORTANT: Defer reply FIRST to prevent timeout
     const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
-    await interaction.deferReply({ ephemeral: isPrivateMode });
+
+    try {
+      await interaction.deferReply({ ephemeral: isPrivateMode });
+    } catch (err) {
+      logger.error(`Failed to defer reply: ${err.message}`);
+      return;
+    }
 
     let tmdbId, mediaType;
 
@@ -619,6 +628,11 @@ async function startBot() {
 
         if (status.exists && status.available) {
           // Media already available - always ephemeral for info messages
+          await interaction.editReply({
+            content: "✅ This content is already available in your library!",
+            components: [],
+            embeds: [],
+          });
           if (isPrivateMode) {
             await interaction.editReply({
               content: "✅ This content is already available in your library!",
@@ -916,80 +930,93 @@ async function startBot() {
             .filter((r) => r.media_type === "movie" || r.media_type === "tv")
             .slice(0, 25);
 
-          const choicePromises = filtered.map(async (item) => {
-            try {
-              const emoji = item.media_type === "movie" ? "🎬" : "📺";
-              const date = item.release_date || item.first_air_date || "";
-              const year = date ? ` (${date.slice(0, 4)})` : "";
+          // Fetch details for each result to get director/creator and runtime/seasons
+          const detailedChoices = await Promise.all(
+            filtered.map(async (item) => {
+              try {
+                const details = await tmdbApi.tmdbGetDetails(
+                  item.id,
+                  item.media_type,
+                  TMDB_API_KEY
+                );
 
-              // Fetch detailed info from TMDB
-              const details = await tmdbApi.tmdbGetDetails(
-                item.id,
-                item.media_type,
-                TMDB_API_KEY
-              );
+                const emoji = item.media_type === "movie" ? "🎬" : "📺";
+                const date = item.release_date || item.first_air_date || "";
+                const year = date ? ` (${date.slice(0, 4)})` : "";
 
-              let extraInfo = "";
+                let extraInfo = "";
+                if (item.media_type === "movie") {
+                  // Get director from credits
+                  const director = details.credits?.crew?.find(
+                    (c) => c.job === "Director"
+                  );
+                  const directorName = director ? director.name : null;
 
-              if (item.media_type === "movie") {
-                // Get director
-                const director = details.credits?.crew?.find(
-                  (c) => c.job === "Director"
-                )?.name;
-                if (director) {
-                  extraInfo += ` — directed by ${director}`;
+                  // Get runtime
+                  const runtime = details.runtime;
+                  const hours = runtime ? Math.floor(runtime / 60) : 0;
+                  const minutes = runtime ? runtime % 60 : 0;
+                  const runtimeStr = runtime ? `${hours}h ${minutes}m` : null;
+
+                  if (directorName && runtimeStr) {
+                    extraInfo = ` — directed by ${directorName} — runtime: ${runtimeStr}`;
+                  } else if (directorName) {
+                    extraInfo = ` — directed by ${directorName}`;
+                  } else if (runtimeStr) {
+                    extraInfo = ` — runtime: ${runtimeStr}`;
+                  }
+                } else {
+                  // TV show - get creator and season count
+                  const creator = details.created_by?.[0]?.name;
+                  const seasonCount = details.number_of_seasons;
+                  const seasonStr = seasonCount
+                    ? `${seasonCount} season${seasonCount > 1 ? "s" : ""}`
+                    : null;
+
+                  if (creator && seasonStr) {
+                    extraInfo = ` — created by ${creator} — ${seasonStr}`;
+                  } else if (creator) {
+                    extraInfo = ` — created by ${creator}`;
+                  } else if (seasonStr) {
+                    extraInfo = ` — ${seasonStr}`;
+                  }
                 }
-                // Get runtime
-                if (details.runtime) {
-                  const hours = Math.floor(details.runtime / 60);
-                  const mins = details.runtime % 60;
-                  const runtime = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-                  extraInfo += ` — runtime: ${runtime}`;
+
+                let fullName = `${emoji} ${
+                  item.title || item.name
+                }${year}${extraInfo}`;
+
+                // Truncate if too long (Discord limit is 100 chars)
+                if (fullName.length > 98) {
+                  fullName = fullName.substring(0, 95) + "...";
                 }
-              } else if (item.media_type === "tv") {
-                // Get creator
-                const creator = details.created_by?.[0]?.name;
-                if (creator) {
-                  extraInfo += ` — created by ${creator}`;
+
+                return {
+                  name: fullName,
+                  value: `${item.id}|${item.media_type}`,
+                };
+              } catch (err) {
+                // Fallback to basic info if details fetch fails
+                logger.debug(
+                  `Failed to fetch details for ${item.id}:`,
+                  err?.message
+                );
+                const emoji = item.media_type === "movie" ? "🎬" : "📺";
+                const date = item.release_date || item.first_air_date || "";
+                const year = date ? ` (${date.slice(0, 4)})` : "";
+                let basicName = `${emoji} ${item.title || item.name}${year}`;
+                if (basicName.length > 98) {
+                  basicName = basicName.substring(0, 95) + "...";
                 }
-                // Get seasons count
-                if (details.number_of_seasons) {
-                  const seasons = details.number_of_seasons;
-                  extraInfo += ` — ${seasons} season${seasons > 1 ? "s" : ""}`;
-                }
+                return {
+                  name: basicName,
+                  value: `${item.id}|${item.media_type}`,
+                };
               }
+            })
+          );
 
-              let fullName = `${emoji} ${
-                item.title || item.name
-              }${year}${extraInfo}`;
-
-              // Discord requires choice names to be 1-100 characters
-              // Keep it safe at 98 and add ... within that limit if needed
-              if (fullName.length > 98) {
-                fullName = fullName.substring(0, 95) + "...";
-              }
-
-              return {
-                name: fullName,
-                value: `${item.id}|${item.media_type}`,
-              };
-            } catch (e) {
-              // Fallback to basic info if details fetch fails
-              const emoji = item.media_type === "movie" ? "🎬" : "📺";
-              const date = item.release_date || item.first_air_date || "";
-              const year = date ? ` (${date.slice(0, 4)})` : "";
-              let fallback = `${emoji} ${item.title || item.name}${year}`;
-              if (fallback.length > 98)
-                fallback = fallback.substring(0, 95) + "...";
-              return {
-                name: fallback,
-                value: `${item.id}|${item.media_type}`,
-              };
-            }
-          });
-
-          const choices = await Promise.all(choicePromises);
-          return await interaction.respond(choices);
+          await interaction.respond(detailedChoices);
         } catch (e) {
           logger.error("Autocomplete error:", e);
           return await interaction.respond([]);
@@ -1046,15 +1073,11 @@ async function startBot() {
             TMDB_API_KEY
           );
 
-          // Parse seasons and tags from customId
-          const selectedSeasons = seasonsParam
-            ? seasonsParam.split(",")
-            : mediaType === "tv"
-            ? []
-            : ["all"];
-          const selectedTagNames = tagsParam ? tagsParam.split(",") : [];
-
-          // Convert tag names to IDs for API call
+        // Parse seasons and tags from customId
+        const selectedSeasons = seasonsParam
+          ? seasonsParam.split(",")
+          : [];
+        const selectedTagNames = tagsParam ? tagsParam.split(",") : [];          // Convert tag names to IDs for API call
           let selectedTagIds = [];
           if (selectedTagNames.length > 0) {
             try {
@@ -1084,8 +1107,13 @@ async function startBot() {
           }
 
           // Check if media already exists in Jellyseerr
+          // For movies: use ["all"], for TV: use selected seasons or ["all"]
           const checkSeasons =
-            selectedSeasons.length > 0 ? selectedSeasons : ["all"];
+            mediaType === "movie"
+              ? ["all"]
+              : selectedSeasons.length > 0
+              ? selectedSeasons
+              : ["all"];
           const status = await jellyseerrApi.checkMediaStatus(
             tmdbId,
             mediaType,
@@ -1104,10 +1132,18 @@ async function startBot() {
           }
 
           // Send the request with selected seasons and tags
+          // For movies: don't send seasons, for TV: send selected or default to "all"
+          const seasonsToRequest =
+            mediaType === "movie"
+              ? undefined
+              : selectedSeasons.length > 0
+              ? selectedSeasons
+              : ["all"];
+
           await jellyseerrApi.sendRequest({
             tmdbId,
             mediaType,
-            seasons: selectedSeasons.length > 0 ? selectedSeasons : ["all"],
+            seasons: seasonsToRequest,
             tags: selectedTagIds.length > 0 ? selectedTagIds : undefined,
             jellyseerrUrl: JELLYSEERR_URL,
             apiKey: JELLYSEERR_API_KEY,
@@ -1454,29 +1490,6 @@ function configureWebServer() {
   app.post("/api/auth/logout", logout);
   app.get("/api/auth/check", checkAuth);
 
-  // --- JELLYFIN WEBHOOK ENDPOINT (no rate limiting for webhooks) ---
-  app.post("/jellyfin/webhook", express.json(), async (req, res) => {
-    try {
-      logger.info("📥 Received Jellyfin webhook");
-      logger.debug("Webhook payload:", JSON.stringify(req.body, null, 2));
-
-      // Acknowledge receipt immediately
-      res.status(200).json({ success: true, message: "Webhook received" });
-
-      // Process webhook asynchronously
-      if (discordClient && isBotRunning) {
-        await handleJellyfinWebhook(req, res, discordClient, pendingRequests);
-      } else {
-        logger.warn(
-          "⚠️ Jellyfin webhook received but Discord bot is not running"
-        );
-      }
-    } catch (error) {
-      logger.error("❌ Error processing Jellyfin webhook:", error);
-      // Don't send error response since we already sent 200
-    }
-  });
-
   // Apply rate limiting to all API endpoints (except auth and webhooks)
   app.use("/api/", apiLimiter);
 
@@ -1780,12 +1793,10 @@ function configureWebServer() {
       } = req.body;
 
       if (!discordUserId || !jellyseerrUserId) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Discord user ID and Jellyseerr user ID are required.",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Discord user ID and Jellyseerr user ID are required.",
+        });
       }
 
       try {
@@ -1803,12 +1814,10 @@ function configureWebServer() {
         res.json({ success: true, message: "Mapping saved successfully." });
       } catch (error) {
         logger.error("Error saving user mapping:", error);
-        res
-          .status(500)
-          .json({
-            success: false,
-            message: "Failed to save mapping - check server logs.",
-          });
+        res.status(500).json({
+          success: false,
+          message: "Failed to save mapping - check server logs.",
+        });
       }
     }
   );
@@ -1832,12 +1841,10 @@ function configureWebServer() {
         res.json({ success: true, message: "Mapping deleted successfully." });
       } catch (error) {
         logger.error("Error deleting user mapping:", error);
-        res
-          .status(500)
-          .json({
-            success: false,
-            message: "Failed to delete mapping - check server logs.",
-          });
+        res.status(500).json({
+          success: false,
+          message: "Failed to delete mapping - check server logs.",
+        });
       }
     }
   );
@@ -1900,10 +1907,28 @@ function configureWebServer() {
     res.sendFile(path.join(process.cwd(), "web", "index.html"));
   });
 
-  app.post("/jellyfin-webhook", (req, res) => {
-    if (!isBotRunning || !discordClient)
-      return res.status(503).send("Bot is not running.");
-    handleJellyfinWebhook(req, res, discordClient, pendingRequests);
+  // --- JELLYFIN WEBHOOK ENDPOINT (no rate limiting for webhooks) ---
+  app.post("/jellyfin-webhook", express.json(), async (req, res) => {
+    try {
+      logger.info("📥 Received Jellyfin webhook");
+      logger.debug("Webhook payload:", JSON.stringify(req.body, null, 2));
+
+      // Acknowledge receipt immediately
+      res.status(200).json({ success: true, message: "Webhook received" });
+
+      // Process webhook asynchronously
+      if (discordClient && isBotRunning) {
+        // Don't pass res since we already responded
+        await handleJellyfinWebhook(req, null, discordClient, pendingRequests);
+      } else {
+        logger.warn(
+          "⚠️ Jellyfin webhook received but Discord bot is not running"
+        );
+      }
+    } catch (error) {
+      logger.error("❌ Error processing Jellyfin webhook:", error);
+      // Don't send error response since we already sent 200
+    }
   });
 
   app.get("/api/config", authenticateToken, (req, res) => {

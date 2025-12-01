@@ -3,69 +3,104 @@ import path from "path";
 import logger from "./logger.js";
 
 /**
- * CONFIG_PATH determines where config.json is saved:
- * - Always uses ./config/config.json in the project directory
- * - This ensures proper permissions and keeps config with the application
+ * CONFIG_PATH determines where config.json is saved and read:
+ * - Primary location: /config (mounted volume on Docker/Unraid)
+ * - Secondary: /usr/src/app/config (Docker internal)
+ * - Fallback: ./config (local development)
+ * - Legacy location: ./lib/config (old location, used for migration)
  */
-export const CONFIG_PATH = path.join(process.cwd(), "config", "config.json");
+
+// Old location for backwards compatibility
+const LEGACY_CONFIG_PATH = path.join(process.cwd(), "lib", "config.json");
+
+const getNewConfigPath = () => {
+  // First priority: Check if /config exists and is writable (user-mounted volume)
+  if (fs.existsSync("/config")) {
+    try {
+      const testFile = path.join("/config", ".write-test");
+      fs.writeFileSync(testFile, "test");
+      fs.unlinkSync(testFile);
+      // /config is writable, use it
+      return "/config/config.json";
+    } catch (e) {
+      // /config exists but not writable, continue to next option
+    }
+  }
+
+  // Second priority: /usr/src/app/config (Docker internal)
+  if (fs.existsSync("/usr/src/app")) {
+    return "/usr/src/app/config/config.json";
+  }
+
+  // Fallback: Local project directory
+  return path.join(process.cwd(), "config", "config.json");
+};
+
+export const CONFIG_PATH = getNewConfigPath();
 
 /**
- * Attempt to restore from latest backup if config is missing
- * Checks both config directory and app root for backups
- * @returns {boolean} True if restored successfully
+ * Find config file - checks new location first, then legacy location
+ * Returns path to existing config file or null
  */
-function restoreFromLatestBackup() {
+function findExistingConfig() {
+  // Check new location first
+  if (fs.existsSync(CONFIG_PATH)) {
+    return CONFIG_PATH;
+  }
+
+  // Check legacy location
+  if (fs.existsSync(LEGACY_CONFIG_PATH)) {
+    logger.info(`🔄 Found config at legacy location: ${LEGACY_CONFIG_PATH}`);
+    return LEGACY_CONFIG_PATH;
+  }
+
+  return null;
+}
+
+/**
+ * Migrate config from legacy location to new location (one-time operation)
+ */
+function migrateConfigIfNeeded() {
+  // If config already exists at new location, no migration needed
+  if (fs.existsSync(CONFIG_PATH)) {
+    return;
+  }
+
+  // Check if config exists at legacy location
+  if (!fs.existsSync(LEGACY_CONFIG_PATH)) {
+    return; // No config to migrate
+  }
+
   try {
-    let allBackups = [];
+    logger.info(
+      `🔄 Migrating config from ${LEGACY_CONFIG_PATH} to ${CONFIG_PATH}...`
+    );
 
-    // Check config directory for backups
+    // Read from legacy location
+    const rawData = fs.readFileSync(LEGACY_CONFIG_PATH, "utf-8");
+    const config = JSON.parse(rawData);
+
+    // Ensure new directory exists
     const configDir = path.dirname(CONFIG_PATH);
-    if (fs.existsSync(configDir)) {
-      const configDirFiles = fs.readdirSync(configDir);
-      const configBackups = configDirFiles
-        .filter((f) => f.startsWith("config.backup.") && f.endsWith(".json"))
-        .map((f) => ({ name: f, path: path.join(configDir, f) }));
-      allBackups.push(...configBackups);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
     }
 
-    // Also check app root for backups (fallback from Docker updates)
-    const appRoot = process.cwd();
-    if (appRoot !== configDir && fs.existsSync(appRoot)) {
-      const rootFiles = fs.readdirSync(appRoot);
-      const rootBackups = rootFiles
-        .filter((f) => f.startsWith("config.backup.") && f.endsWith(".json"))
-        .map((f) => ({ name: f, path: path.join(appRoot, f) }));
-      allBackups.push(...rootBackups);
-    }
-
-    // Sort by name (timestamp) descending to get latest
-    allBackups.sort((a, b) => b.name.localeCompare(a.name));
-
-    if (allBackups.length === 0) {
-      return false;
-    }
-
-    const latestBackup = allBackups[0];
-    const backupContent = fs.readFileSync(latestBackup.path, "utf-8");
-
-    // Validate JSON
-    JSON.parse(backupContent);
-
-    // Restore to main config path
-    const configDirPath = path.dirname(CONFIG_PATH);
-    if (!fs.existsSync(configDirPath)) {
-      fs.mkdirSync(configDirPath, { recursive: true, mode: 0o777 });
-    }
-
-    fs.writeFileSync(CONFIG_PATH, backupContent, {
+    // Write to new location
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), {
       mode: 0o666,
       encoding: "utf-8",
     });
-    logger.info(`✅ CONFIG RESTORED from backup: ${latestBackup.name}`);
-    return true;
+
+    logger.info(
+      `✅ Config successfully migrated to new location: ${CONFIG_PATH}`
+    );
+    logger.info(
+      `   You can safely delete the old config at: ${LEGACY_CONFIG_PATH}`
+    );
   } catch (error) {
-    logger.warn(`Could not restore from backup: ${error.message}`);
-    return false;
+    logger.error(`❌ Config migration failed:`, error);
+    throw error; // Critical error - fail startup
   }
 }
 
@@ -74,78 +109,22 @@ function restoreFromLatestBackup() {
  * @returns {Object|null} Config object or null if doesn't exist
  */
 export function readConfig() {
-  if (!fs.existsSync(CONFIG_PATH)) {
-    logger.debug(`Config file not found at ${CONFIG_PATH}`);
+  const configPath = findExistingConfig();
 
-    // Try to restore from latest backup
-    if (restoreFromLatestBackup()) {
-      // Successfully restored, read it
-      try {
-        const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
-        const config = JSON.parse(rawData);
-        return config;
-      } catch (error) {
-        logger.error(`Error reading restored config: ${error.message}`);
-        return null;
-      }
-    }
-
+  if (!configPath) {
+    logger.debug(
+      `Config file not found (checked ${CONFIG_PATH} and ${LEGACY_CONFIG_PATH})`
+    );
     return null;
   }
 
   try {
-    const rawData = fs.readFileSync(CONFIG_PATH, "utf-8");
+    const rawData = fs.readFileSync(configPath, "utf-8");
     const config = JSON.parse(rawData);
-    logger.debug(`Config loaded successfully from ${CONFIG_PATH}`);
+    logger.debug(`Config loaded successfully from ${configPath}`);
     return config;
   } catch (error) {
-    logger.error(`Error reading config from ${CONFIG_PATH}:`, error);
-    return null;
-  }
-}
-
-/**
- * Creates a backup of the current config.json
- * Saves in config directory AND in app root for extra redundancy
- * @returns {string|null} Backup file path or null if failed
- */
-function createConfigBackup() {
-  try {
-    if (!fs.existsSync(CONFIG_PATH)) {
-      return null; // Nothing to backup
-    }
-
-    const configDir = path.dirname(CONFIG_PATH);
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .slice(0, -5);
-    const backupPath = path.join(configDir, `config.backup.${timestamp}.json`);
-
-    fs.copyFileSync(CONFIG_PATH, backupPath);
-    logger.debug(`Config backup created at ${backupPath}`);
-
-    // Also save backup in app root (fallback location for Docker updates)
-    try {
-      const appRoot = process.cwd();
-      const rootBackupPath = path.join(
-        appRoot,
-        `config.backup.${timestamp}.json`
-      );
-
-      const configContent = fs.readFileSync(CONFIG_PATH, "utf-8");
-      fs.writeFileSync(rootBackupPath, configContent, {
-        mode: 0o666,
-        encoding: "utf-8",
-      });
-      logger.debug(`Backup also saved to app root: ${rootBackupPath}`);
-    } catch (rootError) {
-      logger.debug(`Could not save backup to app root: ${rootError.message}`);
-    }
-
-    return backupPath;
-  } catch (error) {
-    logger.warn(`Failed to create config backup: ${error.message}`);
+    logger.error(`Error reading config from ${configPath}:`, error);
     return null;
   }
 }
@@ -163,9 +142,6 @@ export function writeConfig(config) {
       logger.info(`Creating config directory: ${configDir}`);
       fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
     }
-
-    // Create backup before writing (in case of corruption)
-    createConfigBackup();
 
     // Write with explicit permissions
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), {
@@ -221,6 +197,14 @@ export function updateConfig(updates) {
  * @returns {boolean} True if load succeeded
  */
 export function loadConfigToEnv() {
+  // First: Perform migration if needed (one-time operation on startup)
+  try {
+    migrateConfigIfNeeded();
+  } catch (error) {
+    logger.error("Critical error during config migration - cannot continue");
+    return false;
+  }
+
   const config = readConfig();
   if (!config) {
     logger.warn("No config found to load into process.env");
@@ -254,7 +238,7 @@ export function loadConfigToEnv() {
 
     config.JELLYFIN_NOTIFICATION_LIBRARIES = migratedLibraries;
 
-    // Save migrated version
+    // Save migrated version to new location
     if (writeConfig(config)) {
       logger.info(
         `✅ Successfully migrated ${

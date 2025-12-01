@@ -560,9 +560,56 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Copy webhook URL
   copyWebhookBtn.addEventListener("click", () => {
-    navigator.clipboard.writeText(webhookUrlElement.textContent);
-    showToast("Webhook URL copied to clipboard!");
+    const textToCopy = webhookUrlElement.textContent;
+
+    // Try modern clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard
+        .writeText(textToCopy)
+        .then(() => {
+          showToast("Webhook URL copied to clipboard!");
+        })
+        .catch(() => {
+          // Fallback if clipboard API fails
+          fallbackCopyTextToClipboard(textToCopy);
+        });
+    } else {
+      // Fallback for older browsers
+      fallbackCopyTextToClipboard(textToCopy);
+    }
   });
+
+  // Fallback copy function for older browsers
+  function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.width = "2em";
+    textArea.style.height = "2em";
+    textArea.style.padding = "0";
+    textArea.style.border = "none";
+    textArea.style.outline = "none";
+    textArea.style.boxShadow = "none";
+    textArea.style.background = "transparent";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+      const successful = document.execCommand("copy");
+      if (successful) {
+        showToast("Webhook URL copied to clipboard!");
+      } else {
+        showToast("Failed to copy URL. Please copy manually.");
+      }
+    } catch (err) {
+      showToast("Failed to copy URL. Please copy manually.");
+    }
+
+    document.body.removeChild(textArea);
+  }
 
   // Test Jellyseerr Connection
   if (testJellyseerrBtn) {
@@ -1586,12 +1633,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Refresh Discord Users button
-  const refreshDiscordUsersBtn = document.getElementById("refresh-discord-users-btn");
+  const refreshDiscordUsersBtn = document.getElementById(
+    "refresh-discord-users-btn"
+  );
   if (refreshDiscordUsersBtn) {
     refreshDiscordUsersBtn.addEventListener("click", async () => {
       refreshDiscordUsersBtn.disabled = true;
       const originalHtml = refreshDiscordUsersBtn.innerHTML;
-      refreshDiscordUsersBtn.innerHTML = '<i class="bi bi-arrow-clockwise" style="animation: spin 1s linear infinite;"></i> Loading...';
+      refreshDiscordUsersBtn.innerHTML =
+        '<i class="bi bi-arrow-clockwise" style="animation: spin 1s linear infinite;"></i> Loading...';
 
       try {
         // Clear cache and force refresh
@@ -2212,4 +2262,111 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     });
+
+  // --- Hide/Show Header Functionality ---
+  const hideHeaderBtn = document.getElementById("hide-header-btn");
+  const showHeaderBtn = document.getElementById("show-header-btn");
+  const HEADER_VISIBILITY_KEY = "anchorr_header_visible";
+
+  // Load header visibility state from localStorage
+  function loadHeaderVisibilityState() {
+    const stored = localStorage.getItem(HEADER_VISIBILITY_KEY);
+    if (stored === null) {
+      return true; // Default to visible
+    }
+    return stored === "true";
+  }
+
+  // Save header visibility state to localStorage
+  function saveHeaderVisibilityState(isVisible) {
+    localStorage.setItem(HEADER_VISIBILITY_KEY, isVisible ? "true" : "false");
+    // Also save to config.json
+    saveHeaderVisibilityToConfig(isVisible);
+  }
+
+  // Save to config.json on server
+  async function saveHeaderVisibilityToConfig(isVisible) {
+    try {
+      // Create minimal config update with just HEADER_VISIBLE
+      const updateData = {
+        HEADER_VISIBLE: isVisible ? "true" : "false",
+      };
+
+      await fetch("/api/save-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updateData),
+      });
+    } catch (error) {
+      // Silent fail - localStorage is enough for UI state
+    }
+  }
+
+  // Hide header with animation
+  // Hide header with animation
+  function hideHeader() {
+    mainHero.classList.add("collapsed");
+    hideHeaderBtn.classList.remove("visible");
+    showHeaderBtn.classList.add("visible");
+    // Ensure visibility regardless of CSS parsing
+    if (showHeaderBtn) showHeaderBtn.style.display = "flex";
+    saveHeaderVisibilityState(false);
+  }
+
+  // Show header with animation
+  function showHeader() {
+    mainHero.classList.remove("collapsed");
+    showHeaderBtn.classList.remove("visible");
+    hideHeaderBtn.classList.add("visible");
+    if (showHeaderBtn) showHeaderBtn.style.display = "none";
+    saveHeaderVisibilityState(true);
+  }
+
+  // Event listeners for hide/show buttons
+  if (hideHeaderBtn) {
+    hideHeaderBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hideHeader();
+    });
+  }
+
+  if (showHeaderBtn) {
+    showHeaderBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showHeader();
+    });
+  }
+
+  // Initialize header visibility state on page load
+  function initializeHeaderVisibility() {
+    // Skip if on auth page (hero is full-screen during auth)
+    if (document.body.classList.contains("auth-mode")) {
+      return;
+    }
+
+    const isVisible = loadHeaderVisibilityState();
+    if (!isVisible) {
+      // Apply collapsed state without animation on page load
+      mainHero.classList.add("collapsed");
+      hideHeaderBtn.classList.remove("visible");
+      showHeaderBtn.classList.add("visible");
+      if (showHeaderBtn) showHeaderBtn.style.display = "flex";
+    } else {
+      mainHero.classList.remove("collapsed");
+      hideHeaderBtn.classList.add("visible");
+      showHeaderBtn.classList.remove("visible");
+      if (showHeaderBtn) showHeaderBtn.style.display = "none";
+    }
+
+    // Enable animations after initialization
+    mainHero.classList.remove("no-animate");
+  }
+
+  // Call initialization after auth check completes
+  // We need to wait a bit for checkAuth to complete
+  setTimeout(() => {
+    initializeHeaderVisibility();
+  }, 100);
 });
