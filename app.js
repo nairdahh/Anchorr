@@ -437,7 +437,7 @@ async function startBot() {
     if (requested) {
       // Show success state with full info
       let successLabel = "Requested";
-      
+
       // Only show seasons info for TV shows, not for movies
       if (mediaType === "tv" && requestedSeasons.length > 0) {
         if (requestedSeasons.includes("all")) {
@@ -1073,11 +1073,9 @@ async function startBot() {
             TMDB_API_KEY
           );
 
-        // Parse seasons and tags from customId
-        const selectedSeasons = seasonsParam
-          ? seasonsParam.split(",")
-          : [];
-        const selectedTagNames = tagsParam ? tagsParam.split(",") : [];          // Convert tag names to IDs for API call
+          // Parse seasons and tags from customId
+          const selectedSeasons = seasonsParam ? seasonsParam.split(",") : [];
+          const selectedTagNames = tagsParam ? tagsParam.split(",") : []; // Convert tag names to IDs for API call
           let selectedTagIds = [];
           if (selectedTagNames.length > 0) {
             try {
