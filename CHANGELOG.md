@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.4] - 2025-12-02
+
+### 🐛 Fixed
+
+- **Duplicate Notifications**: Fixed issue where Series webhook notifications were using `undefined` SeriesId instead of ItemId, causing duplicate notifications and preventing season/episode notifications from being properly blocked. It would also happen happen with Movie notifications.
+- **Multi-Platform Docker Support**: Added ARM64 architecture support alongside AMD64 in Docker images via multi-platform builds using QEMU and Docker Buildx
+
+### 🚀 Performance
+
+- **API Response Caching**: Added 6-hour cache for TMDB and OMDb API responses to reduce external API calls and improve notification speed
+
+---
+
 ## [1.3.3] - 2025-12-01
 
 ### 🔄 Changed

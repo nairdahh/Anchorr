@@ -15,27 +15,40 @@ const debouncedSenders = new Map();
 const sentNotifications = new Map();
 const episodeMessages = new Map(); // Track Discord messages for editing: SeriesId -> { messageId, channelId }
 
+// API response cache to reduce external API calls
+const apiCache = new Map(); // tmdbId -> { data, timestamp }
+const API_CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 hours
+
 // Cleanup configuration
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const CLEANUP_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const DEFAULT_DEBOUNCE_MS = 60000; // 60 seconds (1 minute)
+const DEFAULT_DEBOUNCE_MS = 60000; // 60 seconds
 
-// Periodic cleanup for old debouncer entries (prevent memory leaks on long-running servers)
+// Periodic cleanup for old debouncer entries and API cache (prevent memory leaks on long-running servers)
 setInterval(() => {
   const now = Date.now();
   const sevenDaysAgo = now - CLEANUP_THRESHOLD_MS;
-  
-  let cleanedCount = 0;
+
+  let cleanedDebouncers = 0;
   for (const [seriesId, data] of debouncedSenders.entries()) {
     // Check if debouncer has a timestamp and is older than 7 days
     if (data.timestamp && data.timestamp < sevenDaysAgo) {
       debouncedSenders.delete(seriesId);
-      cleanedCount++;
+      cleanedDebouncers++;
     }
   }
-  
-  if (cleanedCount > 0) {
-    logger.debug(`Periodic cleanup: Removed ${cleanedCount} old debouncer(s)`);
+
+  // Clean up old API cache entries
+  let cleanedCache = 0;
+  for (const [key, cached] of apiCache.entries()) {
+    if ((now - cached.timestamp) > API_CACHE_DURATION_MS) {
+      apiCache.delete(key);
+      cleanedCache++;
+    }
+  }
+
+  if (cleanedDebouncers > 0 || cleanedCache > 0) {
+    logger.debug(`Periodic cleanup: Removed ${cleanedDebouncers} old debouncer(s), ${cleanedCache} expired cache entries`);
   }
 }, CLEANUP_INTERVAL_MS);
 
@@ -84,7 +97,9 @@ async function processAndSendNotification(
   pendingRequests,
   targetChannelId = null,
   episodeCount = 0,
-  episodeDetails = null
+  episodeDetails = null,
+  seasonCount = 0,
+  seasonDetails = null
 ) {
   const {
     ItemType,
@@ -158,21 +173,34 @@ async function processAndSendNotification(
   }
   let details = null;
   if (tmdbId) {
-    try {
-      const res = await axios.get(
-        `https://api.themoviedb.org/3/${
-          ItemType === "Movie" ? "movie" : "tv"
-        }/${tmdbId}`,
-        {
-          params: {
-            api_key: process.env.TMDB_API_KEY,
-            append_to_response: "images,external_ids",
-          },
-        }
-      );
-      details = res.data;
-    } catch (e) {
-      logger.warn(`Could not fetch TMDB details for ${tmdbId}`);
+    // Check cache first
+    const cacheKey = `tmdb-${ItemType}-${tmdbId}`;
+    const cached = apiCache.get(cacheKey);
+    const now = Date.now();
+
+    if (cached && (now - cached.timestamp) < API_CACHE_DURATION_MS) {
+      details = cached.data;
+      logger.debug(`Using cached TMDB data for ${tmdbId}`);
+    } else {
+      try {
+        const res = await axios.get(
+          `https://api.themoviedb.org/3/${
+            ItemType === "Movie" ? "movie" : "tv"
+          }/${tmdbId}`,
+          {
+            params: {
+              api_key: process.env.TMDB_API_KEY,
+              append_to_response: "images,external_ids",
+            },
+          }
+        );
+        details = res.data;
+        // Cache the response
+        apiCache.set(cacheKey, { data: details, timestamp: now });
+        logger.debug(`Cached TMDB data for ${tmdbId}`);
+      } catch (e) {
+        logger.warn(`Could not fetch TMDB details for ${tmdbId}`);
+      }
     }
   }
 
@@ -252,10 +280,15 @@ async function processAndSendNotification(
       embedTitle = `${Name || "Unknown Series"} (${Year || "?"})`;
       break;
     case "Season":
-      authorName = "📺 New season added!";
-      embedTitle = `${SeriesName || "Unknown Series"} (${
-        Year || "?"
-      }) - Season ${SeasonNumber || IndexNumber || "?"}`;
+      if (seasonCount > 1 && seasonDetails) {
+        authorName = `📺 New seasons added!`;
+        embedTitle = `${SeriesName || "Unknown Series"}`;
+      } else {
+        authorName = "📺 New season added!";
+        embedTitle = `${SeriesName || "Unknown Series"} (${
+          Year || "?"
+        }) - Season ${SeasonNumber || IndexNumber || "?"}`;
+      }
       break;
     case "Episode":
       if (episodeCount > 1 && episodeDetails) {
@@ -326,6 +359,29 @@ async function processAndSendNotification(
 
 
 
+  // Add season list for multiple seasons
+  if (seasonCount > 1 && seasonDetails && seasonDetails.seasons.length <= 10) {
+    const seasonList = seasonDetails.seasons
+      .sort((a, b) => (a.SeasonNumber || a.IndexNumber || 0) - (b.SeasonNumber || b.IndexNumber || 0))
+      .map(s => {
+        const seasonNum = s.SeasonNumber || s.IndexNumber || "?";
+        return `Season ${seasonNum}: ${s.Name || `Season ${seasonNum}`}`;
+      })
+      .join("\n");
+
+    embed.addFields({
+      name: `${seasonCount} new seasons were added to your library.`,
+      value: seasonList,
+      inline: false
+    });
+  } else if (seasonCount > 10) {
+    embed.addFields({
+      name: `${seasonCount} new seasons were added to your library.`,
+      value: `Too many seasons to list individually.`,
+      inline: false
+    });
+  }
+
   // Add episode list for multiple episodes
   if (episodeCount > 1 && episodeDetails && episodeDetails.episodes.length <= 10) {
     const episodeList = episodeDetails.episodes
@@ -336,18 +392,18 @@ async function processAndSendNotification(
         return `S${seasonNum}E${epNum}: ${ep.Name || "Unknown Episode"}`;
       })
       .join("\n");
-    
+
     // Use episode count message as field name
-    embed.addFields({ 
-      name: `${episodeCount} new episodes were added to your library.`, 
-      value: episodeList, 
-      inline: false 
+    embed.addFields({
+      name: `${episodeCount} new episodes were added to your library.`,
+      value: episodeList,
+      inline: false
     });
   } else if (episodeCount > 10) {
-    embed.addFields({ 
-      name: `${episodeCount} new episodes were added to your library.`, 
-      value: `Too many episodes to list individually. Added episodes 1-${episodeCount}.`, 
-      inline: false 
+    embed.addFields({
+      name: `${episodeCount} new episodes were added to your library.`,
+      value: `Too many episodes to list individually. Added episodes 1-${episodeCount}.`,
+      inline: false
     });
   }
 
@@ -655,14 +711,19 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       data.ItemType === "Season" ||
       data.ItemType === "Episode"
     ) {
-      const { SeriesId } = data;
+      // For Series type, SeriesId is undefined, so use ItemId instead
+      const SeriesId = data.SeriesId || (data.ItemType === "Series" ? data.ItemId : null);
 
       const sentLevel = sentNotifications.has(SeriesId)
         ? sentNotifications.get(SeriesId).level
         : 0;
       const currentLevel = getItemLevel(data.ItemType);
 
-      if (currentLevel <= sentLevel) {
+      logger.info(`[DUPLICATE CHECK] ${data.ItemType} "${data.Name}" - SeriesId: ${SeriesId}, sentLevel: ${sentLevel}, currentLevel: ${currentLevel}, has debouncer: ${debouncedSenders.has(SeriesId)}`);
+
+      // Skip if a higher-or-equal-level notification was already sent (but allow if it's just a temporary marker with level -1)
+      if (sentLevel > 0 && currentLevel <= sentLevel) {
+        logger.info(`[BLOCKED] Skipping ${data.ItemType} notification for ${data.Name}: already sent level ${sentLevel} (current level: ${currentLevel})`);
         if (res) {
           return res
             .status(200)
@@ -684,8 +745,20 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       }
 
       // If we don't have a debounced function for this series yet, create one.
+      // BUT: If we already sent a notification (sentLevel > 0), don't create a new debouncer
+      // This prevents duplicate notifications from delayed webhooks
       if (!debouncedSenders.has(SeriesId)) {
-        const newDebouncedSender = debounce(async (latestData, episodeCount = 0, episodeDetails = null) => {
+        // Check if we already sent a notification for this series
+        if (sentLevel > 0) {
+          logger.debug(`Already sent notification for SeriesId ${SeriesId} (level: ${sentLevel}). Skipping new debouncer creation.`);
+          if (res) {
+            return res
+              .status(200)
+              .send(`OK: Notification for ${data.Name} skipped, notification already sent.`);
+          }
+          return;
+        }
+        const newDebouncedSender = debounce(async (latestData, episodeCount = 0, episodeDetails = null, seasonCount = 0, seasonDetails = null) => {
           try {
             await processAndSendNotification(
               latestData,
@@ -693,23 +766,35 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
               pendingRequests,
               libraryChannelId,
               episodeCount,
-              episodeDetails
+              episodeDetails,
+              seasonCount,
+              seasonDetails
             );
 
             const levelSent = getItemLevel(latestData.ItemType);
 
+            // Clear any existing cleanup timer (from temporary marker)
+            if (sentNotifications.has(SeriesId)) {
+              const existingNotification = sentNotifications.get(SeriesId);
+              if (existingNotification.cleanupTimer) {
+                clearTimeout(existingNotification.cleanupTimer);
+              }
+            }
+
             // Set a cleanup timer for the 'sent' notification state
+            // Use a longer duration to prevent duplicate notifications from delayed webhooks
             const cleanupTimer = setTimeout(() => {
               sentNotifications.delete(SeriesId);
               logger.debug(
                 `Cleaned up sent notification state for SeriesId: ${SeriesId}`
               );
-            }, 24 * 60 * 60 * 1000); // 24 hours
+            }, 2 * 60 * 60 * 1000); // 2 hours instead of 24 hours - enough to block duplicates but not too long
 
             sentNotifications.set(SeriesId, {
               level: levelSent,
               cleanupTimer: cleanupTimer,
             });
+            logger.info(`[SENT NOTIFICATION] Set sentLevel=${levelSent} for SeriesId ${SeriesId} (${latestData.Name})`);
 
             // The debounced function has fired, we can remove it.
             debouncedSenders.delete(SeriesId);
@@ -727,7 +812,28 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
           episodes: data.ItemType === 'Episode' ? [data] : [], // Track individual episodes
           firstEpisode: data.ItemType === 'Episode' ? data : null,
           lastEpisode: data.ItemType === 'Episode' ? data : null,
+          seasonCount: data.ItemType === 'Season' ? 1 : 0,
+          seasons: data.ItemType === 'Season' ? [data] : [], // Track individual seasons
           timestamp: Date.now(), // Track creation time for periodic cleanup
+        });
+
+        // Mark this series as being processed immediately to prevent duplicate debouncers
+        // This will be updated with the final level once the debounced notification is sent
+        const tempCleanupTimer = setTimeout(() => {
+          // Only clean up if debouncer is no longer active
+          if (!debouncedSenders.has(SeriesId) && sentNotifications.has(SeriesId)) {
+            const notification = sentNotifications.get(SeriesId);
+            // Only delete if this is still the temp marker (level: -1)
+            if (notification.level === -1) {
+              sentNotifications.delete(SeriesId);
+              logger.debug(`Cleaned up temporary notification marker for SeriesId: ${SeriesId}`);
+            }
+          }
+        }, 24 * 60 * 60 * 1000); // 24 hours
+
+        sentNotifications.set(SeriesId, {
+          level: -1, // Temporary marker indicating processing is in progress
+          cleanupTimer: tempCleanupTimer,
         });
       }
 
@@ -735,10 +841,41 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       const debouncer = debouncedSenders.get(SeriesId);
       const existingLevel = getItemLevel(debouncer.latestData.ItemType);
 
-      if (currentLevel >= existingLevel) {
+      // Always prefer higher-level notifications (Series > Season > Episode)
+      // This ensures we send the most comprehensive notification
+      if (currentLevel > existingLevel) {
+        debouncer.latestData = data;
+        logger.debug(`Updated debouncer for ${SeriesId}: ${debouncer.latestData.ItemType} -> ${data.ItemType} (higher priority)`);
+      } else if (currentLevel === existingLevel) {
+        // Same level - update to keep latest data
         debouncer.latestData = data;
       }
       
+      // Track season count for better notifications
+      if (data.ItemType === 'Season') {
+        debouncer.seasons = debouncer.seasons || [];
+
+        // Check for duplicates by SeasonNumber before adding
+        const existingSeason = debouncer.seasons.find(s =>
+          s.SeasonNumber === data.SeasonNumber || s.IndexNumber === data.IndexNumber
+        );
+
+        if (existingSeason) {
+          // Duplicate season - skip processing to avoid double notifications
+          logger.debug(`Duplicate season detected: Season ${data.SeasonNumber || data.IndexNumber} - ${data.Name}. Skipping.`);
+          if (res) {
+            return res
+              .status(200)
+              .send(`OK: Duplicate season ${data.Name} skipped.`);
+          }
+          return;
+        }
+
+        // Only increment count and add season if it's not a duplicate
+        debouncer.seasonCount = (debouncer.seasonCount || 0) + 1;
+        debouncer.seasons.push(data);
+      }
+
       // Track episode count for better notifications
       if (data.ItemType === 'Episode') {
         debouncer.episodes = debouncer.episodes || [];
@@ -780,7 +917,11 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
         lastEpisode: debouncer.lastEpisode
       } : null;
 
-      debouncer.sender(debouncer.latestData, debouncer.episodeCount || 0, episodeDetails);
+      const seasonDetails = debouncer.seasons ? {
+        seasons: debouncer.seasons
+      } : null;
+
+      debouncer.sender(debouncer.latestData, debouncer.episodeCount || 0, episodeDetails, debouncer.seasonCount || 0, seasonDetails);
 
       if (res) {
         return res
