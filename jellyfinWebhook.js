@@ -876,7 +876,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
         const shouldUseLongerDebounce = isNewSeries && isLowerLevel;
         
         const debounceMs = shouldUseLongerDebounce 
-          ? (parseInt(process.env.WEBHOOK_NEW_SERIES_DEBOUNCE_MS) || NEW_SERIES_DEBOUNCE_MS)
+          ? NEW_SERIES_DEBOUNCE_MS
           : (parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || DEFAULT_DEBOUNCE_MS);
           
         logger.debug(`Creating debouncer for ${data.ItemType} with ${debounceMs}ms timeout (new series: ${isNewSeries}, lower level: ${isLowerLevel})`);
