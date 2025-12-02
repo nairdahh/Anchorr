@@ -615,13 +615,39 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
     }
 
     if (data.ItemType === "Movie") {
+      const { ItemId } = data;
+
+      // Check if we already sent a notification for this movie
+      if (sentNotifications.has(ItemId)) {
+        logger.debug(`Duplicate movie notification detected for: ${data.Name} (${ItemId}). Skipping.`);
+        if (res) {
+          return res
+            .status(200)
+            .send(`OK: Duplicate movie notification skipped for ${data.Name}.`);
+        }
+        return;
+      }
+
       await processAndSendNotification(
         data,
         client,
         pendingRequests,
         libraryChannelId
       );
+
+      // Mark this movie as notified
+      const cleanupTimer = setTimeout(() => {
+        sentNotifications.delete(ItemId);
+        logger.debug(`Cleaned up movie notification state for ItemId: ${ItemId}`);
+      }, 24 * 60 * 60 * 1000); // 24 hours
+
+      sentNotifications.set(ItemId, {
+        level: 0, // Movies don't have hierarchy levels
+        cleanupTimer: cleanupTimer,
+      });
+
       if (res) return res.status(200).send("OK: Movie notification sent.");
+      return; // Exit early to prevent fallthrough to unknown item type handler
     }
 
     if (
@@ -716,27 +742,34 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       // Track episode count for better notifications
       if (data.ItemType === 'Episode') {
         debouncer.episodes = debouncer.episodes || [];
-        
+
         // Check for duplicates by EpisodeNumber before adding
-        const existingEpisode = debouncer.episodes.find(ep => 
-          ep.EpisodeNumber === data.EpisodeNumber && 
+        const existingEpisode = debouncer.episodes.find(ep =>
+          ep.EpisodeNumber === data.EpisodeNumber &&
           ep.SeasonNumber === data.SeasonNumber
         );
-        
-        if (!existingEpisode) {
-          // Only increment count and add episode if it's not a duplicate
-          debouncer.episodeCount = (debouncer.episodeCount || 0) + 1;
-          debouncer.episodes.push(data);
-          
-          // Track first and last episode for range display
-          if (!debouncer.firstEpisode || data.EpisodeNumber < debouncer.firstEpisode.EpisodeNumber) {
-            debouncer.firstEpisode = data;
+
+        if (existingEpisode) {
+          // Duplicate episode - skip processing to avoid double notifications
+          logger.debug(`Duplicate episode detected: S${data.SeasonNumber}E${data.EpisodeNumber} - ${data.Name}. Skipping.`);
+          if (res) {
+            return res
+              .status(200)
+              .send(`OK: Duplicate episode ${data.Name} skipped.`);
           }
-          if (!debouncer.lastEpisode || data.EpisodeNumber > debouncer.lastEpisode.EpisodeNumber) {
-            debouncer.lastEpisode = data;
-          }
-        } else {
-          logger.debug(`Duplicate episode detected: S${data.SeasonNumber}E${data.EpisodeNumber} - ${data.Name}`);
+          return;
+        }
+
+        // Only increment count and add episode if it's not a duplicate
+        debouncer.episodeCount = (debouncer.episodeCount || 0) + 1;
+        debouncer.episodes.push(data);
+
+        // Track first and last episode for range display
+        if (!debouncer.firstEpisode || data.EpisodeNumber < debouncer.firstEpisode.EpisodeNumber) {
+          debouncer.firstEpisode = data;
+        }
+        if (!debouncer.lastEpisode || data.EpisodeNumber > debouncer.lastEpisode.EpisodeNumber) {
+          debouncer.lastEpisode = data;
         }
       }
 
@@ -746,7 +779,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
         firstEpisode: debouncer.firstEpisode,
         lastEpisode: debouncer.lastEpisode
       } : null;
-      
+
       debouncer.sender(debouncer.latestData, debouncer.episodeCount || 0, episodeDetails);
 
       if (res) {
