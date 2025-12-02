@@ -23,6 +23,7 @@ const API_CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 hours
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const CLEANUP_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const DEFAULT_DEBOUNCE_MS = 60000; // 60 seconds
+const NEW_SERIES_DEBOUNCE_MS = 120000; // 2 minutes - longer debounce for episodes/seasons of new series
 const SEASON_NOTIFICATION_DELAY_MS = 3 * 60 * 1000; // 3 minutes - allow season notifications after this delay
 
 // Periodic cleanup for old debouncer entries and API cache (prevent memory leaks on long-running servers)
@@ -867,6 +868,19 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
           }
           return;
         }
+        
+        // Use longer debounce for episodes/seasons of completely new series
+        // This gives the series notification more time to arrive first
+        const isNewSeries = sentLevel === 0; // No previous notifications for this series
+        const isLowerLevel = currentLevel < 3; // Episode (1) or Season (2), not Series (3)
+        const shouldUseLongerDebounce = isNewSeries && isLowerLevel;
+        
+        const debounceMs = shouldUseLongerDebounce 
+          ? (parseInt(process.env.WEBHOOK_NEW_SERIES_DEBOUNCE_MS) || NEW_SERIES_DEBOUNCE_MS)
+          : (parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || DEFAULT_DEBOUNCE_MS);
+          
+        logger.debug(`Creating debouncer for ${data.ItemType} with ${debounceMs}ms timeout (new series: ${isNewSeries}, lower level: ${isLowerLevel})`);
+        
         const newDebouncedSender = debounce(
           async (
             latestData,
@@ -926,7 +940,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
               debouncedSenders.delete(SeriesId);
             }
           },
-          parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || DEFAULT_DEBOUNCE_MS
+          debounceMs
         );
 
         debouncedSenders.set(SeriesId, {
