@@ -153,7 +153,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // User is authenticated, remove auth-mode to show header/footer
         document.body.classList.remove("auth-mode");
         showDashboard(false); // Show dashboard immediately without animation
-        logoutBtn.style.display = "block";
+        logoutBtn.classList.remove("hidden");
         fetchConfig().then(() => {
           loadDiscordGuilds();
           checkAndLoadMappingsTab();
@@ -316,7 +316,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (data.success) {
           showDashboard(true);
-          logoutBtn.style.display = "block";
+          logoutBtn.classList.remove("hidden");
           fetchConfig().then(() => {
             loadDiscordGuilds();
             checkAndLoadMappingsTab();
@@ -347,7 +347,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (data.success) {
           showDashboard(true);
-          logoutBtn.style.display = "block";
+          logoutBtn.classList.remove("hidden");
           fetchConfig().then(() => {
             loadDiscordGuilds();
             checkAndLoadMappingsTab();
@@ -1694,13 +1694,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Show combined status
         if (successCount === 2) {
-          showToast(
-            `✅ Users refreshed: ${messages.join(", ")}`
-          );
+          showToast(`✅ Users refreshed: ${messages.join(", ")}`);
         } else if (successCount === 1) {
-          showToast(
-            `⚠️ Partial refresh: ${messages.join(", ")}`
-          );
+          showToast(`⚠️ Partial refresh: ${messages.join(", ")}`);
         } else {
           throw new Error("Failed to refresh users");
         }

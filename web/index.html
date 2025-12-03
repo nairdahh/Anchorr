@@ -21,18 +21,32 @@
           </a>
           <ul class="nav-links">
             <li>
-              <a href="#" class="about-link" data-target="about">About</a>
+              <a href="#" class="about-link" data-target="about">
+                <i class="bi bi-info-circle-fill nav-icon" aria-hidden="true"></i>
+                <span>About</span>
+              </a>
+            </li>
+            <li>
+              <a href="https://discord.gg/S5JrsZe9mB" target="_blank" rel="noopener noreferrer">
+                <i class="bi bi-discord nav-icon" aria-hidden="true"></i>
+                <span>Discord</span>
+              </a>
             </li>
             <li>
               <a
                 href="https://github.com/nairdahh/Anchorr"
                 target="_blank"
                 rel="noopener noreferrer"
-                >GitHub</a
               >
+                <i class="bi bi-github nav-icon" aria-hidden="true"></i>
+                <span>GitHub</span>
+              </a>
             </li>
             <li>
-              <a href="#" id="logout-btn" style="display: none;">Logout</a>
+              <a href="#" id="logout-btn" class="hidden">
+                <i class="bi bi-box-arrow-right nav-icon" aria-hidden="true"></i>
+                <span>Logout</span>
+              </a>
             </li>
           </ul>
         </div>
@@ -748,18 +762,18 @@
             <div class="about-content">
               <h2>About Anchorr</h2>
               <p class="about-description">
-                <strong class="anchor-highlight">Anchorr</strong> is a self-hosted, lightweight bridge that connects your <strong>Jellyfin</strong> media server with <strong>Discord</strong>. It notifies you on a dedicated channel when new media is added to your library, and with <strong>Jellyseerr</strong> integration, you can search and request movies and shows directly from Discord.
+                <strong class="anchor-highlight">Anchorr</strong> is a self-hosted, lightweight bridge that connects your <strong style="color: var(--blue);">Jellyfin</strong> media server with <strong style="color: var(--blue);">Discord</strong>. It notifies you on a dedicated channel when new media is added to your library, and with <strong style="color: var(--blue);">Jellyseerr</strong> integration, you can search and request movies and shows directly from Discord.
               </p>
 
               <div class="features-list">
                 <h3 class="features-title">Features</h3>
                 <ul>
-                  <li><i class="bi bi-search"></i><div><code>/search &lt;title&gt;</code> Search for a movie or show with auto-suggestions. An embed with detailed information is shown, from which you can request the media. For TV shows, you have the option to select the desired seasons for the request.</div></li>
-                  <li><i class="bi bi-send-fill"></i><div><code>/request &lt;title&gt;</code> Instantly send a request for your chosen movie or show directly to Jellyseerr. For TV shows, this automatically requests all seasons.</div></li>
-                  <li><i class="bi bi-bell-fill"></i><div>Receive beautifully formatted notifications on your selected Discord channel whenever new media is added to your Jellyfin library.</div></li>
-                  <li><i class="bi bi-film"></i><div>Using the TMDB and OMDb databases, Discord messages get a beautiful and well-structured look, with essential information about the requested or added media content.</div></li>
-                  <li><i class="bi bi-sliders"></i><div>Control permissions with role-based access (allowlist/blocklist), route notifications to different channels by Jellyfin library, and link users to Jellyseerr accounts for accurate request tracking.</div></li>
-                  <li><i class="bi bi-chat-left-dots"></i><div>Get direct messages on Discord when requested content becomes available in your library. Never miss when your requests are ready!</div></li>
+                  <li><i class="bi bi-search"></i><div><code>/search &lt;title&gt;</code> Search for a movie or show with auto-suggestions. An embed with detailed information is shown, from which you can request the media. For <strong style="color: var(--blue);">TV shows</strong>, you have the option to select the desired seasons for the request.</div></li>
+                  <li><i class="bi bi-send-fill"></i><div><code>/request &lt;title&gt;</code> Instantly send a request for your chosen movie or show directly to <strong style="color: var(--blue);">Jellyseerr</strong>. For <strong style="color: var(--blue);">TV shows</strong>, this automatically requests all seasons.</div></li>
+                  <li><i class="bi bi-bell-fill"></i><div>Receive beautifully formatted notifications on your selected <strong style="color: var(--blue);">Discord</strong> channel whenever new media is added to your <strong style="color: var(--blue);">Jellyfin</strong> library.</div></li>
+                  <li><i class="bi bi-film"></i><div>Using the <strong style="color: var(--blue);">TMDB</strong> and <strong style="color: var(--blue);">OMDb</strong> databases, <strong style="color: var(--blue);">Discord</strong> messages get a beautiful and well-structured look, with essential information about the requested or added media content.</div></li>
+                  <li><i class="bi bi-sliders"></i><div>Control permissions with <strong style="color: var(--blue);">role-based access</strong> (allowlist/blocklist), route notifications to different channels by <strong style="color: var(--blue);">Jellyfin library</strong>, and link users to <strong style="color: var(--blue);">Jellyseerr</strong> accounts for accurate request tracking.</div></li>
+                  <li><i class="bi bi-chat-left-dots"></i><div>Get <strong style="color: var(--blue);">direct messages</strong> on <strong style="color: var(--blue);">Discord</strong> when requested content becomes available in your library. Never miss when your requests are ready!</div></li>
                 </ul>
               </div>
 
@@ -770,7 +784,7 @@
                   <p>If you find Anchorr useful, consider supporting its development. Every coffee helps fuel late-night coding sessions!</p>
                   <a href="https://ko-fi.com/nairdah" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Buy me a Coffee</a>
                 </div>
-                <div class="about-card">
+                <div class="about-card contribute-card">
                   <i class="bi bi-github"></i>
                   <h3>Contribute</h3>
                   <p>Anchorr is open-source! If you're a developer, your contributions are welcome. Check out the project on GitHub to get started.</p>
@@ -780,7 +794,7 @@
 
               <div class="dev-footer">
                 <div class="dev-footer-left">
-                  <a href="https://github.com/nairdahh" target="_blank" rel="noopener noreferrer">
+                  <a href="https://nairdah.me/" target="_blank" rel="noopener noreferrer">
                     <img src="/assets/nairdah_avatar.jpeg" alt="nairdah's avatar" class="dev-avatar">
                   </a>
                   <div class="dev-info">
@@ -791,6 +805,10 @@
                 <div class="dev-footer-right">
                   <p>Thank you for using Anchorr!<br>Please contact me for any matter about the project.</p>
                 </div>
+              </div>
+
+              <div class="version-footer">
+                <p>Anchorr <span class="version-number">v1.3.4</span></p>
               </div>
 
             </div>
@@ -859,12 +877,6 @@
           "
         >
           <div class="footer-links" style="margin-top: 0">
-            <a
-              href="https://github.com/nairdahh/Anchorr"
-              target="_blank"
-              rel="noopener noreferrer"
-              >GitHub</a
-            >
             <a
               href="https://github.com/nairdahh/Anchorr/issues"
               target="_blank"
