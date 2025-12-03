@@ -1632,39 +1632,84 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Refresh Discord Users button
-  const refreshDiscordUsersBtn = document.getElementById(
-    "refresh-discord-users-btn"
-  );
-  if (refreshDiscordUsersBtn) {
-    refreshDiscordUsersBtn.addEventListener("click", async () => {
-      refreshDiscordUsersBtn.disabled = true;
-      const originalHtml = refreshDiscordUsersBtn.innerHTML;
-      refreshDiscordUsersBtn.innerHTML =
+  // Refresh All Users button (Discord + Jellyseerr)
+  const refreshAllUsersBtn = document.getElementById("refresh-all-users-btn");
+  if (refreshAllUsersBtn) {
+    refreshAllUsersBtn.addEventListener("click", async () => {
+      refreshAllUsersBtn.disabled = true;
+      const originalHtml = refreshAllUsersBtn.innerHTML;
+      refreshAllUsersBtn.innerHTML =
         '<i class="bi bi-arrow-clockwise" style="animation: spin 1s linear infinite;"></i> Loading...';
 
       try {
-        // Clear cache and force refresh
+        // Clear local caches
         localStorage.removeItem(DISCORD_MEMBERS_CACHE_KEY);
-        membersLoaded = false; // Reset loaded flag to force reload
+        localStorage.removeItem(JELLYSEERR_USERS_CACHE_KEY);
+        membersLoaded = false;
+        usersLoaded = false;
 
-        const response = await fetch("/api/discord-members");
-        const data = await response.json();
+        // Fetch both in parallel for better performance
+        const [discordResponse, jellyseerrResponse] = await Promise.all([
+          fetch("/api/discord-members"),
+          fetch("/api/jellyseerr-users"),
+        ]);
 
-        if (data.success && data.members) {
-          discordMembers = data.members;
+        const discordData = await discordResponse.json();
+        const jellyseerrData = await jellyseerrResponse.json();
+
+        let successCount = 0;
+        const messages = [];
+
+        // Process Discord members
+        if (discordData.success && discordData.members) {
+          discordMembers = discordData.members;
           membersLoaded = true;
-          saveToCache(DISCORD_MEMBERS_CACHE_KEY, data.members);
+          saveToCache(DISCORD_MEMBERS_CACHE_KEY, discordData.members);
           populateDiscordMemberSelect();
-          showToast("Discord users refreshed successfully!");
+          successCount++;
+          messages.push(
+            discordData.fetchedRealtime
+              ? "Discord (real-time)"
+              : "Discord (cached)"
+          );
         } else {
-          throw new Error(data.message || "Failed to load Discord members");
+          messages.push("Discord ❌");
+        }
+
+        // Process Jellyseerr users
+        if (jellyseerrData.success && jellyseerrData.users) {
+          jellyseerrUsers = jellyseerrData.users;
+          usersLoaded = true;
+          saveToCache(JELLYSEERR_USERS_CACHE_KEY, jellyseerrData.users);
+          populateJellyseerrUserSelect();
+          successCount++;
+          messages.push(
+            jellyseerrData.fetchedRealtime
+              ? "Jellyseerr (real-time)"
+              : "Jellyseerr"
+          );
+        } else {
+          messages.push("Jellyseerr ❌");
+        }
+
+        // Show combined status
+        if (successCount === 2) {
+          showToast(
+            `✅ Users refreshed: ${messages.join(", ")}`
+          );
+        } else if (successCount === 1) {
+          showToast(
+            `⚠️ Partial refresh: ${messages.join(", ")}`
+          );
+        } else {
+          throw new Error("Failed to refresh users");
         }
       } catch (error) {
-        showToast("Failed to refresh Discord users. Is the bot running?");
+        console.error("Refresh users error:", error);
+        showToast("Failed to refresh users. Check connections.");
       } finally {
-        refreshDiscordUsersBtn.disabled = false;
-        refreshDiscordUsersBtn.innerHTML = originalHtml;
+        refreshAllUsersBtn.disabled = false;
+        refreshAllUsersBtn.innerHTML = originalHtml;
       }
     });
   }
