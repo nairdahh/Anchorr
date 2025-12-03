@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### 🐛 Fixed
+
+- **Season Notifications**: Fixed issue where season notifications were blocked indefinitely after a series notification. Season notifications are now allowed after a 3-minute delay from the initial series notification, making the system more responsive to new content additions.
+
+---
+
 ## [1.3.4] - 2025-12-02
 
 ### 🐛 Fixed

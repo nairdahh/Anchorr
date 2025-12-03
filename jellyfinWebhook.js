@@ -23,6 +23,8 @@ const API_CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 hours
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const CLEANUP_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const DEFAULT_DEBOUNCE_MS = 60000; // 60 seconds
+const NEW_SERIES_DEBOUNCE_MS = 120000; // 2 minutes - longer debounce for episodes/seasons of new series
+const SEASON_NOTIFICATION_DELAY_MS = 3 * 60 * 1000; // 3 minutes - allow season notifications after this delay
 
 // Periodic cleanup for old debouncer entries and API cache (prevent memory leaks on long-running servers)
 setInterval(() => {
@@ -783,9 +785,9 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       const SeriesId =
         data.SeriesId || (data.ItemType === "Series" ? data.ItemId : null);
 
-      const sentLevel = sentNotifications.has(SeriesId)
-        ? sentNotifications.get(SeriesId).level
-        : 0;
+      const sentNotificationData = sentNotifications.get(SeriesId);
+      const sentLevel = sentNotificationData ? sentNotificationData.level : 0;
+      const sentTimestamp = sentNotificationData ? sentNotificationData.timestamp : 0;
       const currentLevel = getItemLevel(data.ItemType);
 
       logger.info(
@@ -796,8 +798,32 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
         )}`
       );
 
-      // Skip if a higher-or-equal-level notification was already sent (but allow if it's just a temporary marker with level -1)
+      // Smart blocking logic: Allow season notifications after a delay from series notifications  
+      let shouldBlock = false;
+      
       if (sentLevel > 0 && currentLevel <= sentLevel) {
+        // Don't block if it's just a temporary marker (level -1)
+        if (sentLevel === -1) {
+          shouldBlock = false;
+        }
+        // For season notifications after a series notification, allow if enough time has passed
+        else if (currentLevel === 2 && sentLevel === 3) { // Season after Series
+          const timeSinceLastNotification = Date.now() - sentTimestamp;
+          if (timeSinceLastNotification > SEASON_NOTIFICATION_DELAY_MS) {
+            logger.info(`[ALLOWED] Season notification allowed: ${Math.round(timeSinceLastNotification / 1000 / 60)} minutes since series notification`);
+            shouldBlock = false; // Don't block
+          } else {
+            logger.info(`[TIME BLOCKED] Season notification blocked: only ${Math.round(timeSinceLastNotification / 1000 / 60)} minutes since series notification (need ${SEASON_NOTIFICATION_DELAY_MS / 1000 / 60})`);
+            shouldBlock = true; // Block
+          }
+        }
+        // For all other cases, use original logic (block)
+        else {
+          shouldBlock = true;
+        }
+      }
+
+      if (shouldBlock) {
         logger.info(
           `[BLOCKED] Skipping ${data.ItemType} notification for ${data.Name}: already sent level ${sentLevel} (current level: ${currentLevel})`
         );
@@ -842,6 +868,19 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
           }
           return;
         }
+        
+        // Use longer debounce for episodes/seasons of completely new series
+        // This gives the series notification more time to arrive first
+        const isNewSeries = sentLevel === 0; // No previous notifications for this series
+        const isLowerLevel = currentLevel < 3; // Episode (1) or Season (2), not Series (3)
+        const shouldUseLongerDebounce = isNewSeries && isLowerLevel;
+        
+        const debounceMs = shouldUseLongerDebounce 
+          ? NEW_SERIES_DEBOUNCE_MS
+          : (parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || DEFAULT_DEBOUNCE_MS);
+          
+        logger.debug(`Creating debouncer for ${data.ItemType} with ${debounceMs}ms timeout (new series: ${isNewSeries}, lower level: ${isLowerLevel})`);
+        
         const newDebouncedSender = debounce(
           async (
             latestData,
@@ -883,6 +922,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
               sentNotifications.set(SeriesId, {
                 level: levelSent,
+                timestamp: Date.now(),
                 cleanupTimer: cleanupTimer,
               });
               logger.info(
@@ -900,7 +940,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
               debouncedSenders.delete(SeriesId);
             }
           },
-          parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || DEFAULT_DEBOUNCE_MS
+          debounceMs
         );
 
         debouncedSenders.set(SeriesId, {
@@ -936,6 +976,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
         sentNotifications.set(SeriesId, {
           level: -1, // Temporary marker indicating processing is in progress
+          timestamp: Date.now(),
           cleanupTimer: tempCleanupTimer,
         });
       }
