@@ -1598,36 +1598,81 @@ function configureWebServer() {
         botMember.permissions.toArray()
       );
 
-      // Try to fetch members - this may fail if GUILD_MEMBERS intent is not enabled
+      // Fetch members with proper error handling and intent detection
+      let fetchSuccess = false;
+      let fetchError = null;
+
       try {
-        logger.debug("[MEMBERS API] Attempting to fetch members...");
-        await guild.members.fetch();
-        logger.debug("[MEMBERS API] Members fetched successfully");
+        logger.debug("[MEMBERS API] Attempting to fetch members (real-time with force refresh)...");
+        // Force refresh members from Discord - ignores cache and fetches latest from server
+        await guild.members.fetch({ force: true, limit: 1000 });
+        logger.info("[MEMBERS API] ✅ Members fetched successfully (real-time)");
+        fetchSuccess = true;
       } catch (fetchErr) {
+        fetchError = fetchErr.message;
+        const errorCode = fetchErr.code;
+        const errorStatus = fetchErr.status;
+
         logger.error(
-          "[MEMBERS API] Failed to fetch members:",
-          fetchErr.message
+          `[MEMBERS API] Fetch error - Code: ${errorCode}, Status: ${errorStatus}, Message: ${fetchErr.message}`
         );
-        logger.debug(
-          "[MEMBERS API] This is normal if Server Members Intent is not enabled in Discord Developer Portal"
-        );
-        logger.debug("[MEMBERS API] Using cached members instead");
+
+        // Detect if it's a privileged intent issue
+        if (
+          fetchErr.message.includes("Privileged intent") ||
+          fetchErr.code === 50001 ||
+          fetchErr.status === 403 ||
+          fetchErr.message.includes("requires the SERVER_MEMBERS intent") ||
+          fetchErr.message.includes("requires the GUILD_MEMBERS intent")
+        ) {
+          logger.warn(
+            "[MEMBERS API] ⚠️ GUILD_MEMBERS privileged intent not enabled in Discord Developer Portal!"
+          );
+          logger.warn(
+            "[MEMBERS API] To fix: Go to https://discord.com/developers/applications"
+          );
+          logger.warn("[MEMBERS API] 1. Select your bot application");
+          logger.warn("[MEMBERS API] 2. Go to 'Bot' tab");
+          logger.warn(
+            "[MEMBERS API] 3. Enable 'Server Members Intent' under 'Privileged Gateway Intents'"
+          );
+          logger.warn("[MEMBERS API] 4. Save changes and restart bot");
+          logger.warn(
+            "[MEMBERS API] Falling back to cached members (may be incomplete)"
+          );
+        } else {
+          logger.error(
+            "[MEMBERS API] Unknown error fetching members. Falling back to cache."
+          );
+          logger.debug("[MEMBERS API] Full error:", fetchErr);
+        }
       }
 
-      // Get members from cache (will include bot and users that have been active)
+      // Get members from cache (will be fresh if fetch succeeded, or cached if it failed)
       const members = guild.members.cache
         .filter((member) => !member.user.bot) // Exclude bots
         .map((member) => ({
           id: member.id,
           username: member.user.username,
-          displayName: member.displayName,
+          displayName: member.displayName || member.user.username,
           avatar: member.user.displayAvatarURL({ size: 64 }),
           discriminator: member.user.discriminator,
         }))
-        .slice(0, 100); // Limit to first 100 members for performance
+        .sort((a, b) => a.username.localeCompare(b.username)) // Sort alphabetically
+        .slice(0, 1000); // Increased limit to 1000 members
 
-      logger.debug(`[MEMBERS API] Returning ${members.length} members`);
-      res.json({ success: true, members });
+      logger.info(
+        `[MEMBERS API] Returning ${members.length} members (real-time: ${fetchSuccess})`
+      );
+
+      res.json({
+        success: true,
+        members,
+        fetchedRealtime: fetchSuccess,
+        warning: fetchSuccess
+          ? null
+          : "Members from cache - enable GUILD_MEMBERS intent for real-time data",
+      });
     } catch (err) {
       logger.error("[MEMBERS API] Error:", err);
       res.json({ success: false, message: err.message });
@@ -1705,10 +1750,24 @@ function configureWebServer() {
         `${baseUrl}/user`
       );
 
-      const response = await axios.get(`${baseUrl}/user`, {
-        headers: { "X-Api-Key": apiKey },
-        timeout: TIMEOUTS.JELLYSEERR_API,
-      });
+      let response;
+      try {
+        logger.info("[JELLYSEERR USERS API] Fetching users from Jellyseerr (real-time)...");
+        response = await axios.get(`${baseUrl}/user`, {
+          headers: { "X-Api-Key": apiKey },
+          timeout: TIMEOUTS.JELLYSEERR_API,
+        });
+
+        logger.info(
+          "[JELLYSEERR USERS API] ✅ Users fetched successfully (real-time)"
+        );
+      } catch (fetchErr) {
+        logger.error(
+          "[JELLYSEERR USERS API] Failed to fetch users:",
+          fetchErr.message
+        );
+        throw fetchErr;
+      }
 
       logger.debug(
         "[JELLYSEERR USERS API] Response received, status:",
@@ -1738,22 +1797,27 @@ function configureWebServer() {
       // Jellyseerr API returns { pageInfo, results: [] }
       const userData = response.data.results || [];
 
-      const users = userData.map((user) => {
-        let avatar = user.avatar || null;
-        // If avatar is relative, make it absolute
-        if (avatar && !avatar.startsWith("http")) {
-          avatar = `${jellyseerrUrl.replace(/\/api\/v1$/, "")}${avatar}`;
-        }
-        return {
-          id: user.id,
-          displayName: user.displayName || user.username || `User ${user.id}`,
-          email: user.email || "",
-          avatar: avatar,
-        };
-      });
+      const users = userData
+        .map((user) => {
+          let avatar = user.avatar || null;
+          // If avatar is relative, make it absolute
+          if (avatar && !avatar.startsWith("http")) {
+            avatar = `${jellyseerrUrl.replace(/\/api\/v1$/, "")}${avatar}`;
+          }
+          return {
+            id: user.id,
+            displayName: user.displayName || user.username || `User ${user.id}`,
+            username: user.username || "",
+            email: user.email || "",
+            avatar: avatar,
+          };
+        })
+        .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || "")); // Sort alphabetically
 
-      logger.debug(`[JELLYSEERR USERS API] Returning ${users.length} users`);
-      res.json({ success: true, users });
+      logger.info(
+        `[JELLYSEERR USERS API] ✅ Returning ${users.length} users (real-time)`
+      );
+      res.json({ success: true, users, fetchedRealtime: true });
     } catch (err) {
       logger.error("[JELLYSEERR USERS API] Error:", err.message);
       if (err.response) {

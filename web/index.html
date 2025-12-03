@@ -563,13 +563,15 @@
                         </div>
                         
                         <div class="add-mapping-form" style="margin-top: 1.5rem;">
-                          <h4 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--mauve);">Add New Mapping</h4>
+                          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                            <h4 style="font-size: 1.1rem; margin: 0; color: var(--mauve); line-height: 1.4;">Add New Mapping</h4>
+                            <button type="button" id="refresh-all-users-btn" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; height: fit-content;">
+                              <i class="bi bi-arrow-clockwise"></i> Refresh Users
+                            </button>
+                          </div>
                           <div class="form-group">
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
                               <label for="discord-user-select" style="margin-bottom: 0;">Discord User</label>
-                              <button type="button" id="refresh-discord-users-btn" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem; margin: 0;">
-                                <i class="bi bi-arrow-clockwise"></i> Refresh Users
-                              </button>
                             </div>
                             <div class="custom-select" id="discord-user-select">
                               <input type="text" class="custom-select-trigger" placeholder="Search Discord users..." readonly />
@@ -585,7 +587,9 @@
                             </div>
                           </div>
                           <div class="form-group">
-                            <label for="jellyseerr-user-select">Jellyseerr User</label>
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                              <label for="jellyseerr-user-select" style="margin-bottom: 0;">Jellyseerr User</label>
+                            </div>
                             <div class="custom-select" id="jellyseerr-user-select">
                               <input type="text" class="custom-select-trigger" placeholder="Search Jellyseerr users..." readonly />
                               <i class="bi bi-chevron-down custom-select-chevron"></i>

@@ -14,6 +14,7 @@ import { findBestBackdrop } from "./api/tmdb.js";
 const debouncedSenders = new Map();
 const sentNotifications = new Map();
 const episodeMessages = new Map(); // Track Discord messages for editing: SeriesId -> { messageId, channelId }
+const creatingDebouncers = new Set(); // Prevent race condition: track SeriesIds currently creating debouncers
 
 // API response cache to reduce external API calls
 const apiCache = new Map(); // tmdbId -> { data, timestamp }
@@ -36,6 +37,7 @@ setInterval(() => {
     // Check if debouncer has a timestamp and is older than 7 days
     if (data.timestamp && data.timestamp < sevenDaysAgo) {
       debouncedSenders.delete(seriesId);
+      creatingDebouncers.delete(seriesId); // Also cleanup from creatingDebouncers
       cleanedDebouncers++;
     }
   }
@@ -305,7 +307,8 @@ async function processAndSendNotification(
 
   // Clean names from Jellyfin metadata
   const cleanedName = cleanTitle(Name);
-  const cleanedSeriesName = cleanTitle(SeriesName);
+  // For Series items, SeriesName might be undefined, so fallback to Name
+  const cleanedSeriesName = cleanTitle(SeriesName || Name);
 
   switch (ItemType) {
     case "Movie":
@@ -426,33 +429,35 @@ async function processAndSendNotification(
     });
   }
 
-  // Add episode list for multiple episodes
-  if (
-    episodeCount > 1 &&
-    episodeDetails &&
-    episodeDetails.episodes.length <= 10
-  ) {
-    const episodeList = episodeDetails.episodes
-      .sort((a, b) => (a.EpisodeNumber || 0) - (b.EpisodeNumber || 0))
-      .map((ep) => {
-        const seasonNum = String(ep.SeasonNumber || 1).padStart(2, "0");
-        const epNum = String(ep.EpisodeNumber || 0).padStart(2, "0");
-        return `S${seasonNum}E${epNum}: ${ep.Name || "Unknown Episode"}`;
-      })
-      .join("\n");
+  // Add episode list for multiple episodes (ONLY for Episode type notifications)
+  if (ItemType === "Episode") {
+    if (
+      episodeCount > 1 &&
+      episodeDetails &&
+      episodeDetails.episodes.length <= 10
+    ) {
+      const episodeList = episodeDetails.episodes
+        .sort((a, b) => (a.EpisodeNumber || 0) - (b.EpisodeNumber || 0))
+        .map((ep) => {
+          const seasonNum = String(ep.SeasonNumber || 1).padStart(2, "0");
+          const epNum = String(ep.EpisodeNumber || 0).padStart(2, "0");
+          return `S${seasonNum}E${epNum}: ${ep.Name || "Unknown Episode"}`;
+        })
+        .join("\n");
 
-    // Use episode count message as field name
-    embed.addFields({
-      name: `${episodeCount} new episodes were added to your library.`,
-      value: episodeList,
-      inline: false,
-    });
-  } else if (episodeCount > 10) {
-    embed.addFields({
-      name: `${episodeCount} new episodes were added to your library.`,
-      value: `Too many episodes to list individually. Added episodes 1-${episodeCount}.`,
-      inline: false,
-    });
+      // Use episode count message as field name
+      embed.addFields({
+        name: `${episodeCount} new episodes were added to your library.`,
+        value: episodeList,
+        inline: false,
+      });
+    } else if (episodeCount > 10) {
+      embed.addFields({
+        name: `${episodeCount} new episodes were added to your library.`,
+        value: `Too many episodes to list individually. Added episodes 1-${episodeCount}.`,
+        inline: false,
+      });
+    }
   }
 
   const backdropPath = details ? findBestBackdrop(details) : null;
@@ -798,16 +803,18 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
         )}`
       );
 
-      // Smart blocking logic: Allow season notifications after a delay from series notifications  
+      // Smart blocking logic: Allow season notifications after a delay from series notifications
       let shouldBlock = false;
-      
-      if (sentLevel > 0 && currentLevel <= sentLevel) {
-        // Don't block if it's just a temporary marker (level -1)
-        if (sentLevel === -1) {
-          shouldBlock = false;
-        }
+
+      // If sentLevel === -1 (temporary marker), it means notification is being processed - block new ones
+      if (sentLevel === -1) {
+        shouldBlock = true;
+        logger.debug(`[BLOCKED] Notification for ${data.ItemType} "${data.Name}" blocked: already processing this series (sentLevel: ${sentLevel})`);
+      }
+      // If a notification was already sent (sentLevel > 0), apply blocking rules
+      else if (sentLevel > 0 && currentLevel <= sentLevel) {
         // For season notifications after a series notification, allow if enough time has passed
-        else if (currentLevel === 2 && sentLevel === 3) { // Season after Series
+        if (currentLevel === 2 && sentLevel === 3) { // Season after Series
           const timeSinceLastNotification = Date.now() - sentTimestamp;
           if (timeSinceLastNotification > SEASON_NOTIFICATION_DELAY_MS) {
             logger.info(`[ALLOWED] Season notification allowed: ${Math.round(timeSinceLastNotification / 1000 / 60)} minutes since series notification`);
@@ -853,7 +860,8 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       // If we don't have a debounced function for this series yet, create one.
       // BUT: If we already sent a notification (sentLevel > 0), don't create a new debouncer
       // This prevents duplicate notifications from delayed webhooks
-      if (!debouncedSenders.has(SeriesId)) {
+      // ALSO: Check if we're already creating a debouncer to prevent race condition
+      if (!debouncedSenders.has(SeriesId) && !creatingDebouncers.has(SeriesId)) {
         // Check if we already sent a notification for this series
         if (sentLevel > 0) {
           logger.debug(
@@ -868,6 +876,9 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
           }
           return;
         }
+
+        // Mark this SeriesId as currently creating a debouncer
+        creatingDebouncers.add(SeriesId);
         
         // Use longer debounce for episodes/seasons of completely new series
         // This gives the series notification more time to arrive first
@@ -931,13 +942,15 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
               // The debounced function has fired, we can remove it.
               debouncedSenders.delete(SeriesId);
+              creatingDebouncers.delete(SeriesId); // Also cleanup from creatingDebouncers
             } catch (error) {
               logger.error(
                 `Error in debounced notification for series ${SeriesId}:`,
                 error
               );
-              // Still cleanup the debounced sender on error
+              // Still cleanup both maps on error
               debouncedSenders.delete(SeriesId);
+              creatingDebouncers.delete(SeriesId);
             }
           },
           debounceMs
@@ -954,6 +967,9 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
           seasons: data.ItemType === "Season" ? [data] : [], // Track individual seasons
           timestamp: Date.now(), // Track creation time for periodic cleanup
         });
+
+        // Remove from creatingDebouncers now that it's been added to debouncedSenders
+        creatingDebouncers.delete(SeriesId);
 
         // Mark this series as being processed immediately to prevent duplicate debouncers
         // This will be updated with the final level once the debounced notification is sent
@@ -1026,6 +1042,15 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
         // Only increment count and add season if it's not a duplicate
         debouncer.seasonCount = (debouncer.seasonCount || 0) + 1;
         debouncer.seasons.push(data);
+
+        // Smart rate limiting: if many seasons are coming in at once, fire debouncer faster
+        if (debouncer.seasonCount > 10) {
+          // If 10+ seasons, fire immediately
+          debouncer.sender.flush?.();
+          logger.debug(
+            `Rate limiting: Firing debouncer immediately for ${debouncer.seasonCount} seasons`
+          );
+        }
       }
 
       // Track episode count for better notifications
@@ -1068,6 +1093,22 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
           data.EpisodeNumber > debouncer.lastEpisode.EpisodeNumber
         ) {
           debouncer.lastEpisode = data;
+        }
+
+        // Smart rate limiting: if many episodes are coming in at once, fire debouncer faster
+        // This prevents unnecessary delays when bulk importing episodes
+        if (debouncer.episodeCount > 30) {
+          // If 30+ episodes, fire immediately (don't wait full debounce time)
+          debouncer.sender.flush?.();
+          logger.debug(
+            `Rate limiting: Firing debouncer immediately for ${debouncer.episodeCount} episodes`
+          );
+        } else if (debouncer.episodeCount > 10) {
+          // If 10-30 episodes, reduce remaining wait time
+          debouncer.sender.reset?.();
+          logger.debug(
+            `Rate limiting: Resetting debouncer timeout for ${debouncer.episodeCount} episodes (will fire in reduced time)`
+          );
         }
       }
 
