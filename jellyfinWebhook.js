@@ -734,11 +734,25 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       }
       return;
     } else {
-      // No library detected - use default channel
-      libraryChannelId = process.env.JELLYFIN_CHANNEL_ID;
-      logger.warn(
-        `⚠️ Could not detect library. Using default channel: ${libraryChannelId}`
-      );
+      // No library detected
+      if (libraryKeys.length > 0) {
+        // User has configured library filtering but we can't detect library - skip notification
+        logger.info(
+          `🚫 Library filtering enabled but could not detect library for item. Skipping notification.`
+        );
+        if (res) {
+          return res
+            .status(200)
+            .send("OK: Notification skipped - library not detected.");
+        }
+        return;
+      } else {
+        // No library filtering configured - use default channel
+        libraryChannelId = process.env.JELLYFIN_CHANNEL_ID;
+        logger.warn(
+          `⚠️ Could not detect library. Using default channel: ${libraryChannelId}`
+        );
+      }
     }
 
     if (data.ItemType === "Movie") {
