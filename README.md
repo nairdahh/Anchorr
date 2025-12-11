@@ -256,6 +256,40 @@ docker run -d \
 
 Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
+## 👥 Contributors
+
+Thanks to all the amazing people who have contributed to Anchorr! 🎉
+
+<table>
+<tr>
+    <td align="center">
+        <a href="https://github.com/nairdahh">
+            <img src="https://github.com/nairdahh.png" width="100px;" alt="nairdahh"/><br />
+            <sub><b>nairdahh</b></sub>
+        </a><br />
+        <a href="https://github.com/nairdahh/anchorr/commits?author=nairdahh" title="Code">💻</a>
+        <a href="#maintenance-nairdahh" title="Maintenance">🚧</a>
+        <a href="#ideas-nairdahh" title="Ideas & Planning">🤔</a>
+    </td>
+    <td align="center">
+        <a href="https://github.com/retardgerman">
+            <img src="https://github.com/retardgerman.png" width="100px;" alt="retardgerman"/><br />
+            <sub><b>retardgerman</b></sub>
+        </a><br />
+        <a href="https://github.com/nairdahh/anchorr/commits?author=retardgerman" title="Code">💻</a>
+        <a href="https://github.com/nairdahh/anchorr/pulls?q=author%3Aretardgerman" title="Bug fixes">🐛</a>
+        <a href="#ideas-retardgerman" title="Ideas & Planning">🤔</a>
+    </td>
+    <td align="center">
+        <a href="https://github.com/whoopsi-daisy">
+            <img src="https://github.com/whoopsi-daisy.png" width="100px;" alt="whoopsi-daisy"/><br />
+            <sub><b>whoopsi-daisy</b></sub>
+        </a><br />
+        <a href="https://github.com/nairdahh/anchorr/pulls?q=author%3Awhoopsi-daisy" title="Documentation">📖</a>
+    </td>
+</tr>
+</table>
+
 ## 📄 License
 
 This project is released under the **Unlicense** — it's public domain. Do anything you want with the code!
