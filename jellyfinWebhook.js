@@ -820,10 +820,16 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       // Smart blocking logic: Allow season notifications after a delay from series notifications
       let shouldBlock = false;
 
-      // If sentLevel === -1 (temporary marker), it means notification is being processed - block new ones
+      // If sentLevel === -1 (temporary marker), it means notification is being processed
+      // Only block if there's no active debouncer (which would allow batching)
       if (sentLevel === -1) {
-        shouldBlock = true;
-        logger.debug(`[BLOCKED] Notification for ${data.ItemType} "${data.Name}" blocked: already processing this series (sentLevel: ${sentLevel})`);
+        if (!debouncedSenders.has(SeriesId)) {
+          shouldBlock = true;
+          logger.debug(`[BLOCKED] Notification for ${data.ItemType} "${data.Name}" blocked: already processing this series with no active debouncer (sentLevel: ${sentLevel})`);
+        } else {
+          shouldBlock = false;
+          logger.debug(`[ALLOWED] Notification for ${data.ItemType} "${data.Name}" allowed: adding to existing debouncer batch (sentLevel: ${sentLevel})`);
+        }
       }
       // If a notification was already sent (sentLevel > 0), apply blocking rules
       else if (sentLevel > 0 && currentLevel <= sentLevel) {
