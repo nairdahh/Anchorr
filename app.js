@@ -1962,11 +1962,11 @@ function configureWebServer() {
     });
   });
 
-  app.use("/assets", express.static(path.join(process.cwd(), "assets")));
-  app.use(express.static(path.join(process.cwd(), "web")));
+  app.use("/assets", express.static(path.join(import.meta.dirname, "assets")));
+  app.use(express.static(path.join(import.meta.dirname, "web")));
 
   app.get("/", (req, res) => {
-    res.sendFile(path.join(process.cwd(), "web", "index.html"));
+    res.sendFile(path.join(import.meta.dirname, "web", "index.html"));
   });
 
   // --- JELLYFIN WEBHOOK ENDPOINT (no rate limiting for webhooks) ---
