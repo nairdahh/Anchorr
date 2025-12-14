@@ -2065,6 +2065,10 @@ function configureWebServer() {
 
       loadConfig(); // Reload config into process.env
 
+      // Check if Discord credentials are complete and changed
+      const hasDiscordCreds = process.env.DISCORD_TOKEN && process.env.BOT_ID;
+      const discordCredsChanged = oldToken !== process.env.DISCORD_TOKEN;
+      
       // If bot is running and critical settings changed, restart the bot logic
       const jellyfinApiKeyChanged =
         oldJellyfinApiKey !== process.env.JELLYFIN_API_KEY;
@@ -2089,6 +2093,20 @@ function configureWebServer() {
         } catch (error) {
           res.status(500).json({
             message: `Config saved, but bot failed to restart: ${error.message}`,
+          });
+        }
+      } else if (!isBotRunning && hasDiscordCreds && discordCredsChanged) {
+        // Auto-start bot when Discord credentials are first entered or changed
+        logger.info("Discord credentials configured. Starting bot automatically...");
+        try {
+          await startBot();
+          res.status(200).json({ 
+            message: "Configuration saved. Bot started successfully!" 
+          });
+        } catch (error) {
+          logger.error("Auto-start failed:", error.message);
+          res.status(200).json({
+            message: `Configuration saved, but bot failed to start: ${error.message}. Check credentials and try starting manually.`,
           });
         }
       } else {
