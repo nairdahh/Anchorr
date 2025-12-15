@@ -38,6 +38,65 @@ Have an idea to improve Anchorr?
 
 Help us improve README, guides, or inline code comments!
 
+### 🌐 Add Translations
+
+Anchorr supports multiple languages! Help make it accessible to more users by contributing translations.
+
+**Currently supported languages:**
+- English (en) - Base language
+- German (de) - Fully translated
+
+**How to add a new language:**
+
+#### Step 1: Setup Translation Files
+
+1. Copy `locales/template.json` to `locales/[language-code].json` (e.g., `locales/fr.json` for French)
+2. Update the `_meta` section with your language information:
+```json
+{
+  "_meta": {
+    "language_name": "Français",
+    "language_code": "fr",
+    "contributors": ["Your Name"],
+    "completion": "0%",
+    "last_updated": "2025-12-15",
+    "notes": "French translation"
+  }
+}
+```
+
+#### Step 2: Translate Content
+
+- Translate all empty string values in the JSON file
+- Keep the structure identical to the template
+- For HTML in translation values (like links), maintain the same HTML structure
+- Test special characters and ensure proper encoding
+
+#### Step 3: Update Language Selector
+
+Add your language to the validation schema in `utils/validation.js`:
+```javascript
+LANGUAGE: Joi.string().valid("en", "de", "fr").optional(),
+```
+
+#### Step 4: Test Your Translation
+
+1. Start Anchorr in development mode
+2. Navigate to the authentication screen
+3. Select your language from the dropdown
+4. Verify all text displays correctly
+5. Test the configuration interface
+6. Check for text overflow or layout issues
+
+**Translation Guidelines:**
+
+- **Consistency**: Use the same terms throughout the interface
+- **Context**: Consider the context where text appears (buttons, labels, help text)
+- **Length**: Be mindful of text length - some languages are more verbose
+- **Tone**: Maintain a helpful, professional tone
+- **HTML**: Preserve HTML tags and structure in help text
+- **Variables**: Keep placeholder variables like `{{title}}` unchanged
+
 ### 🔧 Submit Code Changes
 
 We love pull requests! Here's how to submit one:

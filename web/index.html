@@ -57,7 +57,7 @@
         <div class="container">
           <div class="hero-aurora"></div>
           <!-- Hide Header Button -->
-          <button id="hide-header-btn" class="hide-header-btn" title="Hide header">
+          <button id="hide-header-btn" class="hide-header-btn" title="Hide header" data-i18n="ui.hide_header" data-i18n-attr="title">
             <i class="bi bi-chevron-up"></i>
           </button>
           <div class="page-content">
@@ -72,47 +72,56 @@
 
               <!-- Dashboard Text -->
               <div id="hero-text-dashboard" style="display: none;">
-                <h1 class="hero-title">Anchorr Configuration</h1>
+                <h1 class="hero-title" data-i18n="dashboard.title">Anchorr Configuration</h1>
                 <p class="hero-subtitle">
-                  Anchorr needs to be connect with your Discord bot and with your
-                  Jellyfin and Jellyseerr instances.
+                  <span data-i18n="dashboard.subtitle">Anchorr needs to be connect with your Discord bot and with your
+                  Jellyfin and Jellyseerr instances.</span>
                   <br />
-                  Below is a step-by-step walkthrough to help you set up
-                  everything you need to get started!
+                  <span data-i18n="dashboard.subtitle_detail">Below is a step-by-step walkthrough to help you set up
+                  everything you need to get started!</span>
                 </p>
               </div>
               
               <!-- Auth Forms Container -->
               <div id="auth-container-wrapper" class="auth-container">
+                <!-- Language Selection (shown during auth) -->
+                <div class="language-selector-auth" style="margin-bottom: 1.5rem; text-align: center;">
+                  <label for="auth-language" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--subtext0);">Language / Sprache</label>
+                  <select id="auth-language" style="width: 100%; max-width: 200px; background-color: var(--background); border: 1px solid var(--surface1); color: var(--text); padding: 0.5rem; border-radius: 8px; font-size: 0.9rem;">
+                    <option value="en">English</option>
+                    <option value="de">Deutsch</option>
+                  </select>
+                </div>
+                
                 <!-- Login Form -->
                 <form id="login-form" class="auth-form">
                   <div class="form-group">
-                    <label for="login-username">Username</label>
-                    <input type="text" id="login-username" required placeholder="Enter your username">
+                    <label for="login-username" data-i18n="common.username">Username</label>
+                    <input type="text" id="login-username" required placeholder="Enter your username" data-i18n="auth.enter_username">
                   </div>
                   <div class="form-group">
-                    <label for="login-password">Password</label>
-                    <input type="password" id="login-password" required placeholder="Enter your password">
+                    <label for="login-password" data-i18n="common.password">Password</label>
+                    <input type="password" id="login-password" required placeholder="Enter your password" data-i18n="auth.enter_password">
                   </div>
-                  <button type="submit" class="btn btn-primary" style="width: 100%; margin: 0;">Login</button>
+                  <button type="submit" class="btn btn-primary" style="width: 100%; margin: 0;" data-i18n="auth.login">Login</button>
                   <p class="auth-switch">
-                    Don't have an account? <a href="#" id="show-register">Register</a>
+                    <span data-i18n="auth.no_account">Don't have an account?</span> <a href="#" id="show-register" data-i18n="auth.register">Register</a>
                   </p>
                 </form>
 
                 <!-- Register Form -->
                 <form id="register-form" class="auth-form" style="display: none;">
                   <div class="form-group">
-                    <label for="register-username">Choose Username</label>
-                    <input type="text" id="register-username" required placeholder="Choose a username">
+                    <label for="register-username" data-i18n="auth.choose_username">Choose Username</label>
+                    <input type="text" id="register-username" required placeholder="Choose a username" data-i18n="auth.choose_username_placeholder">
                   </div>
                   <div class="form-group">
-                    <label for="register-password">Choose Password</label>
-                    <input type="password" id="register-password" required placeholder="Choose a secure password">
+                    <label for="register-password" data-i18n="auth.choose_password">Choose Password</label>
+                    <input type="password" id="register-password" required placeholder="Choose a secure password" data-i18n="auth.choose_password_placeholder">
                   </div>
-                  <button type="submit" class="btn btn-primary" style="width: 100%; margin: 0;">Create Account</button>
+                  <button type="submit" class="btn btn-primary" style="width: 100%; margin: 0;" data-i18n="auth.create_account">Create Account</button>
                   <p class="auth-switch">
-                    Already have an account? <a href="#" id="show-login">Login</a>
+                    <span data-i18n="auth.have_account">Already have an account?</span> <a href="#" id="show-login" data-i18n="auth.login">Login</a>
                   </p>
                 </form>
                 <div id="auth-error" class="auth-error"></div>
@@ -123,7 +132,7 @@
       </header>
 
       <!-- Show Header Button (outside hero, hidden by default) -->
-      <button id="show-header-btn" class="show-header-btn" title="Show header" style="display: none;">
+      <button id="show-header-btn" class="show-header-btn" title="Show header" style="display: none;" data-i18n="ui.show_header" data-i18n-attr="title">
         <i class="bi bi-chevron-down"></i>
       </button>
 
@@ -137,26 +146,27 @@
               <h2
                 class="dashboard-title"
                 id="dashboard-title"
+                data-i18n="config.title"
               >
                 Configuration
               </h2>
               <button type="button" id="bot-control-btn" class="btn btn-status btn-danger">
                 <i class="bi bi-play-fill"></i>
-                <span id="bot-control-text">Start Bot</span>
+                <span id="bot-control-text" data-i18n="config.start_bot">Start Bot</span>
               </button>
             </div>
 
             <div class="dashboard-layout">
               <div class="dashboard-sidebar">
                 <nav class="dashboard-nav">
-                  <a href="#" class="nav-item active" data-target="discord">1. Discord</a>
-                  <a href="#" class="nav-item" data-target="jellyseerr">2. Jellyseerr</a>
-                  <a href="#" class="nav-item" data-target="media">3. Media Databases</a>
-                  <a href="#" class="nav-item" data-target="jellyfin">4. Jellyfin Notifications</a>
-                  <a href="#" class="nav-item" data-target="mappings">5. User Mapping</a>
-                  <a href="#" class="nav-item" data-target="roles">6. Role Permissions</a>
-                  <a href="#" class="nav-item" data-target="misc">7. Miscellaneous</a>
-                  <button type="submit" form="config-form" class="btn btn-primary">Save Settings</button>
+                  <a href="#" class="nav-item active" data-target="discord" data-i18n="config.nav_discord">1. Discord</a>
+                  <a href="#" class="nav-item" data-target="jellyseerr" data-i18n="config.nav_jellyseerr">2. Jellyseerr</a>
+                  <a href="#" class="nav-item" data-target="media" data-i18n="config.nav_media">3. Media Databases</a>
+                  <a href="#" class="nav-item" data-target="jellyfin" data-i18n="config.nav_jellyfin">4. Jellyfin Notifications</a>
+                  <a href="#" class="nav-item" data-target="mappings" data-i18n="config.nav_mappings">5. User Mapping</a>
+                  <a href="#" class="nav-item" data-target="roles" data-i18n="config.nav_roles">6. Role Permissions</a>
+                  <a href="#" class="nav-item" data-target="misc" data-i18n="config.nav_misc">7. Miscellaneous</a>
+                  <button type="submit" form="config-form" class="btn btn-primary" data-i18n="config.save_button">Save Settings</button>
                 </nav>
               </div>
 
@@ -166,49 +176,65 @@
                   <!-- Discord Pane -->
                   <div id="config-pane-discord" class="config-pane active">
                     <fieldset>
-                      <legend>Discord Settings</legend>
+                      <legend data-i18n="config.general_settings">General Settings</legend>
+                      
+                      <div class="form-group">
+                        <label for="LANGUAGE" data-i18n="config.language">Language</label>
+                        <select 
+                          id="LANGUAGE" 
+                          name="LANGUAGE"
+                          style="width: 100%; background-color: var(--background); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                          <option value="en">English</option>
+                          <option value="de">Deutsch</option>
+                        </select>
+                        <div class="form-text" data-i18n="config.language_help">Select your preferred language for the interface.</div>
+                      </div>
+                    </fieldset>
+
+                    <fieldset>
+                      <legend data-i18n="config.discord_section">Discord Settings</legend>
                       
                       <!-- Discord Bot Setup Instructions -->
                       <div class="setup-instructions-box">
-                        <p class="setup-instructions-intro">
+                        <p class="setup-instructions-intro" data-i18n="config.discord_instructions_intro">
                           First, you need to create a Discord application for the bot. Access 
                           <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer">Discord Developer Portal</a> 
                           and log in. Create a new application, then:
                         </p>
                         <ol class="setup-instructions-list">
-                          <li>
+                          <li data-i18n="config.discord_instructions_1">
                             Go to <strong>"Bot"</strong> in the sidebar and click <strong>"Add Bot"</strong>
                           </li>
-                          <li>
+                          <li data-i18n="config.discord_instructions_2">
                             In the <strong>"Bot"</strong> section, scroll down to <strong>"Privileged Gateway Intents"</strong> and enable <code>SERVER MEMBERS INTENT</code> (required for user mappings feature)
                           </li>
-                          <li>
+                          <li data-i18n="config.discord_instructions_3">
                             Go to <strong>"OAuth2"</strong> → <strong>"URL Generator"</strong>
                           </li>
-                          <li>
+                          <li data-i18n="config.discord_instructions_4">
                             Select scopes: <code>bot</code> and <code>applications.commands</code>
                           </li>
-                          <li>
+                          <li data-i18n="config.discord_instructions_5">
                             Select permissions: <code>Send Messages</code> and <code>Embed Links</code>
                           </li>
-                          <li>
+                          <li data-i18n="config.discord_instructions_6">
                             Copy the generated URL, open it in your browser, and authorize the bot on your Discord server
                           </li>
-                          <li>
+                          <li data-i18n="config.discord_instructions_7">
                             Come back here and fill in the <strong>Discord Bot Token</strong> and <strong>Bot Client ID</strong> below, then select your server and notification channel from the dropdowns
                           </li>
                         </ol>
                       </div>
 
                       <div class="form-group">
-                        <label for="DISCORD_TOKEN">Discord Bot Token</label>
+                        <label for="DISCORD_TOKEN" data-i18n="config.discord_token">Discord Bot Token</label>
                         <input
                           type="password"
                           id="DISCORD_TOKEN"
                           name="DISCORD_TOKEN"
                           placeholder="MTQyNTkwNTDwedRFAoYzMDAyMzEyNzSwoR.GHh1xM..."
                         />
-                        <div class="form-text">
+                        <div class="form-text" data-i18n="config.discord_token_help">
                           The secret token of your bot from the
                           <a
                             href="https://discord.com/developers/applications"
@@ -220,14 +246,14 @@
                         </div>
                       </div>
                       <div class="form-group">
-                        <label for="BOT_ID">Bot Client ID</label>
+                        <label for="BOT_ID" data-i18n="config.bot_id">Bot Client ID</label>
                         <input
                           type="text"
                           id="BOT_ID"
                           name="BOT_ID"
                           placeholder="1455304670023657132"
                         />
-                        <div class="form-text">
+                        <div class="form-text" data-i18n="config.bot_id_help">
                           The application's client ID from the
                           <a
                             href="https://discord.com/developers/applications"
@@ -237,29 +263,33 @@
                           >
                           -&gt; OAuth2 -&gt; Client ID
                         </div>
+                        <div class="form-text" style="background-color: var(--blue); color: var(--background); padding: 0.75rem; border-radius: 6px; margin-top: 0.5rem;" data-i18n="config.auto_start_info">
+                          <i class="bi bi-info-circle-fill" style="margin-right: 0.5rem;"></i>
+                          <strong>Auto-Start:</strong> The bot will automatically start when you enter and save Discord credentials for the first time.
+                        </div>
                       </div>
                       <div class="form-group">
-                        <label for="GUILD_ID">Discord Server</label>
+                        <label for="GUILD_ID" data-i18n="config.discord_server">Discord Server</label>
                         <select 
                           id="GUILD_ID" 
                           name="GUILD_ID"
                           style="width: 100%; background-color: var(--background); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
-                          <option value="">Loading servers...</option>
+                          <option value="" data-i18n="config.loading_servers">Loading servers...</option>
                         </select>
-                        <div class="form-text">
+                        <div class="form-text" data-i18n="config.discord_server_help">
                           Select the Discord server where the bot will operate. Make sure you've added the bot to your server first.
                         </div>
                       </div>
 
                       <div class="form-group">
-                        <label for="JELLYFIN_CHANNEL_ID">Default Notification Channel</label>
+                        <label for="JELLYFIN_CHANNEL_ID" data-i18n="config.default_channel">Default Notification Channel</label>
                         <select
                           id="JELLYFIN_CHANNEL_ID"
                           name="JELLYFIN_CHANNEL_ID"
                           style="width: 100%; background-color: var(--background); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
-                          <option value="">Select a server first...</option>
+                          <option value="" data-i18n="config.select_server_first">Select a server first...</option>
                         </select>
-                        <div class="form-text">
+                        <div class="form-text" data-i18n="config.default_channel_help">
                           Select the default Discord channel for Jellyfin notifications. You can override this per-library in Step 4. Choose a server above first.
                         </div>
                       </div>
@@ -270,21 +300,21 @@
                   <!-- Jellyseerr Pane -->
                   <div id="config-pane-jellyseerr" class="config-pane">
                     <fieldset>
-                      <legend>Jellyseerr Settings</legend>
+                      <legend data-i18n="config.jellyseerr_section">Jellyseerr Settings</legend>
                       <div class="form-group">
-                        <label for="JELLYSEERR_URL">Jellyseerr URL</label>
+                        <label for="JELLYSEERR_URL" data-i18n="config.jellyseerr_url">Jellyseerr URL</label>
                         <input
                           type="text"
                           id="JELLYSEERR_URL"
                           name="JELLYSEERR_URL"
                           placeholder="http://localhost:5055"
                         />
-                        <div class="form-text">
+                        <div class="form-text" data-i18n="config.jellyseerr_url_help">
                           The full URL of your Jellyseerr instance.
                         </div>
                       </div>
                       <div class="form-group">
-                        <label for="JELLYSEERR_API_KEY"
+                        <label for="JELLYSEERR_API_KEY" data-i18n="config.jellyseerr_api_key"
                           >Jellyseerr API Key</label
                         >
                         <input
@@ -293,12 +323,12 @@
                           name="JELLYSEERR_API_KEY"
                           placeholder="MTc2MjA6WDN0ODc5NPAWNDEwLEO2LWRjMGMtNDEzMS1iNzQ3LPljQTg6YpQ5Yzg2Nw=="
                         />
-                        <div class="form-text">
+                        <div class="form-text" data-i18n="config.jellyseerr_api_key_help">
                           Your API key from Jellyseerr settings
                         </div>
                       </div>
                       <div class="form-group">
-                        <button type="button" id="test-jellyseerr-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Test Connection</button>
+                        <button type="button" id="test-jellyseerr-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem;" data-i18n="config.test_connection">Test Connection</button>
                         <span
                           id="test-jellyseerr-status"
                           style="margin-left: 1rem;"
@@ -310,16 +340,16 @@
                   <!-- Media Databases Pane -->
                   <div id="config-pane-media" class="config-pane">
                     <fieldset>
-                      <legend>Media Database Settings</legend>
+                      <legend data-i18n="config.media_section">Media Database Settings</legend>
                       <div class="form-group">
-                        <label for="TMDB_API_KEY">TMDB API Key</label>
+                        <label for="TMDB_API_KEY" data-i18n="config.tmdb_api_key">TMDB API Key</label>
                         <input
                           type="text"
                           id="TMDB_API_KEY"
                           name="TMDB_API_KEY"
                           placeholder="f94a3e627b8a545201e2531b62087b47"
                         />
-                        <div class="form-text">
+                        <div class="form-text" data-i18n="config.tmdb_api_key_help">
                           A 
                           <a
                             href="https://www.themoviedb.org/settings/api"
@@ -339,7 +369,7 @@
                         </div>
                       </div>
                       <div class="form-group">
-                        <label for="OMDB_API_KEY"
+                        <label for="OMDB_API_KEY" data-i18n="config.omdb_api_key"
                           >OMDb API Key (Optional)</label
                         >
                         <input
@@ -348,7 +378,7 @@
                           name="OMDB_API_KEY"
                           placeholder="e23eb6be"
                         />
-                        <div class="form-text">
+                        <div class="form-text" data-i18n="config.omdb_api_key_help">
                           Optional, but recommended for richer data like ratings
                           and directors. Create one on the
                           <a
@@ -365,9 +395,9 @@
                   <!-- Jellyfin Notifications Pane -->
                   <div id="config-pane-jellyfin" class="config-pane">
                     <fieldset>
-                      <legend>Jellyfin Notification Settings</legend>
+                      <legend data-i18n="config.jellyfin_section">Jellyfin Notification Settings</legend>
                       <div class="form-group">
-                        <label for="JELLYFIN_BASE_URL"
+                        <label for="JELLYFIN_BASE_URL" data-i18n="config.jellyfin_url"
                           >Jellyfin Public URL</label
                         >
                         <input
@@ -376,13 +406,13 @@
                           name="JELLYFIN_BASE_URL"
                           placeholder="http://jellyfin.yourdomain.com  |  http://192.168.1.1:8096"
                         />
-                        <div class="form-text">
+                        <div class="form-text" data-i18n="config.jellyfin_url_help">
                           The public URL of your Jellyfin server. Used for the
                           "Watch Now" button.
                         </div>
                       </div>
                       <div class="form-group">
-                        <label for="JELLYFIN_API_KEY"
+                        <label for="JELLYFIN_API_KEY" data-i18n="config.jellyfin_api_key"
                           >Jellyfin API Key</label
                         >
                         <input
@@ -391,22 +421,22 @@
                           name="JELLYFIN_API_KEY"
                           placeholder="c4b6b3c8f1d4f0a8a6c2e4d8f1b3c7a9"
                         />
-                        <div class="form-text">
+                        <div class="form-text" data-i18n="config.jellyfin_api_key_help">
                           API key for your Jellyfin server. Generate one in Jellyfin Dashboard → Administration → API Keys. Required for loading libraries and enhanced features.
                         </div>
                       </div>
                       <div class="form-group">
-                        <button type="button" id="test-jellyfin-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Test Endpoint</button>
+                        <button type="button" id="test-jellyfin-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem;" data-i18n="config.test_endpoint">Test Endpoint</button>
                         <span
                           id="test-jellyfin-status"
                           style="margin-left: 1rem;"
                         ></span>
-                        <div class="form-text" style="margin-top: 0.5rem;">
+                        <div class="form-text" style="margin-top: 0.5rem;" data-i18n="config.test_endpoint_help">
                           Testing the endpoint successfully will automatically populate the Jellyfin Server ID field.
                         </div>
                       </div>
                       <div class="form-group">
-                        <label for="JELLYFIN_SERVER_ID"
+                        <label for="JELLYFIN_SERVER_ID" data-i18n="config.jellyfin_server_id"
                           >Jellyfin Server ID</label
                         >
                         <input
@@ -415,7 +445,7 @@
                           name="JELLYFIN_SERVER_ID"
                           placeholder="c1507dcd594b404a8e668ba38f8eaa0c"
                         />
-                        <div class="form-text">
+                        <div class="form-text" data-i18n="config.jellyfin_server_id_help">
                           Used for redirecting to the correct path of your
                           Jellyfin server media page when using the "Watch Now"
                           button. You can find this in your Jellyfin URL when
@@ -821,20 +851,20 @@
       <section id="logs-section" class="setup-section" style="display: none;">
         <div class="container">
           <div style="margin-bottom: 1rem; flex-shrink: 0;">
-            <button type="button" id="back-to-config-btn">
+            <button type="button" id="back-to-config-btn" data-i18n="logs.back_to_config">
               ← Back to Configuration
             </button>
           </div>
 
           <div class="dashboard-header">
             <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <button type="button" class="logs-tab-btn active" data-target="all">
+              <button type="button" class="logs-tab-btn active" data-target="all" data-i18n="logs.all_logs">
                 All Logs
               </button>
-              <button type="button" class="logs-tab-btn" data-target="error">
+              <button type="button" class="logs-tab-btn" data-target="error" data-i18n="logs.errors">
                 Errors
               </button>
-              <button type="button" id="refresh-logs-btn" class="logs-tab-btn" title="Refresh logs">
+              <button type="button" id="refresh-logs-btn" class="logs-tab-btn" title="Refresh logs" data-i18n="logs.refresh" data-i18n-attr="title">
                 <i class="bi bi-arrow-clockwise"></i>
               </button>
             </div>
@@ -852,13 +882,13 @@
               </div>
               <button type="button" id="bot-control-btn-logs" class="btn btn-status btn-danger">
                 <i class="bi bi-play-fill"></i>
-                <span id="bot-control-text-logs">Start Bot</span>
+                <span id="bot-control-text-logs" data-i18n="config.start_bot">Start Bot</span>
               </button>
             </div>
           </div>
 
           <div id="logs-container">
-            <div style="text-align: center; color: var(--subtext0); padding: 2rem;">
+            <div style="text-align: center; color: var(--subtext0); padding: 2rem;" data-i18n="logs.loading">
               Loading logs...
             </div>
           </div>
@@ -881,12 +911,13 @@
               href="https://github.com/nairdahh/Anchorr/issues"
               target="_blank"
               rel="noopener noreferrer"
+              data-i18n="footer.report_bug"
               >Report a Bug</a
             >
-            <button id="logs-page-btn" class="footer-btn">Logs</button>
+            <button id="logs-page-btn" class="footer-btn" data-i18n="footer.logs">Logs</button>
           </div>
           <div>
-            made by
+            <span data-i18n="footer.made_by">made by</span>
             <a
               href="https://nairdah.me/"
               target="_blank"
@@ -898,6 +929,7 @@
               href="https://ko-fi.com/nairdah"
               target="_blank"
               rel="noopener noreferrer"
+              data-i18n="footer.buy_coffee"
               >Buy me a Coffee!</a
             >
           </div>

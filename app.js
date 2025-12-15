@@ -1963,6 +1963,7 @@ function configureWebServer() {
   });
 
   app.use("/assets", express.static(path.join(process.cwd(), "assets")));
+  app.use("/locales", express.static(path.join(process.cwd(), "locales")));
   app.use(express.static(path.join(process.cwd(), "web")));
 
   app.get("/", (req, res) => {
