@@ -38,6 +38,96 @@ Have an idea to improve Anchorr?
 
 Help us improve README, guides, or inline code comments!
 
+### 🌐 Add Translations
+
+Anchorr supports multiple languages! Help make it accessible to more users by contributing translations. The translation system is fully automated!
+
+**Currently supported languages:**
+- English (en) - Base language
+- German (de) - Fully translated
+- Swedish (sv) - Available
+
+#### How to Add a New Language
+
+1. Copy `locales/en.json` to `locales/<language_code>.json` (e.g., `locales/fr.json` for French)
+2. Update the `_meta` section with your language information:
+```json
+{
+  "_meta": {
+    "language_name": "Français",
+    "language_code": "fr",
+    "contributors": ["Your Name"],
+    "completion": "0%",
+    "last_updated": "2025-12-16",
+    "notes": "Initial translation"
+  }
+}
+```
+3. Translate all text values (keep the keys unchanged)
+4. **Important:** Add your language code to `utils/validation.js` in the `configSchema` LANGUAGE validation:
+   ```javascript
+   LANGUAGE: Joi.string().valid("en", "de", "se", "fr").optional(),
+   ```
+   This ensures the language is accepted by the web configuration interface.
+5. Your translation will automatically appear in the language dropdown!
+
+#### Translation Guidelines
+
+**Important Rules:**
+- **Never change JSON keys** - only translate the values
+- **Keep HTML tags intact** - e.g., `<strong>Discord</strong>` stays as `<strong>Discord</strong>`
+- **Preserve placeholders** - e.g., `{{count}}` should remain `{{count}}`
+- **Maintain link structure** - Keep `<a href="..." target="_blank">` tags
+- **Test frequently** - Start the server and check your translation in the UI
+
+**Language Codes (ISO 639-1):**
+- `en` - English, `de` - German, `sv` - Swedish, `fr` - French
+- `es` - Spanish, `pt` - Portuguese, `pt-br` - Portuguese (Brazil)
+- `zh` - Chinese, `ja` - Japanese, `ko` - Korean, `ru` - Russian, `ar` - Arabic
+
+**Example Translation Structure:**
+```json
+{
+  "_meta": {
+    "language_name": "Français",
+    "language_code": "fr",
+    "contributors": ["John Doe"],
+    "completion": "45%",
+    "last_updated": "2025-12-16",
+    "notes": "Work in progress"
+  },
+  "common": {
+    "yes": "Oui",
+    "no": "Non",
+    "save": "Enregistrer",
+    "cancel": "Annuler"
+  },
+  "config": {
+    "title": "Configuration",
+    "discord_instructions_1": "Allez à <strong>\"Bot\"</strong> dans la barre latérale et cliquez sur <strong>\"Add Bot\"</strong>"
+  }
+}
+```
+
+#### Testing Your Translation
+
+1. Start the Anchorr server: `node app.js`
+2. Open the web interface
+3. Look for your language in the language dropdown
+4. Select it and verify the translations appear correctly
+5. Check all pages and sections
+
+#### Common Placeholders
+- `{{count}}` - Number of items
+- `{{query}}` - Search query text
+- `{{title}}` - Movie/show title
+- `<strong>text</strong>` - Bold text
+- `<code>text</code>` - Code formatting
+- `<a href="...">text</a>` - Links
+
+**Automatic Detection:**
+The system automatically scans the `locales/` directory, reads the `_meta` section, populates the language dropdown, loads translations when selected, and falls back to English if translation is missing.
+
 ### 🔧 Submit Code Changes
 
 We love pull requests! Here's how to submit one:

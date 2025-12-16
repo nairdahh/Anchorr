@@ -1,4 +1,160 @@
-document.addEventListener("DOMContentLoaded", () => {
+// --- i18n System ---
+let currentTranslations = {};
+let currentLanguage = 'en';
+
+async function loadTranslations(language) {
+  try {
+    const response = await fetch(`/locales/${language}.json`);
+    if (!response.ok) {
+      console.warn(`Failed to load ${language} translations, falling back to English`);
+      const fallbackResponse = await fetch('/locales/en.json');
+      return await fallbackResponse.json();
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error loading translations:', error);
+    // Return minimal fallback
+    return {
+      common: { loading: 'Loading...' },
+      auth: { login: 'Login' },
+      config: { title: 'Configuration' }
+    };
+  }
+}
+
+function updateUITranslations() {
+  // Update all elements with data-i18n attributes
+  document.querySelectorAll('[data-i18n]').forEach(element => {
+    const key = element.getAttribute('data-i18n');
+    const translation = getNestedTranslation(key);
+    if (translation) {
+      // Check if element needs attribute translation
+      const attrName = element.getAttribute('data-i18n-attr');
+      if (attrName) {
+        element.setAttribute(attrName, translation);
+      } else {
+        // Regular text content translation
+        element.innerHTML = translation;
+      }
+    }
+  });
+}
+
+function getNestedTranslation(key) {
+  return key.split('.').reduce((obj, k) => obj && obj[k], currentTranslations);
+}
+
+async function switchLanguage(language) {
+  currentLanguage = language;
+  currentTranslations = await loadTranslations(language);
+  updateUITranslations();
+  
+  // Save language preference
+  try {
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ LANGUAGE: language })
+    });
+  } catch (error) {
+    console.error('Failed to save language preference:', error);
+  }
+}
+
+function setupAuthLanguageHandler() {
+  const authLanguageSelect = document.getElementById('auth-language');
+  if (authLanguageSelect) {
+    authLanguageSelect.addEventListener('change', async (e) => {
+      await switchLanguage(e.target.value);
+    });
+  }
+}
+
+function setupLanguageChangeHandler() {
+  // Handle app-language selector in Miscellaneous section
+  const appLanguageSelect = document.getElementById('app-language');
+  if (appLanguageSelect) {
+    appLanguageSelect.addEventListener('change', async (e) => {
+      await switchLanguage(e.target.value);
+      // Sync with auth-language selector if visible
+      const authLanguageSelect = document.getElementById('auth-language');
+      if (authLanguageSelect) {
+        authLanguageSelect.value = e.target.value;
+      }
+    });
+  }
+}
+
+// Get available languages from locale files
+async function getAvailableLanguages() {
+  try {
+    const response = await fetch('/api/languages');
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (error) {
+    console.warn('Failed to load available languages, using fallback');
+  }
+  
+  // Fallback to hardcoded languages if API fails
+  return [
+    { code: 'en', name: 'English' },
+    { code: 'de', name: 'Deutsch' },
+    { code: 'sv', name: 'Svenska' }
+  ];
+}
+
+// Populate language selectors dynamically
+async function populateLanguageSelectors() {
+  const languages = await getAvailableLanguages();
+  const selectors = document.querySelectorAll('#auth-language, #app-language');
+  
+  selectors.forEach(select => {
+    if (!select) return;
+    
+    // Clear existing options
+    select.innerHTML = '';
+    
+    // Add language options
+    languages.forEach(lang => {
+      const option = document.createElement('option');
+      option.value = lang.code;
+      option.textContent = lang.name;
+      select.appendChild(option);
+    });
+    
+    // Set current language
+    select.value = currentLanguage;
+  });
+}
+
+// Initialize i18n system
+async function initializeI18n() {
+  // Try to get saved language preference
+  try {
+    const response = await fetch('/api/config');
+    const config = await response.json();
+    currentLanguage = config.LANGUAGE || 'en';
+  } catch (error) {
+    console.warn('Could not load saved language, using default');
+    currentLanguage = 'en';
+  }
+  
+  // Populate language selectors
+  await populateLanguageSelectors();
+  
+  // Load translations and update UI
+  currentTranslations = await loadTranslations(currentLanguage);
+  updateUITranslations();
+  
+  // Setup change handlers
+  setupAuthLanguageHandler();
+  setupLanguageChangeHandler();
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  // Initialize i18n first
+  await initializeI18n();
   const form = document.getElementById("config-form");
   const botControlBtn = document.getElementById("bot-control-btn");
   const botControlText = document.getElementById("bot-control-text");
@@ -86,6 +242,21 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
       }
+      
+      // Sync app-language selector with LANGUAGE config value
+      if (config.LANGUAGE) {
+        const appLanguageSelect = document.getElementById('app-language');
+        const authLanguageSelect = document.getElementById('auth-language');
+        if (appLanguageSelect) {
+          appLanguageSelect.value = config.LANGUAGE;
+        }
+        if (authLanguageSelect) {
+          authLanguageSelect.value = config.LANGUAGE;
+        }
+        // Update global currentLanguage
+        currentLanguage = config.LANGUAGE;
+      }
+      
       updateWebhookUrl();
     } catch (error) {
       showToast("Error fetching configuration.");
@@ -391,6 +562,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const config = Object.fromEntries(filteredEntries);
 
+    // Add language setting from app-language selector
+    const appLanguageSelect = document.getElementById('app-language');
+    if (appLanguageSelect && appLanguageSelect.value) {
+      config.LANGUAGE = appLanguageSelect.value;
+    }
+
     // Explicitly capture checkbox values as "true"/"false" (except role checkboxes)
     document
       .querySelectorAll(
@@ -423,6 +600,86 @@ document.addEventListener("DOMContentLoaded", () => {
       config.JELLYFIN_NOTIFICATION_LIBRARIES = {};
     }
 
+    // Check if saving would trigger bot auto-start
+    try {
+      const autostartResponse = await fetch("/api/check-autostart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
+      });
+      const autostartData = await autostartResponse.json();
+
+      if (autostartData.wouldAutoStart) {
+        // Show confirmation modal
+        showBotAutostartModal(config);
+      } else {
+        // Save normally without modal
+        await saveConfig(config);
+      }
+    } catch (error) {
+      // If check fails, save normally
+      await saveConfig(config);
+    }
+  });
+
+  // Function to show bot auto-start confirmation modal
+  function showBotAutostartModal(config) {
+    const modal = document.getElementById("bot-autostart-modal");
+    const yesBtn = document.getElementById("modal-start-yes");
+    const noBtn = document.getElementById("modal-start-no");
+
+    // Show modal
+    modal.style.display = "flex";
+
+    // Handle Yes button (start bot)
+    const handleYes = async () => {
+      modal.style.display = "none";
+      config.startBot = true;
+      await saveConfig(config);
+      cleanupModal();
+    };
+
+    // Handle No button (save only)
+    const handleNo = async () => {
+      modal.style.display = "none";
+      config.startBot = false;
+      await saveConfig(config);
+      cleanupModal();
+    };
+
+    // Close modal on backdrop click
+    const handleBackdrop = (e) => {
+      if (e.target === modal) {
+        modal.style.display = "none";
+        cleanupModal();
+      }
+    };
+
+    // Close modal on Escape key
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        modal.style.display = "none";
+        cleanupModal();
+      }
+    };
+
+    // Cleanup function to remove event listeners
+    const cleanupModal = () => {
+      yesBtn.removeEventListener("click", handleYes);
+      noBtn.removeEventListener("click", handleNo);
+      modal.removeEventListener("click", handleBackdrop);
+      document.removeEventListener("keydown", handleEscape);
+    };
+
+    // Add event listeners
+    yesBtn.addEventListener("click", handleYes);
+    noBtn.addEventListener("click", handleNo);
+    modal.addEventListener("click", handleBackdrop);
+    document.addEventListener("keydown", handleEscape);
+  }
+
+  // Function to save config
+  async function saveConfig(config) {
     try {
       const response = await fetch("/api/save-config", {
         method: "POST",
@@ -441,7 +698,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       showToast("Error saving configuration.");
     }
-  });
+  }
 
   botControlBtn.addEventListener("click", async () => {
     const action = botControlBtn.dataset.action;

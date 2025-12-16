@@ -3,7 +3,7 @@ import path from "path";
 import express from "express";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
-import { handleJellyfinWebhook } from "./jellyfinWebhook.js";
+import { handleJellyfinWebhook, libraryCache } from "./jellyfinWebhook.js";
 import { configTemplate } from "./lib/config.js";
 import axios from "axios";
 
@@ -921,7 +921,103 @@ async function startBot() {
           }
         }
 
-        // Handle Title Autocomplete (existing logic)
+        // Handle Title Autocomplete
+        // For trending command, show trending content instead of search results
+        if (interaction.commandName === "trending") {
+          try {
+            const trendingResults = await tmdbApi.tmdbGetTrending(TMDB_API_KEY);
+            const filtered = trendingResults
+              .filter((r) => r.media_type === "movie" || r.media_type === "tv")
+              .filter((r) => {
+                const title = r.title || r.name || "";
+                return title.toLowerCase().includes(focusedValue.toLowerCase());
+              })
+              .slice(0, 25);
+
+            const trendingChoices = await Promise.all(
+              filtered.map(async (item) => {
+                try {
+                  const details = await tmdbApi.tmdbGetDetails(
+                    item.id,
+                    item.media_type,
+                    TMDB_API_KEY
+                  );
+
+                  const emoji = item.media_type === "movie" ? "🎬" : "📺";
+                  const date = item.release_date || item.first_air_date || "";
+                  const year = date ? ` (${date.slice(0, 4)})` : "";
+
+                  let extraInfo = "";
+                  if (item.media_type === "movie") {
+                    const director = details.credits?.crew?.find(
+                      (c) => c.job === "Director"
+                    );
+                    const directorName = director ? director.name : null;
+                    const runtime = details.runtime;
+                    const hours = runtime ? Math.floor(runtime / 60) : 0;
+                    const minutes = runtime ? runtime % 60 : 0;
+                    const runtimeStr = runtime ? `${hours}h ${minutes}m` : null;
+
+                    if (directorName && runtimeStr) {
+                      extraInfo = ` — directed by ${directorName} — runtime: ${runtimeStr}`;
+                    } else if (directorName) {
+                      extraInfo = ` — directed by ${directorName}`;
+                    } else if (runtimeStr) {
+                      extraInfo = ` — runtime: ${runtimeStr}`;
+                    }
+                  } else {
+                    const creator = details.created_by?.[0]?.name;
+                    const seasonCount = details.number_of_seasons;
+                    const seasonStr = seasonCount
+                      ? `${seasonCount} season${seasonCount > 1 ? "s" : ""}`
+                      : null;
+
+                    if (creator && seasonStr) {
+                      extraInfo = ` — created by ${creator} — ${seasonStr}`;
+                    } else if (creator) {
+                      extraInfo = ` — created by ${creator}`;
+                    } else if (seasonStr) {
+                      extraInfo = ` — ${seasonStr}`;
+                    }
+                  }
+
+                  let fullName = `${emoji} ${
+                    item.title || item.name
+                  }${year}${extraInfo}`;
+
+                  if (fullName.length > 98) {
+                    fullName = fullName.substring(0, 95) + "...";
+                  }
+
+                  return {
+                    name: fullName,
+                    value: `${item.id}|${item.media_type}`,
+                  };
+                } catch (err) {
+                  const emoji = item.media_type === "movie" ? "🎬" : "📺";
+                  const date = item.release_date || item.first_air_date || "";
+                  const year = date ? ` (${date.slice(0, 4)})` : "";
+                  let basicName = `${emoji} ${item.title || item.name}${year}`;
+                  if (basicName.length > 98) {
+                    basicName = basicName.substring(0, 95) + "...";
+                  }
+                  return {
+                    name: basicName,
+                    value: `${item.id}|${item.media_type}`,
+                  };
+                }
+              })
+            );
+
+            await interaction.respond(trendingChoices);
+            return;
+          } catch (e) {
+            logger.error("Trending autocomplete error:", e);
+            return interaction.respond([]);
+          }
+        }
+
+        // Handle regular search autocomplete (existing logic)
         if (!focusedValue) return interaction.respond([]);
 
         try {
@@ -1045,6 +1141,9 @@ async function startBot() {
             "request",
             tag ? [tag] : []
           );
+        }
+        if (interaction.commandName === "trending") {
+          return handleSearchOrRequest(interaction, raw, "search");
         }
       }
 
@@ -1603,10 +1702,14 @@ function configureWebServer() {
       let fetchError = null;
 
       try {
-        logger.debug("[MEMBERS API] Attempting to fetch members (real-time with force refresh)...");
+        logger.debug(
+          "[MEMBERS API] Attempting to fetch members (real-time with force refresh)..."
+        );
         // Force refresh members from Discord - ignores cache and fetches latest from server
         await guild.members.fetch({ force: true, limit: 1000 });
-        logger.info("[MEMBERS API] ✅ Members fetched successfully (real-time)");
+        logger.info(
+          "[MEMBERS API] ✅ Members fetched successfully (real-time)"
+        );
         fetchSuccess = true;
       } catch (fetchErr) {
         fetchError = fetchErr.message;
@@ -1752,7 +1855,9 @@ function configureWebServer() {
 
       let response;
       try {
-        logger.info("[JELLYSEERR USERS API] Fetching users from Jellyseerr (real-time)...");
+        logger.info(
+          "[JELLYSEERR USERS API] Fetching users from Jellyseerr (real-time)..."
+        );
         response = await axios.get(`${baseUrl}/user`, {
           headers: { "X-Api-Key": apiKey },
           timeout: TIMEOUTS.JELLYSEERR_API,
@@ -1812,7 +1917,9 @@ function configureWebServer() {
             avatar: avatar,
           };
         })
-        .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || "")); // Sort alphabetically
+        .sort((a, b) =>
+          (a.displayName || "").localeCompare(b.displayName || "")
+        ); // Sort alphabetically
 
       logger.info(
         `[JELLYSEERR USERS API] ✅ Returning ${users.length} users (real-time)`
@@ -1936,6 +2043,14 @@ function configureWebServer() {
         type: item.CollectionType || "unknown",
       }));
 
+      // Update library cache with fresh data for webhook usage
+      if (response.data.Items && response.data.Items.length > 0) {
+        libraryCache.set(response.data.Items);
+        logger.info(
+          `[LIBRARY CACHE] Updated cache with ${response.data.Items.length} libraries`
+        );
+      }
+
       res.json({ success: true, libraries });
     } catch (err) {
       logger.error("[JELLYFIN LIBRARIES API] Error:", err);
@@ -1963,6 +2078,7 @@ function configureWebServer() {
   });
 
   app.use("/assets", express.static(path.join(import.meta.dirname, "assets")));
+  app.use("/locales", express.static(path.join(import.meta.dirname, "locales")));
   app.use(express.static(path.join(import.meta.dirname, "web")));
 
   app.get("/", (req, res) => {
@@ -2000,6 +2116,47 @@ function configureWebServer() {
     } else {
       // If no config file, return the template from config/config.js
       res.json(configTemplate);
+    }
+  });
+
+  // Get available languages dynamically from locales directory
+  app.get("/api/languages", async (req, res) => {
+    try {
+      const localesDir = path.join(process.cwd(), "locales");
+      const files = fs.readdirSync(localesDir);
+      
+      const languages = [];
+      
+      for (const file of files) {
+        if (file.endsWith('.json') && file !== 'template.json') {
+          try {
+            const langPath = path.join(localesDir, file);
+            const langData = JSON.parse(fs.readFileSync(langPath, 'utf8'));
+            
+            if (langData._meta && langData._meta.language_code && langData._meta.language_name) {
+              languages.push({
+                code: langData._meta.language_code,
+                name: langData._meta.language_name
+              });
+            }
+          } catch (error) {
+            logger.warn(`Failed to parse language file ${file}: ${error.message}`);
+          }
+        }
+      }
+      
+      // Sort by language name
+      languages.sort((a, b) => a.name.localeCompare(b.name));
+      
+      res.json(languages);
+    } catch (error) {
+      logger.error(`Failed to load available languages: ${error.message}`);
+      // Return fallback languages
+      res.json([
+        { code: 'en', name: 'English' },
+        { code: 'de', name: 'Deutsch' },
+        { code: 'sv', name: 'Svenska' }
+      ]);
     }
   });
 
@@ -2065,6 +2222,10 @@ function configureWebServer() {
 
       loadConfig(); // Reload config into process.env
 
+      // Check if Discord credentials are complete and changed
+      const hasDiscordCreds = process.env.DISCORD_TOKEN && process.env.BOT_ID;
+      const discordCredsChanged = oldToken !== process.env.DISCORD_TOKEN;
+      
       // If bot is running and critical settings changed, restart the bot logic
       const jellyfinApiKeyChanged =
         oldJellyfinApiKey !== process.env.JELLYFIN_API_KEY;
@@ -2091,11 +2252,53 @@ function configureWebServer() {
             message: `Config saved, but bot failed to restart: ${error.message}`,
           });
         }
+      } else if (!isBotRunning && hasDiscordCreds && discordCredsChanged) {
+        // Check if user wants to auto-start the bot (default: true for backward compatibility)
+        const shouldStartBot = configData.startBot !== false; // Default to true if not specified
+        
+        if (shouldStartBot) {
+          // Auto-start bot when Discord credentials are first entered or changed
+          logger.info("Discord credentials configured. Starting bot automatically...");
+          try {
+            await startBot();
+            res.status(200).json({ 
+              message: "Configuration saved. Bot started successfully!" 
+            });
+          } catch (error) {
+            logger.error("Auto-start failed:", error.message);
+            res.status(200).json({
+              message: `Configuration saved, but bot failed to start: ${error.message}. Check credentials and try starting manually.`,
+            });
+          }
+        } else {
+          // User chose not to start the bot
+          res.status(200).json({ 
+            message: "Configuration saved successfully! You can start the bot manually when ready." 
+          });
+        }
       } else {
         res.status(200).json({ message: "Configuration saved successfully!" });
       }
     }
   );
+
+  // Check if saving config would trigger bot auto-start
+  app.post("/api/check-autostart", authenticateToken, async (req, res) => {
+    const configData = req.body;
+    const oldToken = process.env.DISCORD_TOKEN;
+    
+    // Check if Discord credentials are complete and changed
+    const hasDiscordCreds = configData.DISCORD_TOKEN && configData.BOT_ID;
+    const discordCredsChanged = oldToken !== configData.DISCORD_TOKEN;
+    const wouldAutoStart = !isBotRunning && hasDiscordCreds && discordCredsChanged;
+    
+    res.json({
+      wouldAutoStart,
+      hasDiscordCreds,
+      discordCredsChanged,
+      isBotRunning
+    });
+  });
 
   app.post("/api/test-jellyseerr", authenticateToken, async (req, res) => {
     const { url, apiKey } = req.body;

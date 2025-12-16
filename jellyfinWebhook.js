@@ -20,6 +20,26 @@ const creatingDebouncers = new Set(); // Prevent race condition: track SeriesIds
 const apiCache = new Map(); // tmdbId -> { data, timestamp }
 const API_CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 hours
 
+// Library cache to avoid repeated API calls at webhook time
+const libraryCache = {
+  data: null,
+  timestamp: null,
+  isValid: function () {
+    return (
+      this.data &&
+      this.timestamp &&
+      Date.now() - this.timestamp < 15 * 60 * 1000
+    ); // 15 min cache
+  },
+  set: function (libraries) {
+    this.data = libraries;
+    this.timestamp = Date.now();
+  },
+  get: function () {
+    return this.isValid() ? this.data : null;
+  },
+};
+
 // Cleanup configuration
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const CLEANUP_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -622,7 +642,7 @@ async function processAndSendNotification(
   }
 }
 
-export { processAndSendNotification };
+export { processAndSendNotification, libraryCache };
 
 export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
   try {
@@ -648,13 +668,16 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
             "Cannot detect library: JELLYFIN_API_KEY or JELLYFIN_BASE_URL not configured"
           );
         } else {
-          // Import and use the library detection from api/jellyfin.js
-          const { fetchLibraries, findLibraryByAncestors } = await import(
-            "./api/jellyfin.js"
-          );
+          // Try to use cached libraries first (to avoid timeout issues at webhook time)
+          let libraries = libraryCache.get();
 
-          // Get libraries and create a Map: CollectionId -> library object
-          const libraries = await fetchLibraries(apiKey, baseUrl);
+          if (!libraries) {
+            // Cache is invalid, fetch fresh libraries
+            const { fetchLibraries, findLibraryByAncestors } = await import(
+              "./api/jellyfin.js"
+            );
+            libraries = await fetchLibraries(apiKey, baseUrl);
+          }
 
           const libraryMap = new Map();
           for (const lib of libraries) {
@@ -667,6 +690,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
           // Use new method: query Jellyfin to find which library contains this item
           // Pass ItemType to filter libraries (e.g. don't match Movies library for Episodes)
+          const { findLibraryByAncestors } = await import("./api/jellyfin.js");
           libraryId = await findLibraryByAncestors(
             data.ItemId,
             apiKey,
@@ -731,6 +755,18 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
         return res
           .status(200)
           .send("OK: Notification skipped for disabled library.");
+      }
+      return;
+    } else if (libraryKeys.length > 0 && !libraryId) {
+      // Libraries are configured but we couldn't detect which library this item belongs to
+      // Skip notification to avoid sending for potentially disabled libraries
+      logger.warn(
+        `⚠️ Could not detect library for item "${data.Name}". Libraries are configured but detection failed. Skipping notification to prevent notifying for disabled libraries.`
+      );
+      if (res) {
+        return res
+          .status(200)
+          .send("OK: Notification skipped - library detection failed.");
       }
       return;
     } else {
@@ -806,7 +842,9 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
       const sentNotificationData = sentNotifications.get(SeriesId);
       const sentLevel = sentNotificationData ? sentNotificationData.level : 0;
-      const sentTimestamp = sentNotificationData ? sentNotificationData.timestamp : 0;
+      const sentTimestamp = sentNotificationData
+        ? sentNotificationData.timestamp
+        : 0;
       const currentLevel = getItemLevel(data.ItemType);
 
       logger.info(
@@ -834,13 +872,24 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       // If a notification was already sent (sentLevel > 0), apply blocking rules
       else if (sentLevel > 0 && currentLevel <= sentLevel) {
         // For season notifications after a series notification, allow if enough time has passed
-        if (currentLevel === 2 && sentLevel === 3) { // Season after Series
+        if (currentLevel === 2 && sentLevel === 3) {
+          // Season after Series
           const timeSinceLastNotification = Date.now() - sentTimestamp;
           if (timeSinceLastNotification > SEASON_NOTIFICATION_DELAY_MS) {
-            logger.info(`[ALLOWED] Season notification allowed: ${Math.round(timeSinceLastNotification / 1000 / 60)} minutes since series notification`);
+            logger.info(
+              `[ALLOWED] Season notification allowed: ${Math.round(
+                timeSinceLastNotification / 1000 / 60
+              )} minutes since series notification`
+            );
             shouldBlock = false; // Don't block
           } else {
-            logger.info(`[TIME BLOCKED] Season notification blocked: only ${Math.round(timeSinceLastNotification / 1000 / 60)} minutes since series notification (need ${SEASON_NOTIFICATION_DELAY_MS / 1000 / 60})`);
+            logger.info(
+              `[TIME BLOCKED] Season notification blocked: only ${Math.round(
+                timeSinceLastNotification / 1000 / 60
+              )} minutes since series notification (need ${
+                SEASON_NOTIFICATION_DELAY_MS / 1000 / 60
+              })`
+            );
             shouldBlock = true; // Block
           }
         }
@@ -881,7 +930,10 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       // BUT: If we already sent a notification (sentLevel > 0), don't create a new debouncer
       // This prevents duplicate notifications from delayed webhooks
       // ALSO: Check if we're already creating a debouncer to prevent race condition
-      if (!debouncedSenders.has(SeriesId) && !creatingDebouncers.has(SeriesId)) {
+      if (
+        !debouncedSenders.has(SeriesId) &&
+        !creatingDebouncers.has(SeriesId)
+      ) {
         // Check if we already sent a notification for this series
         if (sentLevel > 0) {
           logger.debug(
@@ -899,19 +951,21 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
         // Mark this SeriesId as currently creating a debouncer
         creatingDebouncers.add(SeriesId);
-        
+
         // Use longer debounce for episodes/seasons of completely new series
         // This gives the series notification more time to arrive first
         const isNewSeries = sentLevel === 0; // No previous notifications for this series
         const isLowerLevel = currentLevel < 3; // Episode (1) or Season (2), not Series (3)
         const shouldUseLongerDebounce = isNewSeries && isLowerLevel;
-        
-        const debounceMs = shouldUseLongerDebounce 
+
+        const debounceMs = shouldUseLongerDebounce
           ? NEW_SERIES_DEBOUNCE_MS
-          : (parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || DEFAULT_DEBOUNCE_MS);
-          
-        logger.debug(`Creating debouncer for ${data.ItemType} with ${debounceMs}ms timeout (new series: ${isNewSeries}, lower level: ${isLowerLevel})`);
-        
+          : parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || DEFAULT_DEBOUNCE_MS;
+
+        logger.debug(
+          `Creating debouncer for ${data.ItemType} with ${debounceMs}ms timeout (new series: ${isNewSeries}, lower level: ${isLowerLevel})`
+        );
+
         const newDebouncedSender = debounce(
           async (
             latestData,
