@@ -943,7 +943,7 @@ async function startBot() {
                     TMDB_API_KEY
                   );
 
-                  const emoji = item.media_type === "movie" ? "🔥🎬" : "🔥📺";
+                  const emoji = item.media_type === "movie" ? "🎬" : "📺";
                   const date = item.release_date || item.first_air_date || "";
                   const year = date ? ` (${date.slice(0, 4)})` : "";
 
@@ -959,11 +959,11 @@ async function startBot() {
                     const runtimeStr = runtime ? `${hours}h ${minutes}m` : null;
 
                     if (directorName && runtimeStr) {
-                      extraInfo = ` — ${directorName} — ${runtimeStr}`;
+                      extraInfo = ` — directed by ${directorName} — runtime: ${runtimeStr}`;
                     } else if (directorName) {
-                      extraInfo = ` — ${directorName}`;
+                      extraInfo = ` — directed by ${directorName}`;
                     } else if (runtimeStr) {
-                      extraInfo = ` — ${runtimeStr}`;
+                      extraInfo = ` — runtime: ${runtimeStr}`;
                     }
                   } else {
                     const creator = details.created_by?.[0]?.name;
@@ -973,9 +973,9 @@ async function startBot() {
                       : null;
 
                     if (creator && seasonStr) {
-                      extraInfo = ` — ${creator} — ${seasonStr}`;
+                      extraInfo = ` — created by ${creator} — ${seasonStr}`;
                     } else if (creator) {
-                      extraInfo = ` — ${creator}`;
+                      extraInfo = ` — created by ${creator}`;
                     } else if (seasonStr) {
                       extraInfo = ` — ${seasonStr}`;
                     }
@@ -994,7 +994,7 @@ async function startBot() {
                     value: `${item.id}|${item.media_type}`,
                   };
                 } catch (err) {
-                  const emoji = item.media_type === "movie" ? "🔥🎬" : "🔥📺";
+                  const emoji = item.media_type === "movie" ? "🎬" : "📺";
                   const date = item.release_date || item.first_air_date || "";
                   const year = date ? ` (${date.slice(0, 4)})` : "";
                   let basicName = `${emoji} ${item.title || item.name}${year}`;
