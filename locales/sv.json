@@ -1,0 +1,173 @@
+{
+  "_meta": {
+    "language_name": "Svenska",
+    "language_code": "sv",
+    "contributors": ["Simon Eklundh"],
+    "completion": "90%",
+    "last_updated": "2025-12-15",
+    "notes": "used AI for initial translation, dashboard is not great currently. it's pretty much just an initial translations"
+  },
+  "common": {
+    "yes": "Ja",
+    "no": "Nej",
+    "save": "Spara",
+    "cancel": "Avbryt",
+    "delete": "Ta bort",
+    "edit": "Redigera",
+    "loading": "Laddar",
+    "error": "Fel",
+    "success": "succé",
+    "username": "Användarnamn",
+    "password": "Lösenord"
+  },
+  "auth": {
+    "login": "Logga in",
+    "register": "Registrera",
+    "create_account": "Skapa konto",
+    "enter_username": "Ange användarnamn",
+    "enter_password": "Ange lösenord",
+    "choose_username": "Välj användarnamn",
+    "choose_password": "Välj lösenord",
+    "choose_username_placeholder": "Användarnamn",
+    "choose_password_placeholder": "Lösenord",
+    "no_account": "Har du inget konto?",
+    "have_account": "Har du redan ett konto?"
+  },
+  "navigation": {
+    "dashboard": "Instrumentpanel",
+    "configuration": "Konfiguration",
+    "logs": "Loggar",
+    "users": "Användare"
+  },
+  "dashboard": {
+    "title": "Instrumentpanel",
+    "subtitle": "Anchorr behöver komma åt dina jellyfin och seerr instanser.",
+    "subtitle_detail": "Nedan är en beskrivning av hur du gör för att sätta igång."
+  },
+  "config": {
+    "title": "Inställningar",
+    "general_settings": "Allmänna inställningar",
+    "discord_section": "Discord",
+    "jellyfin_section": "Jellyfin",
+    "jellyseerr_section": "Jellyseerr",
+    "media_section": "Media",
+    "nav_discord": "Discord",
+    "nav_jellyseerr": "Jellyseerr",
+    "nav_media": "Media",
+    "nav_jellyfin": "Jellyfin",
+    "nav_mappings": "Kartläggningar",
+    "nav_roles": "Roller",
+    "nav_misc": "Övrigt",
+    "start_bot": "Starta bot",
+    "language": "Språk",
+    "language_help": "Välj språk för gränssnittet",
+    "discord_instructions_intro": "Först behöver du skapa en Discord applikation för boten. gå till <a href=\"https://discord.com/developers/applications\" target=\"_blank\" rel=\"noopener noreferrer\">Discord Developer Portal</a> och logga in. skapa en ny applikation och sen:",
+    "discord_instructions_1": "Gå till <strong>\"Bot\"</strong> i den vänstra menyn och klicka på <strong>\"Add Bot\"</strong>",
+    "discord_instructions_2": "I <strong>\"Bot\"</strong> sektionen, scrolla ner till <strong>\"Privileged Gateway Intents\"</strong> och sätt på <code>SERVER MEMBERS INTENT</code> (krävs för att kunna koppla discordkonton och seerr)",
+    "discord_instructions_3": "Gå till <strong>\"OAuth2\"</strong> → <strong>\"URL Generator\"</strong>",
+    "discord_instructions_4": "Välj scopes: <code>bot</code> och <code>applications.commands</code>",
+    "discord_instructions_5": "Välj behörigheter: <code>Send Messages</code> and <code>Embed Links</code>",
+    "discord_instructions_6": "Kopiera den genererade länken och öppna i din webbläsare. Auktorisera sedan botten i din server.",
+    "discord_instructions_7": "Kom tillbaks hit och fyll i <strong>Discord Bot Token</strong> och <strong>Bot Client ID</strong>här nedan. väljd sedan server och notifikationskanal från menyn här nedan",
+    "discord_token": "Discord bottoken",
+    "discord_token_help": "Klistra in din Discord-token här",
+    "bot_id": "Bot-ID",
+    "bot_id_help": "Unikt ID för din bot",
+    "auto_start_info": "Starta automatiskt vid uppstart",
+    "discord_server": "Discord-server",
+    "loading_servers": "Laddar servrar...",
+    "discord_server_help": "Välj server för boten",
+    "default_channel": "Standardkanal",
+    "select_server_first": "Välj server först",
+    "default_channel_help": "Välj standardkanal för boten",
+    "jellyseerr_url": "Jellyseerr-URL",
+    "jellyseerr_url_help": "Ange Jellyseerr-URL",
+    "jellyseerr_api_key": "Jellyseerr API-nyckel",
+    "jellyseerr_api_key_help": "Ange Jellyseerr API-nyckel",
+    "test_connection": "Testa anslutning",
+    "tmdb_api_key": "TMDB API-nyckel",
+    "tmdb_api_key_help": "Ange TMDB API-nyckel",
+    "omdb_api_key": "OMDB API-nyckel",
+    "omdb_api_key_help": "Ange OMDB API-nyckel",
+    "jellyfin_url": "Jellyfin-URL",
+    "jellyfin_url_help": "Ange Jellyfin-URL",
+    "jellyfin_api_key": "Jellyfin API-nyckel",
+    "jellyfin_api_key_help": "Ange Jellyfin API-nyckel",
+    "test_endpoint": "Testa endpoint",
+    "test_endpoint_help": "Kontrollera Jellyfin-endpoint",
+    "jellyfin_server_id": "Jellyfin server-ID",
+    "jellyfin_server_id_help": "Ange server-ID för Jellyfin",
+    "save_button": "Spara inställningar"
+  },
+  "ui": {
+    "hide_header": "Dölj rubrik",
+    "show_header": "Visa rubrik"
+  },
+  "footer": {
+    "report_bug": "Rapportera fel",
+    "logs": "Loggar",
+    "made_by": "Skapad av",
+    "buy_coffee": "Bjud på en kaffe"
+  },
+  "logs": {
+    "title": "Loggar",
+    "back_to_config": "Tillbaka till inställningar",
+    "all_logs": "Alla loggar",
+    "errors": "Fel",
+    "refresh": "Uppdatera",
+    "loading": "Laddar..."
+  },
+  "bot": {
+    "start": "Starta",
+    "stop": "Stoppa",
+    "restart": "Starta om",
+    "status_online": "Online",
+    "status_offline": "Offline",
+    "status_starting": "Startar...",
+    "status_stopping": "Stoppar...",
+    "bot_started": "Bot startad",
+    "bot_stopped": "Bot stoppad",
+    "bot_restarted": "Bot omstartad",
+    "bot_error": "Botfel",
+    "invalid_token": "Ogiltig token",
+    "invalid_guild": "Ogiltig server",
+    "missing_permissions": "Saknar behörigheter",
+    "status": {
+      "online": "Online",
+      "offline": "Offline"
+    },
+    "actions": {
+      "start": "Starta",
+      "stop": "Stoppa",
+      "restart": "Starta om"
+    },
+    "messages": {
+      "started": "Startad",
+      "stopped": "Stoppad",
+      "restarted": "Omstartad"
+    },
+    "commands": {
+      "search": {
+        "description": "Sök efter innehåll",
+        "response_found": "Innehåll hittat",
+        "response_none": "Inget innehåll hittades",
+        "request_sent": "Förfrågan skickad",
+        "already_available": "Redan tillgängligt",
+        "error": "Fel vid sökning"
+      },
+      "request": {
+        "description": "Begär nytt innehåll"
+      },
+      "trending": {
+        "description": "Visa trendande innehåll"
+      }
+    },
+    "notifications": {
+      "new_content": "Nytt innehåll tillgängligt",
+      "movie_added": "Film tillagd",
+      "series_added": "Serie tillagd",
+      "episode_added": "Avsnitt tillagt",
+      "season_added": "Säsong tillagd"
+    }
+  }
+}

@@ -43,6 +43,7 @@ I also have a dedicated channel on the [r/JellyfinCommunity](https://discord.gg/
 - **🔐 Role-Based Permissions**: Control who can use bot commands through Discord roles (allowlist/blocklist)
 - **🔔 Private Notifications**: Optional PM when your requested content becomes available on Jellyfin
 - **👻 Ephemeral Mode**: Make bot responses visible only to the command user
+- **🌍 Multi-Language Support**: Fully translated interface with automatic language detection
 - **🎨 Rich Embeds**: Beautiful, detailed embeds with:
   - Movie/TV show posters and backdrops
   - Director/Creator information
@@ -255,6 +256,17 @@ docker run -d \
 ## 🤝 Contributing
 
 Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+
+### 🌍 Adding Translations
+
+Help make Anchorr accessible to more users by contributing translations! The system now automatically detects and loads new languages.
+
+**Quick start:**
+```bash
+npm run create-translation es "Español" "Your Name"
+```
+
+See [TRANSLATION_GUIDE.md](./TRANSLATION_GUIDE.md) for detailed instructions.
 
 ## 👥 Contributors
 

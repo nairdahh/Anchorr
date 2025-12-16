@@ -79,6 +79,49 @@ function setupLanguageChangeHandler() {
   }
 }
 
+// Get available languages from locale files
+async function getAvailableLanguages() {
+  try {
+    const response = await fetch('/api/languages');
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (error) {
+    console.warn('Failed to load available languages, using fallback');
+  }
+  
+  // Fallback to hardcoded languages if API fails
+  return [
+    { code: 'en', name: 'English' },
+    { code: 'de', name: 'Deutsch' },
+    { code: 'sv', name: 'Svenska' }
+  ];
+}
+
+// Populate language selectors dynamically
+async function populateLanguageSelectors() {
+  const languages = await getAvailableLanguages();
+  const selectors = document.querySelectorAll('#auth-language, #LANGUAGE');
+  
+  selectors.forEach(select => {
+    if (!select) return;
+    
+    // Clear existing options
+    select.innerHTML = '';
+    
+    // Add language options
+    languages.forEach(lang => {
+      const option = document.createElement('option');
+      option.value = lang.code;
+      option.textContent = lang.name;
+      select.appendChild(option);
+    });
+    
+    // Set current language
+    select.value = currentLanguage;
+  });
+}
+
 // Initialize i18n system
 async function initializeI18n() {
   // Try to get saved language preference
@@ -91,15 +134,12 @@ async function initializeI18n() {
     currentLanguage = 'en';
   }
   
+  // Populate language selectors
+  await populateLanguageSelectors();
+  
   // Load translations and update UI
   currentTranslations = await loadTranslations(currentLanguage);
   updateUITranslations();
-  
-  // Set language selectors to current language
-  const selects = document.querySelectorAll('#auth-language, #LANGUAGE');
-  selects.forEach(select => {
-    if (select) select.value = currentLanguage;
-  });
   
   // Setup change handlers
   setupAuthLanguageHandler();

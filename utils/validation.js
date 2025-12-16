@@ -7,7 +7,7 @@ import Joi from "joi";
 
 // --- CONFIG VALIDATION ---
 export const configSchema = Joi.object({
-  LANGUAGE: Joi.string().valid("en", "de").optional(),
+  LANGUAGE: Joi.string().valid("en", "de", "se").optional(),
   DISCORD_TOKEN: Joi.string().allow("").optional(),
   BOT_ID: Joi.string().allow("").optional(),
   GUILD_ID: Joi.string().allow("").optional(),

@@ -40,17 +40,16 @@ Help us improve README, guides, or inline code comments!
 
 ### 🌐 Add Translations
 
-Anchorr supports multiple languages! Help make it accessible to more users by contributing translations.
+Anchorr supports multiple languages! Help make it accessible to more users by contributing translations. The translation system is fully automated!
 
 **Currently supported languages:**
 - English (en) - Base language
 - German (de) - Fully translated
+- Swedish (sv) - Available
 
-**How to add a new language:**
+#### How to Add a New Language
 
-#### Step 1: Setup Translation Files
-
-1. Copy `locales/template.json` to `locales/[language-code].json` (e.g., `locales/fr.json` for French)
+1. Copy `locales/en.json` to `locales/<language_code>.json` (e.g., `locales/fr.json` for French)
 2. Update the `_meta` section with your language information:
 ```json
 {
@@ -59,43 +58,70 @@ Anchorr supports multiple languages! Help make it accessible to more users by co
     "language_code": "fr",
     "contributors": ["Your Name"],
     "completion": "0%",
-    "last_updated": "2025-12-15",
-    "notes": "French translation"
+    "last_updated": "2025-12-16",
+    "notes": "Initial translation"
+  }
+}
+```
+3. Translate all text values (keep the keys unchanged)
+4. Your translation will automatically appear in the language dropdown!
+
+#### Translation Guidelines
+
+**Important Rules:**
+- **Never change JSON keys** - only translate the values
+- **Keep HTML tags intact** - e.g., `<strong>Discord</strong>` stays as `<strong>Discord</strong>`
+- **Preserve placeholders** - e.g., `{{count}}` should remain `{{count}}`
+- **Maintain link structure** - Keep `<a href="..." target="_blank">` tags
+- **Test frequently** - Start the server and check your translation in the UI
+
+**Language Codes (ISO 639-1):**
+- `en` - English, `de` - German, `sv` - Swedish, `fr` - French
+- `es` - Spanish, `pt` - Portuguese, `pt-br` - Portuguese (Brazil)
+- `zh` - Chinese, `ja` - Japanese, `ko` - Korean, `ru` - Russian, `ar` - Arabic
+
+**Example Translation Structure:**
+```json
+{
+  "_meta": {
+    "language_name": "Français",
+    "language_code": "fr",
+    "contributors": ["John Doe"],
+    "completion": "45%",
+    "last_updated": "2025-12-16",
+    "notes": "Work in progress"
+  },
+  "common": {
+    "yes": "Oui",
+    "no": "Non",
+    "save": "Enregistrer",
+    "cancel": "Annuler"
+  },
+  "config": {
+    "title": "Configuration",
+    "discord_instructions_1": "Allez à <strong>\"Bot\"</strong> dans la barre latérale et cliquez sur <strong>\"Add Bot\"</strong>"
   }
 }
 ```
 
-#### Step 2: Translate Content
+#### Testing Your Translation
 
-- Translate all empty string values in the JSON file
-- Keep the structure identical to the template
-- For HTML in translation values (like links), maintain the same HTML structure
-- Test special characters and ensure proper encoding
+1. Start the Anchorr server: `npm start`
+2. Open the web interface
+3. Look for your language in the language dropdown
+4. Select it and verify the translations appear correctly
+5. Check all pages and sections
 
-#### Step 3: Update Language Selector
+#### Common Placeholders
+- `{{count}}` - Number of items
+- `{{query}}` - Search query text
+- `{{title}}` - Movie/show title
+- `<strong>text</strong>` - Bold text
+- `<code>text</code>` - Code formatting
+- `<a href="...">text</a>` - Links
 
-Add your language to the validation schema in `utils/validation.js`:
-```javascript
-LANGUAGE: Joi.string().valid("en", "de", "fr").optional(),
-```
-
-#### Step 4: Test Your Translation
-
-1. Start Anchorr in development mode
-2. Navigate to the authentication screen
-3. Select your language from the dropdown
-4. Verify all text displays correctly
-5. Test the configuration interface
-6. Check for text overflow or layout issues
-
-**Translation Guidelines:**
-
-- **Consistency**: Use the same terms throughout the interface
-- **Context**: Consider the context where text appears (buttons, labels, help text)
-- **Length**: Be mindful of text length - some languages are more verbose
-- **Tone**: Maintain a helpful, professional tone
-- **HTML**: Preserve HTML tags and structure in help text
-- **Variables**: Keep placeholder variables like `{{title}}` unchanged
+**Automatic Detection:**
+The system automatically scans the `locales/` directory, reads the `_meta` section, populates the language dropdown, loads translations when selected, and falls back to English if translation is missing.
 
 ### 🔧 Submit Code Changes
 
