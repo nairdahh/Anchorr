@@ -1,4 +1,154 @@
-document.addEventListener("DOMContentLoaded", () => {
+// --- i18n System ---
+let currentTranslations = {};
+let currentLanguage = 'en';
+
+async function loadTranslations(language) {
+  try {
+    const response = await fetch(`/locales/${language}.json`);
+    if (!response.ok) {
+      console.warn(`Failed to load ${language} translations, falling back to English`);
+      const fallbackResponse = await fetch('/locales/en.json');
+      return await fallbackResponse.json();
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error loading translations:', error);
+    // Return minimal fallback
+    return {
+      common: { loading: 'Loading...' },
+      auth: { login: 'Login' },
+      config: { title: 'Configuration' }
+    };
+  }
+}
+
+function updateUITranslations() {
+  // Update all elements with data-i18n attributes
+  document.querySelectorAll('[data-i18n]').forEach(element => {
+    const key = element.getAttribute('data-i18n');
+    const translation = getNestedTranslation(key);
+    if (translation) {
+      // Check if element needs attribute translation
+      const attrName = element.getAttribute('data-i18n-attr');
+      if (attrName) {
+        element.setAttribute(attrName, translation);
+      } else {
+        // Regular text content translation
+        element.innerHTML = translation;
+      }
+    }
+  });
+}
+
+function getNestedTranslation(key) {
+  return key.split('.').reduce((obj, k) => obj && obj[k], currentTranslations);
+}
+
+async function switchLanguage(language) {
+  currentLanguage = language;
+  currentTranslations = await loadTranslations(language);
+  updateUITranslations();
+  
+  // Save language preference
+  try {
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ LANGUAGE: language })
+    });
+  } catch (error) {
+    console.error('Failed to save language preference:', error);
+  }
+}
+
+function setupAuthLanguageHandler() {
+  const authLanguageSelect = document.getElementById('auth-language');
+  if (authLanguageSelect) {
+    authLanguageSelect.addEventListener('change', async (e) => {
+      await switchLanguage(e.target.value);
+    });
+  }
+}
+
+function setupLanguageChangeHandler() {
+  const languageSelect = document.getElementById('LANGUAGE');
+  if (languageSelect) {
+    languageSelect.addEventListener('change', async (e) => {
+      await switchLanguage(e.target.value);
+    });
+  }
+}
+
+// Get available languages from locale files
+async function getAvailableLanguages() {
+  try {
+    const response = await fetch('/api/languages');
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (error) {
+    console.warn('Failed to load available languages, using fallback');
+  }
+  
+  // Fallback to hardcoded languages if API fails
+  return [
+    { code: 'en', name: 'English' },
+    { code: 'de', name: 'Deutsch' },
+    { code: 'sv', name: 'Svenska' }
+  ];
+}
+
+// Populate language selectors dynamically
+async function populateLanguageSelectors() {
+  const languages = await getAvailableLanguages();
+  const selectors = document.querySelectorAll('#auth-language, #LANGUAGE');
+  
+  selectors.forEach(select => {
+    if (!select) return;
+    
+    // Clear existing options
+    select.innerHTML = '';
+    
+    // Add language options
+    languages.forEach(lang => {
+      const option = document.createElement('option');
+      option.value = lang.code;
+      option.textContent = lang.name;
+      select.appendChild(option);
+    });
+    
+    // Set current language
+    select.value = currentLanguage;
+  });
+}
+
+// Initialize i18n system
+async function initializeI18n() {
+  // Try to get saved language preference
+  try {
+    const response = await fetch('/api/config');
+    const config = await response.json();
+    currentLanguage = config.LANGUAGE || 'en';
+  } catch (error) {
+    console.warn('Could not load saved language, using default');
+    currentLanguage = 'en';
+  }
+  
+  // Populate language selectors
+  await populateLanguageSelectors();
+  
+  // Load translations and update UI
+  currentTranslations = await loadTranslations(currentLanguage);
+  updateUITranslations();
+  
+  // Setup change handlers
+  setupAuthLanguageHandler();
+  setupLanguageChangeHandler();
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  // Initialize i18n first
+  await initializeI18n();
   const form = document.getElementById("config-form");
   const botControlBtn = document.getElementById("bot-control-btn");
   const botControlText = document.getElementById("bot-control-text");

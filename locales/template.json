@@ -1,0 +1,173 @@
+{
+  "_meta": {
+    "language_name": "Language Name",
+    "language_code": "xx",
+    "contributors": ["Your Name"],
+    "completion": "0%",
+    "last_updated": "YYYY-MM-DD",
+    "notes": "Translation notes or specific considerations"
+  },
+  "common": {
+    "yes": "",
+    "no": "",
+    "save": "",
+    "cancel": "",
+    "delete": "",
+    "edit": "",
+    "loading": "",
+    "error": "",
+    "success": "",
+    "username": "",
+    "password": ""
+  },
+  "auth": {
+    "login": "",
+    "register": "",
+    "create_account": "",
+    "enter_username": "",
+    "enter_password": "",
+    "choose_username": "",
+    "choose_password": "",
+    "choose_username_placeholder": "",
+    "choose_password_placeholder": "",
+    "no_account": "",
+    "have_account": ""
+  },
+  "navigation": {
+    "dashboard": "",
+    "configuration": "",
+    "logs": "",
+    "users": ""
+  },
+  "dashboard": {
+    "title": "",
+    "subtitle": "",
+    "subtitle_detail": ""
+  },
+  "config": {
+    "title": "",
+    "general_settings": "",
+    "discord_section": "",
+    "jellyfin_section": "",
+    "jellyseerr_section": "",
+    "media_section": "",
+    "nav_discord": "",
+    "nav_jellyseerr": "",
+    "nav_media": "",
+    "nav_jellyfin": "",
+    "nav_mappings": "",
+    "nav_roles": "",
+    "nav_misc": "",
+    "start_bot": "",
+    "language": "",
+    "language_help": "",
+    "discord_instructions_intro": "",
+    "discord_instructions_1": "",
+    "discord_instructions_2": "",
+    "discord_instructions_3": "",
+    "discord_instructions_4": "",
+    "discord_instructions_5": "",
+    "discord_instructions_6": "",
+    "discord_instructions_7": "",
+    "discord_token": "",
+    "discord_token_help": "",
+    "bot_id": "",
+    "bot_id_help": "",
+    "auto_start_info": "",
+    "discord_server": "",
+    "loading_servers": "",
+    "discord_server_help": "",
+    "default_channel": "",
+    "select_server_first": "",
+    "default_channel_help": "",
+    "jellyseerr_url": "",
+    "jellyseerr_url_help": "",
+    "jellyseerr_api_key": "",
+    "jellyseerr_api_key_help": "",
+    "test_connection": "",
+    "tmdb_api_key": "",
+    "tmdb_api_key_help": "",
+    "omdb_api_key": "",
+    "omdb_api_key_help": "",
+    "jellyfin_url": "",
+    "jellyfin_url_help": "",
+    "jellyfin_api_key": "",
+    "jellyfin_api_key_help": "",
+    "test_endpoint": "",
+    "test_endpoint_help": "",
+    "jellyfin_server_id": "",
+    "jellyfin_server_id_help": "",
+    "save_button": ""
+  },
+  "ui": {
+    "hide_header": "",
+    "show_header": ""
+  },
+  "footer": {
+    "report_bug": "",
+    "logs": "",
+    "made_by": "",
+    "buy_coffee": ""
+  },
+  "logs": {
+    "title": "",
+    "back_to_config": "",
+    "all_logs": "",
+    "errors": "",
+    "refresh": "",
+    "loading": ""
+  },
+  "bot": {
+    "start": "",
+    "stop": "",
+    "restart": "",
+    "status_online": "",
+    "status_offline": "",
+    "status_starting": "",
+    "status_stopping": "",
+    "bot_started": "",
+    "bot_stopped": "",
+    "bot_restarted": "",
+    "bot_error": "",
+    "invalid_token": "",
+    "invalid_guild": "",
+    "missing_permissions": "",
+    "status": {
+      "online": "",
+      "offline": ""
+    },
+    "actions": {
+      "start": "",
+      "stop": "",
+      "restart": ""
+    },
+    "messages": {
+      "started": "",
+      "stopped": "",
+      "restarted": ""
+    },
+    "commands": {
+      "search": {
+        "description": "",
+        "response_found": "",
+        "response_none": "",
+        "request_sent": "",
+        "already_available": "",
+        "error": ""
+      },
+      "request": {
+        "description": ""
+      },
+      "trending": {
+        "description": ""
+      }
+    },
+    "notifications": {
+      "new_content": "",
+      "movie_added": "",
+      "series_added": "",
+      "episode_added": "",
+      "season_added": ""
+    }
+  }
+}

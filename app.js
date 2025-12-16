@@ -2019,6 +2019,47 @@ function configureWebServer() {
     }
   });
 
+  // Get available languages dynamically from locales directory
+  app.get("/api/languages", async (req, res) => {
+    try {
+      const localesDir = path.join(process.cwd(), "locales");
+      const files = fs.readdirSync(localesDir);
+      
+      const languages = [];
+      
+      for (const file of files) {
+        if (file.endsWith('.json') && file !== 'template.json') {
+          try {
+            const langPath = path.join(localesDir, file);
+            const langData = JSON.parse(fs.readFileSync(langPath, 'utf8'));
+            
+            if (langData._meta && langData._meta.language_code && langData._meta.language_name) {
+              languages.push({
+                code: langData._meta.language_code,
+                name: langData._meta.language_name
+              });
+            }
+          } catch (error) {
+            logger.warn(`Failed to parse language file ${file}: ${error.message}`);
+          }
+        }
+      }
+      
+      // Sort by language name
+      languages.sort((a, b) => a.name.localeCompare(b.name));
+      
+      res.json(languages);
+    } catch (error) {
+      logger.error(`Failed to load available languages: ${error.message}`);
+      // Return fallback languages
+      res.json([
+        { code: 'en', name: 'English' },
+        { code: 'de', name: 'Deutsch' },
+        { code: 'sv', name: 'Svenska' }
+      ]);
+    }
+  });
+
   app.post(
     "/api/save-config",
     authenticateToken,
