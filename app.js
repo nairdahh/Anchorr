@@ -3,7 +3,7 @@ import path from "path";
 import express from "express";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
-import { handleJellyfinWebhook } from "./jellyfinWebhook.js";
+import { handleJellyfinWebhook, libraryCache } from "./jellyfinWebhook.js";
 import { configTemplate } from "./lib/config.js";
 import axios from "axios";
 
@@ -1603,10 +1603,14 @@ function configureWebServer() {
       let fetchError = null;
 
       try {
-        logger.debug("[MEMBERS API] Attempting to fetch members (real-time with force refresh)...");
+        logger.debug(
+          "[MEMBERS API] Attempting to fetch members (real-time with force refresh)..."
+        );
         // Force refresh members from Discord - ignores cache and fetches latest from server
         await guild.members.fetch({ force: true, limit: 1000 });
-        logger.info("[MEMBERS API] ✅ Members fetched successfully (real-time)");
+        logger.info(
+          "[MEMBERS API] ✅ Members fetched successfully (real-time)"
+        );
         fetchSuccess = true;
       } catch (fetchErr) {
         fetchError = fetchErr.message;
@@ -1752,7 +1756,9 @@ function configureWebServer() {
 
       let response;
       try {
-        logger.info("[JELLYSEERR USERS API] Fetching users from Jellyseerr (real-time)...");
+        logger.info(
+          "[JELLYSEERR USERS API] Fetching users from Jellyseerr (real-time)..."
+        );
         response = await axios.get(`${baseUrl}/user`, {
           headers: { "X-Api-Key": apiKey },
           timeout: TIMEOUTS.JELLYSEERR_API,
@@ -1812,7 +1818,9 @@ function configureWebServer() {
             avatar: avatar,
           };
         })
-        .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || "")); // Sort alphabetically
+        .sort((a, b) =>
+          (a.displayName || "").localeCompare(b.displayName || "")
+        ); // Sort alphabetically
 
       logger.info(
         `[JELLYSEERR USERS API] ✅ Returning ${users.length} users (real-time)`
@@ -1935,6 +1943,14 @@ function configureWebServer() {
         name: item.Name,
         type: item.CollectionType || "unknown",
       }));
+
+      // Update library cache with fresh data for webhook usage
+      if (response.data.Items && response.data.Items.length > 0) {
+        libraryCache.set(response.data.Items);
+        logger.info(
+          `[LIBRARY CACHE] Updated cache with ${response.data.Items.length} libraries`
+        );
+      }
 
       res.json({ success: true, libraries });
     } catch (err) {
