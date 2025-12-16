@@ -64,7 +64,12 @@ Anchorr supports multiple languages! Help make it accessible to more users by co
 }
 ```
 3. Translate all text values (keep the keys unchanged)
-4. Your translation will automatically appear in the language dropdown!
+4. **Important:** Add your language code to `utils/validation.js` in the `configSchema` LANGUAGE validation:
+   ```javascript
+   LANGUAGE: Joi.string().valid("en", "de", "se", "fr").optional(),
+   ```
+   This ensures the language is accepted by the web configuration interface.
+5. Your translation will automatically appear in the language dropdown!
 
 #### Translation Guidelines
 
@@ -106,7 +111,7 @@ Anchorr supports multiple languages! Help make it accessible to more users by co
 
 #### Testing Your Translation
 
-1. Start the Anchorr server: `npm start`
+1. Start the Anchorr server: `node app.js`
 2. Open the web interface
 3. Look for your language in the language dropdown
 4. Select it and verify the translations appear correctly
