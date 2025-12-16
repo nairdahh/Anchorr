@@ -87,7 +87,7 @@
                 <!-- Language Selection (shown during auth) -->
                 <div class="language-selector-auth" style="margin-bottom: 1.5rem; text-align: center;">
                   <label for="auth-language" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--subtext0);">Language / Sprache</label>
-                  <select id="auth-language" style="width: 100%; max-width: 200px; background-color: var(--background); border: 1px solid var(--surface1); color: var(--text); padding: 0.5rem; border-radius: 8px; font-size: 0.9rem;">
+                  <select id="auth-language" style="width: 100%; max-width: 200px; background-color: var(--surface0); border: 1px solid var(--surface1); color: var(--text); padding: 0.5rem; border-radius: 8px; font-size: 0.9rem;">
                     <!-- Languages will be populated dynamically -->
                   </select>
                 </div>
@@ -174,21 +174,6 @@
                 <form id="config-form">
                   <!-- Discord Pane -->
                   <div id="config-pane-discord" class="config-pane active">
-                    <fieldset>
-                      <legend data-i18n="config.general_settings">General Settings</legend>
-                      
-                      <div class="form-group">
-                        <label for="LANGUAGE" data-i18n="config.language">Language</label>
-                        <select 
-                          id="LANGUAGE" 
-                          name="LANGUAGE"
-                          style="width: 100%; background-color: var(--background); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
-                          <!-- Languages will be populated dynamically -->
-                        </select>
-                        <div class="form-text" data-i18n="config.language_help">Select your preferred language for the interface.</div>
-                      </div>
-                    </fieldset>
-
                     <fieldset>
                       <legend data-i18n="config.discord_section">Discord Settings</legend>
                       
@@ -775,6 +760,26 @@
                           <div class="color-picker-group">
                             <label for="EMBED_COLOR_SUCCESS" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">✅ Request Success</label>
                             <input type="text" id="EMBED_COLOR_SUCCESS" name="EMBED_COLOR_SUCCESS" data-coloris value="#a6e3a1" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface0); color: var(--text); font-size: 1rem;" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- App Settings Section -->
+                      <div class="form-group" style="margin-top: 2rem;">
+                        <label style="font-size: 1.2rem; font-weight: 700; color: var(--mauve);">
+                          <strong>App Settings</strong>
+                        </label>
+                        <div class="form-text" style="margin-bottom: 1rem;">
+                          General application settings for Anchorr.
+                        </div>
+
+                        <div class="form-group">
+                          <label for="app-language" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">🌐 Language</label>
+                          <select id="app-language" name="LANGUAGE" style="width: 100%; max-width: 300px; background-color: var(--surface0); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                            <!-- Languages will be populated dynamically -->
+                          </select>
+                          <div class="form-text" style="margin-top: 0.5rem;">
+                            Select the language for the Anchorr dashboard interface.
                           </div>
                         </div>
                       </div>

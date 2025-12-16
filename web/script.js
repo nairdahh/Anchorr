@@ -71,10 +71,16 @@ function setupAuthLanguageHandler() {
 }
 
 function setupLanguageChangeHandler() {
-  const languageSelect = document.getElementById('LANGUAGE');
-  if (languageSelect) {
-    languageSelect.addEventListener('change', async (e) => {
+  // Handle app-language selector in Miscellaneous section
+  const appLanguageSelect = document.getElementById('app-language');
+  if (appLanguageSelect) {
+    appLanguageSelect.addEventListener('change', async (e) => {
       await switchLanguage(e.target.value);
+      // Sync with auth-language selector if visible
+      const authLanguageSelect = document.getElementById('auth-language');
+      if (authLanguageSelect) {
+        authLanguageSelect.value = e.target.value;
+      }
     });
   }
 }
@@ -101,7 +107,7 @@ async function getAvailableLanguages() {
 // Populate language selectors dynamically
 async function populateLanguageSelectors() {
   const languages = await getAvailableLanguages();
-  const selectors = document.querySelectorAll('#auth-language, #LANGUAGE');
+  const selectors = document.querySelectorAll('#auth-language, #app-language');
   
   selectors.forEach(select => {
     if (!select) return;
@@ -236,6 +242,21 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
         }
       }
+      
+      // Sync app-language selector with LANGUAGE config value
+      if (config.LANGUAGE) {
+        const appLanguageSelect = document.getElementById('app-language');
+        const authLanguageSelect = document.getElementById('auth-language');
+        if (appLanguageSelect) {
+          appLanguageSelect.value = config.LANGUAGE;
+        }
+        if (authLanguageSelect) {
+          authLanguageSelect.value = config.LANGUAGE;
+        }
+        // Update global currentLanguage
+        currentLanguage = config.LANGUAGE;
+      }
+      
       updateWebhookUrl();
     } catch (error) {
       showToast("Error fetching configuration.");
@@ -540,6 +561,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
 
     const config = Object.fromEntries(filteredEntries);
+
+    // Add language setting from app-language selector
+    const appLanguageSelect = document.getElementById('app-language');
+    if (appLanguageSelect && appLanguageSelect.value) {
+      config.LANGUAGE = appLanguageSelect.value;
+    }
 
     // Explicitly capture checkbox values as "true"/"false" (except role checkboxes)
     document

@@ -2078,6 +2078,7 @@ function configureWebServer() {
   });
 
   app.use("/assets", express.static(path.join(import.meta.dirname, "assets")));
+  app.use("/locales", express.static(path.join(import.meta.dirname, "locales")));
   app.use(express.static(path.join(import.meta.dirname, "web")));
 
   app.get("/", (req, res) => {
