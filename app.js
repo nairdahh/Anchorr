@@ -921,7 +921,103 @@ async function startBot() {
           }
         }
 
-        // Handle Title Autocomplete (existing logic)
+        // Handle Title Autocomplete
+        // For trending command, show trending content instead of search results
+        if (interaction.commandName === "trending") {
+          try {
+            const trendingResults = await tmdbApi.tmdbGetTrending(TMDB_API_KEY);
+            const filtered = trendingResults
+              .filter((r) => r.media_type === "movie" || r.media_type === "tv")
+              .filter((r) => {
+                const title = r.title || r.name || "";
+                return title.toLowerCase().includes(focusedValue.toLowerCase());
+              })
+              .slice(0, 25);
+
+            const trendingChoices = await Promise.all(
+              filtered.map(async (item) => {
+                try {
+                  const details = await tmdbApi.tmdbGetDetails(
+                    item.id,
+                    item.media_type,
+                    TMDB_API_KEY
+                  );
+
+                  const emoji = item.media_type === "movie" ? "🎬" : "📺";
+                  const date = item.release_date || item.first_air_date || "";
+                  const year = date ? ` (${date.slice(0, 4)})` : "";
+
+                  let extraInfo = "";
+                  if (item.media_type === "movie") {
+                    const director = details.credits?.crew?.find(
+                      (c) => c.job === "Director"
+                    );
+                    const directorName = director ? director.name : null;
+                    const runtime = details.runtime;
+                    const hours = runtime ? Math.floor(runtime / 60) : 0;
+                    const minutes = runtime ? runtime % 60 : 0;
+                    const runtimeStr = runtime ? `${hours}h ${minutes}m` : null;
+
+                    if (directorName && runtimeStr) {
+                      extraInfo = ` — directed by ${directorName} — runtime: ${runtimeStr}`;
+                    } else if (directorName) {
+                      extraInfo = ` — directed by ${directorName}`;
+                    } else if (runtimeStr) {
+                      extraInfo = ` — runtime: ${runtimeStr}`;
+                    }
+                  } else {
+                    const creator = details.created_by?.[0]?.name;
+                    const seasonCount = details.number_of_seasons;
+                    const seasonStr = seasonCount
+                      ? `${seasonCount} season${seasonCount > 1 ? "s" : ""}`
+                      : null;
+
+                    if (creator && seasonStr) {
+                      extraInfo = ` — created by ${creator} — ${seasonStr}`;
+                    } else if (creator) {
+                      extraInfo = ` — created by ${creator}`;
+                    } else if (seasonStr) {
+                      extraInfo = ` — ${seasonStr}`;
+                    }
+                  }
+
+                  let fullName = `${emoji} ${
+                    item.title || item.name
+                  }${year}${extraInfo}`;
+
+                  if (fullName.length > 98) {
+                    fullName = fullName.substring(0, 95) + "...";
+                  }
+
+                  return {
+                    name: fullName,
+                    value: `${item.id}|${item.media_type}`,
+                  };
+                } catch (err) {
+                  const emoji = item.media_type === "movie" ? "🎬" : "📺";
+                  const date = item.release_date || item.first_air_date || "";
+                  const year = date ? ` (${date.slice(0, 4)})` : "";
+                  let basicName = `${emoji} ${item.title || item.name}${year}`;
+                  if (basicName.length > 98) {
+                    basicName = basicName.substring(0, 95) + "...";
+                  }
+                  return {
+                    name: basicName,
+                    value: `${item.id}|${item.media_type}`,
+                  };
+                }
+              })
+            );
+
+            await interaction.respond(trendingChoices);
+            return;
+          } catch (e) {
+            logger.error("Trending autocomplete error:", e);
+            return interaction.respond([]);
+          }
+        }
+
+        // Handle regular search autocomplete (existing logic)
         if (!focusedValue) return interaction.respond([]);
 
         try {
@@ -1045,6 +1141,9 @@ async function startBot() {
             "request",
             tag ? [tag] : []
           );
+        }
+        if (interaction.commandName === "trending") {
+          return handleSearchOrRequest(interaction, raw, "search");
         }
       }
 
