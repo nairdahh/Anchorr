@@ -770,11 +770,25 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       }
       return;
     } else {
-      // No libraries configured at all - use default channel (legacy behavior)
-      libraryChannelId = process.env.JELLYFIN_CHANNEL_ID;
-      logger.info(
-        `📢 No library filtering configured. Using default channel: ${libraryChannelId}`
-      );
+      // No library detected
+      if (libraryKeys.length > 0) {
+        // User has configured library filtering but we can't detect library - skip notification
+        logger.info(
+          `🚫 Library filtering enabled but could not detect library for item. Skipping notification.`
+        );
+        if (res) {
+          return res
+            .status(200)
+            .send("OK: Notification skipped - library not detected.");
+        }
+        return;
+      } else {
+        // No library filtering configured - use default channel
+        libraryChannelId = process.env.JELLYFIN_CHANNEL_ID;
+        logger.warn(
+          `⚠️ Could not detect library. Using default channel: ${libraryChannelId}`
+        );
+      }
     }
 
     if (data.ItemType === "Movie") {
@@ -844,12 +858,16 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       // Smart blocking logic: Allow season notifications after a delay from series notifications
       let shouldBlock = false;
 
-      // If sentLevel === -1 (temporary marker), it means notification is being processed - block new ones
+      // If sentLevel === -1 (temporary marker), it means notification is being processed
+      // Only block if there's no active debouncer (which would allow batching)
       if (sentLevel === -1) {
-        shouldBlock = true;
-        logger.debug(
-          `[BLOCKED] Notification for ${data.ItemType} "${data.Name}" blocked: already processing this series (sentLevel: ${sentLevel})`
-        );
+        if (!debouncedSenders.has(SeriesId)) {
+          shouldBlock = true;
+          logger.debug(`[BLOCKED] Notification for ${data.ItemType} "${data.Name}" blocked: already processing this series with no active debouncer (sentLevel: ${sentLevel})`);
+        } else {
+          shouldBlock = false;
+          logger.debug(`[ALLOWED] Notification for ${data.ItemType} "${data.Name}" allowed: adding to existing debouncer batch (sentLevel: ${sentLevel})`);
+        }
       }
       // If a notification was already sent (sentLevel > 0), apply blocking rules
       else if (sentLevel > 0 && currentLevel <= sentLevel) {
