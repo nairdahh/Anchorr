@@ -261,7 +261,7 @@
                           >
                           -&gt; OAuth2 -&gt; Client ID
                         </div>
-                        <div class="form-text" style="background-color: var(--blue); color: var(--background); padding: 0.75rem; border-radius: 6px; margin-top: 0.5rem;" data-i18n="config.auto_start_info">
+                        <div class="form-text" style="background-color: var(--blue); color: var(--background); padding: 0.75rem; border-radius: 6px; margin-top: 0.5rem;">
                           <i class="bi bi-info-circle-fill" style="margin-right: 0.5rem;"></i>
                           <strong>Auto-Start:</strong> The bot will automatically start when you enter and save Discord credentials for the first time.
                         </div>
@@ -1050,6 +1050,27 @@
         }
       });
     </script>
+
+    <!-- Bot Auto-Start Confirmation Modal -->
+    <div id="bot-autostart-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>🤖 Start Bot?</h3>
+        </div>
+        <div class="modal-body">
+          <p>You've filled all the bot's requirements. Would you like to start the bot now?</p>
+          <p class="modal-note">The bot will automatically connect to Discord and start monitoring for notifications.</p>
+        </div>
+        <div class="modal-actions">
+          <button id="modal-start-yes" class="btn btn-primary">
+            <i class="bi bi-play-fill"></i> Yes, Start Bot
+          </button>
+          <button id="modal-start-no" class="btn btn-secondary">
+            <i class="bi bi-x-circle"></i> No, Save Only
+          </button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
 

@@ -573,6 +573,86 @@ document.addEventListener("DOMContentLoaded", async () => {
       config.JELLYFIN_NOTIFICATION_LIBRARIES = {};
     }
 
+    // Check if saving would trigger bot auto-start
+    try {
+      const autostartResponse = await fetch("/api/check-autostart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
+      });
+      const autostartData = await autostartResponse.json();
+
+      if (autostartData.wouldAutoStart) {
+        // Show confirmation modal
+        showBotAutostartModal(config);
+      } else {
+        // Save normally without modal
+        await saveConfig(config);
+      }
+    } catch (error) {
+      // If check fails, save normally
+      await saveConfig(config);
+    }
+  });
+
+  // Function to show bot auto-start confirmation modal
+  function showBotAutostartModal(config) {
+    const modal = document.getElementById("bot-autostart-modal");
+    const yesBtn = document.getElementById("modal-start-yes");
+    const noBtn = document.getElementById("modal-start-no");
+
+    // Show modal
+    modal.style.display = "flex";
+
+    // Handle Yes button (start bot)
+    const handleYes = async () => {
+      modal.style.display = "none";
+      config.startBot = true;
+      await saveConfig(config);
+      cleanupModal();
+    };
+
+    // Handle No button (save only)
+    const handleNo = async () => {
+      modal.style.display = "none";
+      config.startBot = false;
+      await saveConfig(config);
+      cleanupModal();
+    };
+
+    // Close modal on backdrop click
+    const handleBackdrop = (e) => {
+      if (e.target === modal) {
+        modal.style.display = "none";
+        cleanupModal();
+      }
+    };
+
+    // Close modal on Escape key
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        modal.style.display = "none";
+        cleanupModal();
+      }
+    };
+
+    // Cleanup function to remove event listeners
+    const cleanupModal = () => {
+      yesBtn.removeEventListener("click", handleYes);
+      noBtn.removeEventListener("click", handleNo);
+      modal.removeEventListener("click", handleBackdrop);
+      document.removeEventListener("keydown", handleEscape);
+    };
+
+    // Add event listeners
+    yesBtn.addEventListener("click", handleYes);
+    noBtn.addEventListener("click", handleNo);
+    modal.addEventListener("click", handleBackdrop);
+    document.addEventListener("keydown", handleEscape);
+  }
+
+  // Function to save config
+  async function saveConfig(config) {
     try {
       const response = await fetch("/api/save-config", {
         method: "POST",
@@ -591,7 +671,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (error) {
       showToast("Error saving configuration.");
     }
-  });
+  }
 
   botControlBtn.addEventListener("click", async () => {
     const action = botControlBtn.dataset.action;

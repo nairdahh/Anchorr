@@ -3,7 +3,7 @@ import path from "path";
 import express from "express";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
-import { handleJellyfinWebhook } from "./jellyfinWebhook.js";
+import { handleJellyfinWebhook, libraryCache } from "./jellyfinWebhook.js";
 import { configTemplate } from "./lib/config.js";
 import axios from "axios";
 
@@ -1603,10 +1603,14 @@ function configureWebServer() {
       let fetchError = null;
 
       try {
-        logger.debug("[MEMBERS API] Attempting to fetch members (real-time with force refresh)...");
+        logger.debug(
+          "[MEMBERS API] Attempting to fetch members (real-time with force refresh)..."
+        );
         // Force refresh members from Discord - ignores cache and fetches latest from server
         await guild.members.fetch({ force: true, limit: 1000 });
-        logger.info("[MEMBERS API] ✅ Members fetched successfully (real-time)");
+        logger.info(
+          "[MEMBERS API] ✅ Members fetched successfully (real-time)"
+        );
         fetchSuccess = true;
       } catch (fetchErr) {
         fetchError = fetchErr.message;
@@ -1752,7 +1756,9 @@ function configureWebServer() {
 
       let response;
       try {
-        logger.info("[JELLYSEERR USERS API] Fetching users from Jellyseerr (real-time)...");
+        logger.info(
+          "[JELLYSEERR USERS API] Fetching users from Jellyseerr (real-time)..."
+        );
         response = await axios.get(`${baseUrl}/user`, {
           headers: { "X-Api-Key": apiKey },
           timeout: TIMEOUTS.JELLYSEERR_API,
@@ -1812,7 +1818,9 @@ function configureWebServer() {
             avatar: avatar,
           };
         })
-        .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || "")); // Sort alphabetically
+        .sort((a, b) =>
+          (a.displayName || "").localeCompare(b.displayName || "")
+        ); // Sort alphabetically
 
       logger.info(
         `[JELLYSEERR USERS API] ✅ Returning ${users.length} users (real-time)`
@@ -1936,6 +1944,14 @@ function configureWebServer() {
         type: item.CollectionType || "unknown",
       }));
 
+      // Update library cache with fresh data for webhook usage
+      if (response.data.Items && response.data.Items.length > 0) {
+        libraryCache.set(response.data.Items);
+        logger.info(
+          `[LIBRARY CACHE] Updated cache with ${response.data.Items.length} libraries`
+        );
+      }
+
       res.json({ success: true, libraries });
     } catch (err) {
       logger.error("[JELLYFIN LIBRARIES API] Error:", err);
@@ -1962,12 +1978,11 @@ function configureWebServer() {
     });
   });
 
-  app.use("/assets", express.static(path.join(process.cwd(), "assets")));
-  app.use("/locales", express.static(path.join(process.cwd(), "locales")));
-  app.use(express.static(path.join(process.cwd(), "web")));
+  app.use("/assets", express.static(path.join(import.meta.dirname, "assets")));
+  app.use(express.static(path.join(import.meta.dirname, "web")));
 
   app.get("/", (req, res) => {
-    res.sendFile(path.join(process.cwd(), "web", "index.html"));
+    res.sendFile(path.join(import.meta.dirname, "web", "index.html"));
   });
 
   // --- JELLYFIN WEBHOOK ENDPOINT (no rate limiting for webhooks) ---
@@ -2107,6 +2122,10 @@ function configureWebServer() {
 
       loadConfig(); // Reload config into process.env
 
+      // Check if Discord credentials are complete and changed
+      const hasDiscordCreds = process.env.DISCORD_TOKEN && process.env.BOT_ID;
+      const discordCredsChanged = oldToken !== process.env.DISCORD_TOKEN;
+      
       // If bot is running and critical settings changed, restart the bot logic
       const jellyfinApiKeyChanged =
         oldJellyfinApiKey !== process.env.JELLYFIN_API_KEY;
@@ -2133,11 +2152,53 @@ function configureWebServer() {
             message: `Config saved, but bot failed to restart: ${error.message}`,
           });
         }
+      } else if (!isBotRunning && hasDiscordCreds && discordCredsChanged) {
+        // Check if user wants to auto-start the bot (default: true for backward compatibility)
+        const shouldStartBot = configData.startBot !== false; // Default to true if not specified
+        
+        if (shouldStartBot) {
+          // Auto-start bot when Discord credentials are first entered or changed
+          logger.info("Discord credentials configured. Starting bot automatically...");
+          try {
+            await startBot();
+            res.status(200).json({ 
+              message: "Configuration saved. Bot started successfully!" 
+            });
+          } catch (error) {
+            logger.error("Auto-start failed:", error.message);
+            res.status(200).json({
+              message: `Configuration saved, but bot failed to start: ${error.message}. Check credentials and try starting manually.`,
+            });
+          }
+        } else {
+          // User chose not to start the bot
+          res.status(200).json({ 
+            message: "Configuration saved successfully! You can start the bot manually when ready." 
+          });
+        }
       } else {
         res.status(200).json({ message: "Configuration saved successfully!" });
       }
     }
   );
+
+  // Check if saving config would trigger bot auto-start
+  app.post("/api/check-autostart", authenticateToken, async (req, res) => {
+    const configData = req.body;
+    const oldToken = process.env.DISCORD_TOKEN;
+    
+    // Check if Discord credentials are complete and changed
+    const hasDiscordCreds = configData.DISCORD_TOKEN && configData.BOT_ID;
+    const discordCredsChanged = oldToken !== configData.DISCORD_TOKEN;
+    const wouldAutoStart = !isBotRunning && hasDiscordCreds && discordCredsChanged;
+    
+    res.json({
+      wouldAutoStart,
+      hasDiscordCreds,
+      discordCredsChanged,
+      isBotRunning
+    });
+  });
 
   app.post("/api/test-jellyseerr", authenticateToken, async (req, res) => {
     const { url, apiKey } = req.body;
