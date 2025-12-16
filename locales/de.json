@@ -408,15 +408,15 @@
       "loading_logs": "Logs werden geladen..."
     },
     "placeholders": {
-      "discord_token": "MTQyNTkwNTDwedRFAoYzMDAyMzEyNzSwoR.GHh1xM...",
+      "discord_token": "MTQyNTkwNTREXAMPLE.GHh1xM.EXAMPLE_TOKEN_HERE",
       "bot_id": "1455304670023657132",
       "jellyseerr_url": "http://localhost:5055",
-      "jellyseerr_api_key": "MTc2MjA6WDN0ODc5NPAWNDEwLEO2LWRjMGMtNDEzMS1iNzQ3LPljQTg6YpQ5Yzg2Nw==",
-      "tmdb_api_key": "e2c59bfbcd3a7b42f0eb4e1c8b2d7e3f",
-      "omdb_api_key": "e23eb6be",
+      "jellyseerr_api_key": "EXAMPLE_API_KEY_HERE_123456789012",
+      "tmdb_api_key": "example123456789abcdef12345678",
+      "omdb_api_key": "example12",
       "jellyfin_base_url": "http://jellyfin.yourdomain.com | http://192.168.1.1:8096",
-      "jellyfin_api_key": "c4b6b3c8f1d4f0a8a6c2e4d8f1b3c7a9",
-      "jellyfin_server_id": "c1507dcd594b404a8e668ba38f8eaa0c",
+      "jellyfin_api_key": "example123456789abcdef12345678",
+      "jellyfin_server_id": "example1507dcd594b404a8e668ba38f8eaa0c",
       "search_discord_users": "Discord-Benutzer suchen...",
       "search_jellyseerr_users": "Jellyseerr-Benutzer suchen..."
     },
