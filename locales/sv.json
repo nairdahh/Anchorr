@@ -40,9 +40,9 @@
     "users": "Användare"
   },
   "dashboard": {
-    "title": "Instrumentpanel",
-    "subtitle": "Anchorr behöver komma åt dina jellyfin och seerr instanser.",
-    "subtitle_detail": "Nedan är en beskrivning av hur du gör för att sätta igång."
+    "title": "Anchorr Konfiguration",
+    "subtitle": "Anchorr behöver anslutas till dina Jellyfin- och Jellyseerr-instanser.",
+    "subtitle_detail": "Nedan följer en steg-för-steg-guide som hjälper dig att komma igång."
   },
   "config": {
     "title": "Inställningar",

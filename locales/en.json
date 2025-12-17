@@ -41,7 +41,7 @@
   },
   "dashboard": {
     "title": "Anchorr Configuration",
-    "subtitle": "Anchorr needs to be connect with your Discord bot and with your Jellyfin and Jellyseerr instances.",
+    "subtitle": "Anchorr needs to be connected with your Discord bot and with your Jellyfin and Jellyseerr instances.",
     "subtitle_detail": "Below is a step-by-step walkthrough to help you set up everything you need to get started!"
   },
   "config": {
@@ -86,13 +86,13 @@
     "jellyseerr_api_key_help": "Your API key from Jellyseerr settings",
     "test_connection": "Test Connection",
     "tmdb_api_key": "TMDB API Key",
-    "tmdb_api_key_help": "A <a href=\"https://www.themoviedb.org/settings/api\" target=\"_blank\" rel=\"noopener noreferrer\">TMDB API Key</a> is required for searching and fetching movie/show details. Found in the <a href=\"https://www.themoviedb.org/settings/api\" target=\"_blank\" rel=\"noopener noreferrer\">API settings page of your TMDB account</a> after you log in.",
+    "tmdb_api_key_help": "A <a href=\"https://www.themoviedb.org/settings/api\" target=\"_blank\" rel=\"noopener noreferrer\">TMDB API Key</a> is required for searching and fetching movie/show details. You can find it in the <a href=\"https://www.themoviedb.org/settings/api\" target=\"_blank\" rel=\"noopener noreferrer\">API settings page of your TMDB account</a> after you log in.",
     "omdb_api_key": "OMDb API Key (Optional)",
     "omdb_api_key_help": "Optional, but recommended for richer data like ratings and directors. Create one on the <a href=\"https://www.omdbapi.com/apikey.aspx\" target=\"_blank\" rel=\"noopener noreferrer\">API Key page of OMDb</a>.",
     "jellyfin_url": "Jellyfin Public URL",
     "jellyfin_url_help": "The public URL of your Jellyfin server. Used for the \"Watch Now\" button.",
     "jellyfin_api_key": "Jellyfin API Key",
-    "jellyfin_api_key_help": "API key for your Jellyfin server. Generate one in Jellyfin Dashboard → Administration → API Keys. Required for loading libraries and enhanced features.",
+    "jellyfin_api_key_help": "API key for your Jellyfin server. You can generate one in Jellyfin Dashboard → Administration → API Keys. This is required for loading libraries and enhanced features.",
     "test_endpoint": "Test Endpoint",
     "test_endpoint_help": "Testing the endpoint successfully will automatically populate the Jellyfin Server ID field.",
     "jellyfin_server_id": "Jellyfin Server ID",
@@ -204,7 +204,7 @@
   "jellyfin_webhook": {
     "note": "If you're running Anchorr in Docker, you may need to replace localhost with your server's IP address.",
     "plugin_install": "If you don't have the plugin installed, access the Plugins page in your Jellyfin Dashboard, search for Webhook, install it and restart the server.",
-    "plugin_setup": "After the reset, access your Webhook plugin settings and Add Discord Destination.",
+    "plugin_setup": "After the restart, access your Webhook plugin settings and Add Discord Destination.",
     "step_server_url": "Complete the Server Url with your Jellyfin server's base URL.",
     "step_webhook_url": "Insert the previously specified URL in the Webhook Url field.",
     "step_status": "Status must be Enabled.",
