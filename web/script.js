@@ -44,6 +44,11 @@ function getNestedTranslation(key) {
   return key.split('.').reduce((obj, k) => obj && obj[k], currentTranslations);
 }
 
+// Short alias for getNestedTranslation
+function t(key) {
+  return getNestedTranslation(key);
+}
+
 async function switchLanguage(language) {
   currentLanguage = language;
   currentTranslations = await loadTranslations(language);
@@ -1225,10 +1230,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       } else {
         guildSelect.innerHTML =
-          '<option value="">Error loading servers. Check token.</option>';
+          `<option value="">${t('errors.loading_servers_check_token')}</option>`;
       }
     } catch (error) {
-      guildSelect.innerHTML = '<option value="">Error loading servers</option>';
+      guildSelect.innerHTML = `<option value="">${t('errors.loading_servers')}</option>`;
     }
   }
 
@@ -1272,11 +1277,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       } else {
         channelSelect.innerHTML =
-          '<option value="">Error loading channels</option>';
+          `<option value="">${t('errors.loading_channels')}</option>`;
       }
     } catch (error) {
       channelSelect.innerHTML =
-        '<option value="">Error loading channels</option>';
+        `<option value="">${t('errors.loading_channels')}</option>`;
     }
   }
 
@@ -1391,7 +1396,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (customSelect) {
           const trigger = customSelect.querySelector(".custom-select-trigger");
           if (trigger) {
-            trigger.placeholder = "Error loading members. Is bot running?";
+            trigger.placeholder = t('errors.loading_members_bot_running');
           }
         }
       }
@@ -1400,7 +1405,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (customSelect) {
         const trigger = customSelect.querySelector(".custom-select-trigger");
         if (trigger) {
-          trigger.placeholder = "Error loading members";
+          trigger.placeholder = t('errors.loading_members');
         }
       }
     }
@@ -2219,9 +2224,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         populateRoleList("blocklist-roles", blocklist);
       } else {
         document.getElementById("allowlist-roles").innerHTML =
-          '<p class="form-text" style="opacity: 0.7; font-style: italic;">Bot must be running to load roles</p>';
+          `<p class="form-text" style="opacity: 0.7; font-style: italic;">${t('errors.bot_must_be_running')}</p>`;
         document.getElementById("blocklist-roles").innerHTML =
-          '<p class="form-text" style="opacity: 0.7; font-style: italic;">Bot must be running to load roles</p>';
+          `<p class="form-text" style="opacity: 0.7; font-style: italic;">${t('errors.bot_must_be_running')}</p>`;
       }
     } catch (error) {}
   }
@@ -2232,7 +2237,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (guildRoles.length === 0) {
       container.innerHTML =
-        '<p class="form-text" style="opacity: 0.7; font-style: italic;">No roles available</p>';
+        `<p class="form-text" style="opacity: 0.7; font-style: italic;">${t('errors.no_roles_available')}</p>`;
       return;
     }
 
@@ -2380,7 +2385,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       logsContainer.innerHTML = truncationNotice + logsHtml;
     } catch (error) {
-      logsContainer.innerHTML = `<div class="logs-empty">Error loading logs: ${error.message}</div>`;
+      logsContainer.innerHTML = `<div class="logs-empty">${t('errors.loading_logs')}: ${error.message}</div>`;
     }
   }
 
