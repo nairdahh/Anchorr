@@ -41,11 +41,16 @@ function updateUITranslations() {
 }
 
 function getNestedTranslation(key) {
-  return key.split('.').reduce((obj, k) => obj && obj[k], currentTranslations);
+  const result = key.split('.').reduce((obj, k) => obj && obj[k], currentTranslations);
+  return result || key; // Fallback to key if translation not found
 }
 
 // Short alias for getNestedTranslation
 function t(key) {
+  if (!key || typeof key !== 'string') {
+    console.warn('Invalid translation key:', key);
+    return key || '';
+  }
   return getNestedTranslation(key);
 }
 
@@ -2385,7 +2390,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       logsContainer.innerHTML = truncationNotice + logsHtml;
     } catch (error) {
-      logsContainer.innerHTML = `<div class="logs-empty">${t('errors.loading_logs')}: ${error.message}</div>`;
+      logsContainer.innerHTML = `<div class="logs-empty">${t('errors.loading_logs')}: ${escapeHtml(error.message)}</div>`;
     }
   }
 
