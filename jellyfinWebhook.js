@@ -341,19 +341,17 @@ async function processAndSendNotification(
       break;
     case "Season":
       if (seasonCount > 1 && seasonDetails) {
-        authorName = `📺 New seasons added!`;
-        embedTitle = `${cleanedSeriesName || "Unknown Series"}`;
+        authorName = `📺 ${seasonCount} new seasons added!`;
+        embedTitle = `${cleanedSeriesName || "Unknown Series"} (${Year || "?"})`;
       } else {
         authorName = "📺 New season added!";
-        embedTitle = `${cleanedSeriesName || "Unknown Series"} (${
-          Year || "?"
-        }) - Season ${SeasonNumber || IndexNumber || "?"}`;
+        embedTitle = `${cleanedSeriesName || "Unknown Series"} - Season ${SeasonNumber || IndexNumber || "?"}`;
       }
       break;
     case "Episode":
       if (episodeCount > 1 && episodeDetails) {
-        authorName = `📺 New episodes added!`;
-        embedTitle = `${cleanedSeriesName || "Unknown Series"}`;
+        authorName = `📺 ${episodeCount} new episodes added!`;
+        embedTitle = `${cleanedSeriesName || "Unknown Series"} (${Year || "?"})`;
       } else {
         authorName = "📺 New episode added!";
         const season = String(SeasonNumber || 1).padStart(2, "0");
@@ -363,7 +361,7 @@ async function processAndSendNotification(
         );
         embedTitle = `${
           cleanedSeriesName || "Unknown Series"
-        } - S${season}E${episode} - ${cleanedName}`;
+        } - S${season}E${episode}`;
       }
       break;
     default:
@@ -403,15 +401,8 @@ async function processAndSendNotification(
     .setColor(embedColor);
 
   // Add fields based on ItemType
-  if (ItemType === "Episode") {
-    // Single episode: Only runtime
-    if (episodeCount <= 1 && runtime && runtime !== "Unknown") {
-      embed.addFields({ name: "Runtime", value: runtime, inline: true });
-    }
-    // Batched episodes: Episode list will be added below with custom field name
-  } else if (ItemType === "Season") {
-    // Seasons: No fields, only episode list below
-    // Fields will be added by episode list logic
+  if (ItemType === "Episode" || ItemType === "Season") {
+    // Episodes and Seasons: No fields, just title and optional list below
   } else {
     // Movies and Series: Summary, Genre, Runtime, Rating
     embed.addFields(
@@ -423,7 +414,7 @@ async function processAndSendNotification(
   }
 
   // Add season list for multiple seasons
-  if (seasonCount > 1 && seasonDetails && seasonDetails.seasons.length <= 10) {
+  if (ItemType === "Season" && seasonCount > 1 && seasonDetails && seasonDetails.seasons.length <= 10) {
     const seasonList = seasonDetails.seasons
       .sort(
         (a, b) =>
@@ -432,24 +423,24 @@ async function processAndSendNotification(
       )
       .map((s) => {
         const seasonNum = s.SeasonNumber || s.IndexNumber || "?";
-        return `Season ${seasonNum}: ${s.Name || `Season ${seasonNum}`}`;
+        return `**Season ${seasonNum}**: ${s.Name || `Season ${seasonNum}`}`;
       })
       .join("\n");
 
     embed.addFields({
-      name: `${seasonCount} new seasons were added to your library.`,
+      name: "Seasons Added",
       value: seasonList,
       inline: false,
     });
-  } else if (seasonCount > 10) {
+  } else if (ItemType === "Season" && seasonCount > 10) {
     embed.addFields({
-      name: `${seasonCount} new seasons were added to your library.`,
-      value: `Too many seasons to list individually.`,
+      name: "Seasons Added",
+      value: `${seasonCount} seasons (too many to list individually)`,
       inline: false,
     });
   }
 
-  // Add episode list for multiple episodes (ONLY for Episode type notifications)
+  // Add episode list for multiple episodes
   if (ItemType === "Episode") {
     if (
       episodeCount > 1 &&
@@ -461,20 +452,19 @@ async function processAndSendNotification(
         .map((ep) => {
           const seasonNum = String(ep.SeasonNumber || 1).padStart(2, "0");
           const epNum = String(ep.EpisodeNumber || 0).padStart(2, "0");
-          return `S${seasonNum}E${epNum}: ${ep.Name || "Unknown Episode"}`;
+          return `**S${seasonNum}E${epNum}**: ${ep.Name || "Unknown Episode"}`;
         })
         .join("\n");
 
-      // Use episode count message as field name
       embed.addFields({
-        name: `${episodeCount} new episodes were added to your library.`,
+        name: "Episodes Added",
         value: episodeList,
         inline: false,
       });
     } else if (episodeCount > 10) {
       embed.addFields({
-        name: `${episodeCount} new episodes were added to your library.`,
-        value: `Too many episodes to list individually. Added episodes 1-${episodeCount}.`,
+        name: "Episodes Added",
+        value: `${episodeCount} episodes (too many to list individually)`,
         inline: false,
       });
     }
@@ -516,7 +506,50 @@ async function processAndSendNotification(
 
   const buttons = new ActionRowBuilder().addComponents(buttonComponents);
 
-  const channelId = targetChannelId || process.env.JELLYFIN_CHANNEL_ID;
+  // Select channel with priority hierarchy:
+  // 1. Episode/Season specific channel (if enabled and configured)
+  // 2. Library-specific channel (targetChannelId)
+  // 3. Default Jellyfin channel
+  let channelId;
+  
+  if (ItemType === "Episode") {
+    const episodeNotifyEnabled = process.env.JELLYFIN_NOTIFY_EPISODES === "true";
+    const episodeChannelId = process.env.JELLYFIN_EPISODE_CHANNEL_ID;
+    
+    if (episodeNotifyEnabled && episodeChannelId) {
+      // Episode notifications enabled with specific channel - use it
+      channelId = episodeChannelId;
+      logger.debug(`Using episode-specific channel: ${channelId}`);
+    } else if (episodeNotifyEnabled && !episodeChannelId) {
+      // Episode notifications enabled but no specific channel - fallback to library or default
+      channelId = targetChannelId || process.env.JELLYFIN_CHANNEL_ID;
+      logger.debug(`Episode notifications enabled, using fallback channel: ${channelId}`);
+    } else if (!episodeNotifyEnabled) {
+      // Episode notifications disabled - skip
+      logger.info(`Episode notifications disabled. Skipping notification for: ${data.Name}`);
+      return;
+    }
+  } else if (ItemType === "Season") {
+    const seasonNotifyEnabled = process.env.JELLYFIN_NOTIFY_SEASONS === "true";
+    const seasonChannelId = process.env.JELLYFIN_SEASON_CHANNEL_ID;
+    
+    if (seasonNotifyEnabled && seasonChannelId) {
+      // Season notifications enabled with specific channel - use it
+      channelId = seasonChannelId;
+      logger.debug(`Using season-specific channel: ${channelId}`);
+    } else if (seasonNotifyEnabled && !seasonChannelId) {
+      // Season notifications enabled but no specific channel - fallback to library or default
+      channelId = targetChannelId || process.env.JELLYFIN_CHANNEL_ID;
+      logger.debug(`Season notifications enabled, using fallback channel: ${channelId}`);
+    } else if (!seasonNotifyEnabled) {
+      // Season notifications disabled - skip
+      logger.info(`Season notifications disabled. Skipping notification for: ${data.Name}`);
+      return;
+    }
+  } else {
+    // For movies, series, etc. - use library channel or default
+    channelId = targetChannelId || process.env.JELLYFIN_CHANNEL_ID;
+  }
 
   let channel;
   try {
@@ -673,7 +706,7 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
           if (!libraries) {
             // Cache is invalid, fetch fresh libraries
-            const { fetchLibraries, findLibraryByAncestors } = await import(
+            const { fetchLibraries } = await import(
               "./api/jellyfin.js"
             );
             libraries = await fetchLibraries(apiKey, baseUrl);
@@ -688,17 +721,47 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
             }
           }
 
-          // Use new method: query Jellyfin to find which library contains this item
-          // Pass ItemType to filter libraries (e.g. don't match Movies library for Episodes)
-          const { findLibraryByAncestors } = await import("./api/jellyfin.js");
-          libraryId = await findLibraryByAncestors(
-            data.ItemId,
-            apiKey,
-            baseUrl,
-            libraryMap,
-            data.ItemType
-          );
-          if (libraryId) {
+          // First try: Check if item's Path directly matches a library location
+          if (data.Path) {
+            const normalizedItemPath = data.Path.replace(/\\/g, "/").toLowerCase();
+            for (const lib of libraries) {
+              if (lib.Locations && lib.Locations.length > 0) {
+                for (const location of lib.Locations) {
+                  const normalizedLocation = location.replace(/\\/g, "/").toLowerCase();
+                  if (normalizedItemPath.startsWith(normalizedLocation)) {
+                    // Verify type matches
+                    const itemTypeLower = data.ItemType?.toLowerCase();
+                    const libTypeLower = lib.CollectionType?.toLowerCase();
+                    
+                    let typeMatch = true;
+                    if (itemTypeLower === "movie" && libTypeLower !== "movies") typeMatch = false;
+                    if ((itemTypeLower === "series" || itemTypeLower === "season" || itemTypeLower === "episode") && libTypeLower !== "tvshows") typeMatch = false;
+                    
+                    if (typeMatch) {
+                      libraryId = lib.ItemId;
+                      logger.debug(`✅ Library detected via Path matching: ${libraryId} (${lib.Name})`);
+                      break;
+                    }
+                  }
+                }
+              }
+              if (libraryId) break;
+            }
+          }
+
+          // Second try: Use ancestor-based detection
+          if (!libraryId) {
+            const { findLibraryByAncestors } = await import("./api/jellyfin.js");
+            libraryId = await findLibraryByAncestors(
+              data.ItemId,
+              apiKey,
+              baseUrl,
+              libraryMap,
+              data.ItemType
+            );
+            if (libraryId) {
+              logger.debug(`✅ Library detected via Ancestors: ${libraryId}`);
+            }
           }
         }
       } catch (err) {
@@ -759,36 +822,17 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       return;
     } else if (libraryKeys.length > 0 && !libraryId) {
       // Libraries are configured but we couldn't detect which library this item belongs to
-      // Skip notification to avoid sending for potentially disabled libraries
+      // Use default channel instead of skipping to ensure notification is sent
+      libraryChannelId = process.env.JELLYFIN_CHANNEL_ID;
       logger.warn(
-        `⚠️ Could not detect library for item "${data.Name}". Libraries are configured but detection failed. Skipping notification to prevent notifying for disabled libraries.`
+        `⚠️ Could not detect library for item "${data.Name}". Using default channel: ${libraryChannelId}`
       );
-      if (res) {
-        return res
-          .status(200)
-          .send("OK: Notification skipped - library detection failed.");
-      }
-      return;
     } else {
-      // No library detected
-      if (libraryKeys.length > 0) {
-        // User has configured library filtering but we can't detect library - skip notification
-        logger.info(
-          `🚫 Library filtering enabled but could not detect library for item. Skipping notification.`
-        );
-        if (res) {
-          return res
-            .status(200)
-            .send("OK: Notification skipped - library not detected.");
-        }
-        return;
-      } else {
-        // No library filtering configured - use default channel
-        libraryChannelId = process.env.JELLYFIN_CHANNEL_ID;
-        logger.warn(
-          `⚠️ Could not detect library. Using default channel: ${libraryChannelId}`
-        );
-      }
+      // No library filtering configured - use default channel
+      libraryChannelId = process.env.JELLYFIN_CHANNEL_ID;
+      logger.debug(
+        `No library filtering configured. Using default channel: ${libraryChannelId}`
+      );
     }
 
     if (data.ItemType === "Movie") {
