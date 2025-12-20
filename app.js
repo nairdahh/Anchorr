@@ -1,11 +1,16 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import express from "express";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import { handleJellyfinWebhook, libraryCache } from "./jellyfinWebhook.js";
 import { configTemplate } from "./lib/config.js";
 import axios from "axios";
+
+// ESM __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import {
   Client,
@@ -2077,12 +2082,12 @@ function configureWebServer() {
     });
   });
 
-  app.use("/assets", express.static(path.join(import.meta.dirname, "assets")));
-  app.use("/locales", express.static(path.join(import.meta.dirname, "locales")));
-  app.use(express.static(path.join(import.meta.dirname, "web")));
+  app.use("/assets", express.static(path.join(__dirname, "assets")));
+  app.use("/locales", express.static(path.join(__dirname, "locales")));
+  app.use(express.static(path.join(__dirname, "web")));
 
   app.get("/", (req, res) => {
-    res.sendFile(path.join(import.meta.dirname, "web", "index.html"));
+    res.sendFile(path.join(__dirname, "web", "index.html"));
   });
 
   // --- JELLYFIN WEBHOOK ENDPOINT (no rate limiting for webhooks) ---
