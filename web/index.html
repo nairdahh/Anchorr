@@ -246,10 +246,6 @@
                           >
                           -&gt; OAuth2 -&gt; Client ID
                         </div>
-                        <div class="form-text" style="background-color: var(--blue); color: var(--background); padding: 0.75rem; border-radius: 6px; margin-top: 0.5rem;">
-                          <i class="bi bi-info-circle-fill" style="margin-right: 0.5rem;"></i>
-                          <strong>Auto-Start:</strong> The bot will automatically start when you enter and save Discord credentials for the first time.
-                        </div>
                       </div>
                       <div class="form-group">
                         <label for="GUILD_ID" data-i18n="config.discord_server">Discord Server</label>
@@ -539,6 +535,12 @@
                           <!-- Populated dynamically -->
                         </div>
                         <input type="hidden" id="JELLYFIN_NOTIFICATION_LIBRARIES" name="JELLYFIN_NOTIFICATION_LIBRARIES" />
+                        
+                        <!-- Hidden inputs for episodes/seasons notify flags -->
+                        <input type="hidden" id="JELLYFIN_NOTIFY_EPISODES" name="JELLYFIN_NOTIFY_EPISODES" value="" />
+                        <input type="hidden" id="JELLYFIN_NOTIFY_SEASONS" name="JELLYFIN_NOTIFY_SEASONS" value="" />
+                        <input type="hidden" id="JELLYFIN_EPISODE_CHANNEL_ID" name="JELLYFIN_EPISODE_CHANNEL_ID" value="" />
+                        <input type="hidden" id="JELLYFIN_SEASON_CHANNEL_ID" name="JELLYFIN_SEASON_CHANNEL_ID" value="" />
                       </div>
 
                       <!-- Webhook Section -->

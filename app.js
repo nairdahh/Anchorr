@@ -1863,7 +1863,7 @@ function configureWebServer() {
         logger.info(
           "[JELLYSEERR USERS API] Fetching users from Jellyseerr (real-time)..."
         );
-        response = await axios.get(`${baseUrl}/user`, {
+        response = await axios.get(`${baseUrl}/user?take=` + Number.MAX_SAFE_INTEGER, {
           headers: { "X-Api-Key": apiKey },
           timeout: TIMEOUTS.JELLYSEERR_API,
         });

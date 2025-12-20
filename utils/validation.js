@@ -25,8 +25,10 @@ export const configSchema = Joi.object({
   ).optional(),
   JELLYFIN_NOTIFY_MOVIES: Joi.string().valid("true", "false").optional(),
   JELLYFIN_NOTIFY_SERIES: Joi.string().valid("true", "false").optional(),
-  JELLYFIN_NOTIFY_SEASONS: Joi.string().valid("true", "false").optional(),
-  JELLYFIN_NOTIFY_EPISODES: Joi.string().valid("true", "false").optional(),
+  JELLYFIN_NOTIFY_SEASONS: Joi.string().valid("true", "false").allow("").optional(),
+  JELLYFIN_NOTIFY_EPISODES: Joi.string().valid("true", "false").allow("").optional(),
+  JELLYFIN_EPISODE_CHANNEL_ID: Joi.string().allow("").optional(),
+  JELLYFIN_SEASON_CHANNEL_ID: Joi.string().allow("").optional(),
   WEBHOOK_PORT: Joi.alternatives(Joi.string(), Joi.number().port()).optional(),
   WEBHOOK_DEBOUNCE_MS: Joi.alternatives(
     Joi.string(),

@@ -267,6 +267,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentLanguage = config.LANGUAGE;
       }
       
+      // Initialize episodes/seasons notify values
+      const episodesNotifyInput = document.getElementById("JELLYFIN_NOTIFY_EPISODES");
+      const seasonsNotifyInput = document.getElementById("JELLYFIN_NOTIFY_SEASONS");
+      
+      if (episodesNotifyInput) {
+        // Set empty string if not configured, "true" if enabled
+        episodesNotifyInput.value = config.JELLYFIN_NOTIFY_EPISODES === "true" ? "true" : "";
+      }
+      if (seasonsNotifyInput) {
+        seasonsNotifyInput.value = config.JELLYFIN_NOTIFY_SEASONS === "true" ? "true" : "";
+      }
+      
       updateWebhookUrl();
     } catch (error) {
       showToast("Error fetching configuration.");
@@ -1072,6 +1084,62 @@ document.addEventListener("DOMContentLoaded", async () => {
               })
               .join("");
 
+            // Add TV Seasons and Episodes section
+            const episodesEnabled = document.getElementById("JELLYFIN_NOTIFY_EPISODES").value === "true";
+            const seasonsEnabled = document.getElementById("JELLYFIN_NOTIFY_SEASONS").value === "true";
+            const episodeChannel = document.getElementById("JELLYFIN_EPISODE_CHANNEL_ID").value || "";
+            const seasonChannel = document.getElementById("JELLYFIN_SEASON_CHANNEL_ID").value || "";
+
+            librariesList.innerHTML += `
+              <div style="padding: 1rem 0.75rem 0.5rem; margin-top: 1rem; border-top: 1px solid var(--surface1);">
+                <span style="font-size: 0.9rem; font-weight: 600; color: var(--mauve); text-transform: uppercase; letter-spacing: 0.05em;">TV Seasons and Episodes Mapping</span>
+              </div>
+              
+              <div class="library-item">
+                <label class="library-label">
+                  <input
+                    type="checkbox"
+                    id="episodes-notify-checkbox"
+                    class="library-checkbox"
+                    ${episodesEnabled ? "checked" : ""}
+                  />
+                  <div class="library-info">
+                    <span class="library-name">Episodes</span>
+                    <span class="library-type">New episode notifications</span>
+                  </div>
+                </label>
+                <select
+                  id="episodes-channel-select"
+                  class="library-channel-select"
+                  ${!episodesEnabled ? "disabled" : ""}
+                >
+                  <option value="">Use Default Channel</option>
+                </select>
+              </div>
+
+              <div class="library-item">
+                <label class="library-label">
+                  <input
+                    type="checkbox"
+                    id="seasons-notify-checkbox"
+                    class="library-checkbox"
+                    ${seasonsEnabled ? "checked" : ""}
+                  />
+                  <div class="library-info">
+                    <span class="library-name">Seasons</span>
+                    <span class="library-type">New season notifications</span>
+                  </div>
+                </label>
+                <select
+                  id="seasons-channel-select"
+                  class="library-channel-select"
+                  ${!seasonsEnabled ? "disabled" : ""}
+                >
+                  <option value="">Use Default Channel</option>
+                </select>
+              </div>
+            `;
+
             // Populate channel dropdowns
             populateLibraryChannelDropdowns(libraryChannels);
 
@@ -1097,6 +1165,32 @@ document.addEventListener("DOMContentLoaded", async () => {
               .forEach((select) => {
                 select.addEventListener("change", updateNotificationLibraries);
               });
+
+            // Add event listeners for Episodes and Seasons checkboxes
+            const episodesCheckbox = document.getElementById("episodes-notify-checkbox");
+            const seasonsCheckbox = document.getElementById("seasons-notify-checkbox");
+            const episodesSelect = document.getElementById("episodes-channel-select");
+            const seasonsSelect = document.getElementById("seasons-channel-select");
+
+            if (episodesCheckbox && episodesSelect) {
+              episodesCheckbox.addEventListener("change", (e) => {
+                episodesSelect.disabled = !e.target.checked;
+                document.getElementById("JELLYFIN_NOTIFY_EPISODES").value = e.target.checked ? "true" : "";
+              });
+              episodesSelect.addEventListener("change", (e) => {
+                document.getElementById("JELLYFIN_EPISODE_CHANNEL_ID").value = e.target.value;
+              });
+            }
+
+            if (seasonsCheckbox && seasonsSelect) {
+              seasonsCheckbox.addEventListener("change", (e) => {
+                seasonsSelect.disabled = !e.target.checked;
+                document.getElementById("JELLYFIN_NOTIFY_SEASONS").value = e.target.checked ? "true" : "";
+              });
+              seasonsSelect.addEventListener("change", (e) => {
+                document.getElementById("JELLYFIN_SEASON_CHANNEL_ID").value = e.target.value;
+              });
+            }
 
             // DON'T call updateNotificationLibraries() here - it would overwrite the saved config
             // The hidden input already has the correct value from fetchConfig()
@@ -1157,6 +1251,44 @@ document.addEventListener("DOMContentLoaded", async () => {
           select.value = currentChannel;
         }
       });
+
+      // Populate Episodes and Seasons channel selects
+      const episodesSelect = document.getElementById("episodes-channel-select");
+      const seasonsSelect = document.getElementById("seasons-channel-select");
+      const episodeChannel = document.getElementById("JELLYFIN_EPISODE_CHANNEL_ID").value || "";
+      const seasonChannel = document.getElementById("JELLYFIN_SEASON_CHANNEL_ID").value || "";
+
+      if (episodesSelect) {
+        episodesSelect.innerHTML =
+          '<option value="">Use Default Channel</option>' +
+          channels
+            .map(
+              (ch) =>
+                `<option value="${ch.id}" ${
+                  episodeChannel === ch.id ? "selected" : ""
+                }>#${ch.name}</option>`
+            )
+            .join("");
+        if (episodeChannel) {
+          episodesSelect.value = episodeChannel;
+        }
+      }
+
+      if (seasonsSelect) {
+        seasonsSelect.innerHTML =
+          '<option value="">Use Default Channel</option>' +
+          channels
+            .map(
+              (ch) =>
+                `<option value="${ch.id}" ${
+                  seasonChannel === ch.id ? "selected" : ""
+                }>#${ch.name}</option>`
+            )
+            .join("");
+        if (seasonChannel) {
+          seasonsSelect.value = seasonChannel;
+        }
+      }
     } catch (error) {}
   }
 
@@ -1244,49 +1376,127 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function loadDiscordChannels(guildId) {
     const channelSelect = document.getElementById("JELLYFIN_CHANNEL_ID");
+    const episodeChannelSelect = document.getElementById("JELLYFIN_EPISODE_CHANNEL_ID");
+    const seasonChannelSelect = document.getElementById("JELLYFIN_SEASON_CHANNEL_ID");
 
-    if (!channelSelect || !guildId) {
+    if (!guildId) {
       if (channelSelect) {
         channelSelect.innerHTML =
           '<option value="">Select a server first...</option>';
       }
+      if (episodeChannelSelect) {
+        episodeChannelSelect.innerHTML =
+          `<option value="">${t('config.use_default_channel')}</option>`;
+      }
+      if (seasonChannelSelect) {
+        seasonChannelSelect.innerHTML =
+          `<option value="">${t('config.use_default_channel')}</option>`;
+      }
       return;
     }
 
-    channelSelect.innerHTML = '<option value="">Loading channels...</option>';
+    // Set loading state for all selects
+    if (channelSelect) {
+      channelSelect.innerHTML = '<option value="">Loading channels...</option>';
+    }
+    if (episodeChannelSelect) {
+      episodeChannelSelect.innerHTML = '<option value="">Loading channels...</option>';
+    }
+    if (seasonChannelSelect) {
+      seasonChannelSelect.innerHTML = '<option value="">Loading channels...</option>';
+    }
 
     try {
       const response = await fetch(`/api/discord/channels/${guildId}`);
       const data = await response.json();
 
       if (data.success && data.channels) {
-        channelSelect.innerHTML =
-          '<option value="">Select a channel...</option>';
-        data.channels.forEach((channel) => {
-          const option = document.createElement("option");
-          option.value = channel.id;
-          option.textContent = `#${channel.name}${
-            channel.type === "announcement" ? " 📢" : ""
-          }`;
-          channelSelect.appendChild(option);
-        });
+        // Populate main channel select
+        if (channelSelect) {
+          channelSelect.innerHTML =
+            '<option value="">Select a channel...</option>';
+          data.channels.forEach((channel) => {
+            const option = document.createElement("option");
+            option.value = channel.id;
+            option.textContent = `#${channel.name}${
+              channel.type === "announcement" ? " 📢" : ""
+            }`;
+            channelSelect.appendChild(option);
+          });
 
-        // Restore saved value if exists
-        const currentValue = channelSelect.dataset.savedValue;
-        if (currentValue) {
-          channelSelect.value = currentValue;
-          // Verify if the value was successfully set
-          if (channelSelect.value === currentValue) {
-            // Value was successfully restored
+          // Restore saved value if exists
+          const currentValue = channelSelect.dataset.savedValue;
+          if (currentValue) {
+            channelSelect.value = currentValue;
+          }
+        }
+
+        // Populate episode channel select (optional)
+        if (episodeChannelSelect) {
+          episodeChannelSelect.innerHTML =
+            `<option value="">${t('config.use_default_channel')}</option>`;
+          data.channels.forEach((channel) => {
+            const option = document.createElement("option");
+            option.value = channel.id;
+            option.textContent = `#${channel.name}${
+              channel.type === "announcement" ? " 📢" : ""
+            }`;
+            episodeChannelSelect.appendChild(option);
+          });
+
+          // Restore saved value if exists
+          const currentValue = episodeChannelSelect.dataset.savedValue;
+          if (currentValue) {
+            episodeChannelSelect.value = currentValue;
+          }
+        }
+
+        // Populate season channel select (optional)
+        if (seasonChannelSelect) {
+          seasonChannelSelect.innerHTML =
+            `<option value="">${t('config.use_default_channel')}</option>`;
+          data.channels.forEach((channel) => {
+            const option = document.createElement("option");
+            option.value = channel.id;
+            option.textContent = `#${channel.name}${
+              channel.type === "announcement" ? " 📢" : ""
+            }`;
+            seasonChannelSelect.appendChild(option);
+          });
+
+          // Restore saved value if exists
+          const currentValue = seasonChannelSelect.dataset.savedValue;
+          if (currentValue) {
+            seasonChannelSelect.value = currentValue;
           }
         }
       } else {
+        if (channelSelect) {
+          channelSelect.innerHTML =
+            `<option value="">${t('errors.loading_channels')}</option>`;
+        }
+        if (episodeChannelSelect) {
+          episodeChannelSelect.innerHTML =
+            `<option value="">${t('config.use_default_channel')}</option>`;
+        }
+        if (seasonChannelSelect) {
+          seasonChannelSelect.innerHTML =
+            `<option value="">${t('config.use_default_channel')}</option>`;
+        }
+      }
+    } catch (error) {
+      if (channelSelect) {
         channelSelect.innerHTML =
           `<option value="">${t('errors.loading_channels')}</option>`;
       }
-    } catch (error) {
-      channelSelect.innerHTML =
-        `<option value="">${t('errors.loading_channels')}</option>`;
+      if (episodeChannelSelect) {
+        episodeChannelSelect.innerHTML =
+          `<option value="">${t('config.use_default_channel')}</option>`;
+      }
+      if (seasonChannelSelect) {
+        seasonChannelSelect.innerHTML =
+          `<option value="">${t('config.use_default_channel')}</option>`;
+      }
     }
   }
 
@@ -1298,9 +1508,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         loadDiscordChannels(e.target.value);
       } else {
         const channelSelect = document.getElementById("JELLYFIN_CHANNEL_ID");
+        const episodeChannelSelect = document.getElementById("JELLYFIN_EPISODE_CHANNEL_ID");
+        const seasonChannelSelect = document.getElementById("JELLYFIN_SEASON_CHANNEL_ID");
+        
         if (channelSelect) {
           channelSelect.innerHTML =
             '<option value="">Select a server first...</option>';
+        }
+        if (episodeChannelSelect) {
+          episodeChannelSelect.innerHTML =
+            `<option value="">${t('config.use_default_channel')}</option>`;
+        }
+        if (seasonChannelSelect) {
+          seasonChannelSelect.innerHTML =
+            `<option value="">${t('config.use_default_channel')}</option>`;
         }
       }
     });
@@ -1323,6 +1544,28 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (botIdInput.value && tokenInput?.value) {
         loadDiscordGuilds();
       }
+    });
+  }
+
+  // --- Episodes and Seasons Notification Controls ---
+  const episodesCheckbox = document.getElementById("JELLYFIN_NOTIFY_EPISODES_CHECKBOX");
+  const seasonsCheckbox = document.getElementById("JELLYFIN_NOTIFY_SEASONS_CHECKBOX");
+  const episodeChannelSelect = document.getElementById("JELLYFIN_EPISODE_CHANNEL_ID");
+  const seasonChannelSelect = document.getElementById("JELLYFIN_SEASON_CHANNEL_ID");
+  const episodesHidden = document.getElementById("JELLYFIN_NOTIFY_EPISODES");
+  const seasonsHidden = document.getElementById("JELLYFIN_NOTIFY_SEASONS");
+
+  if (episodesCheckbox && episodeChannelSelect && episodesHidden) {
+    episodesCheckbox.addEventListener("change", (e) => {
+      episodeChannelSelect.disabled = !e.target.checked;
+      episodesHidden.value = e.target.checked ? "true" : "false";
+    });
+  }
+
+  if (seasonsCheckbox && seasonChannelSelect && seasonsHidden) {
+    seasonsCheckbox.addEventListener("change", (e) => {
+      seasonChannelSelect.disabled = !e.target.checked;
+      seasonsHidden.value = e.target.checked ? "true" : "false";
     });
   }
 
