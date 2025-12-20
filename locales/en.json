@@ -41,7 +41,7 @@
   },
   "dashboard": {
     "title": "Anchorr Configuration",
-    "subtitle": "Anchorr needs to be connect with your Discord bot and with your Jellyfin and Jellyseerr instances.",
+    "subtitle": "Anchorr needs to be connected with your Discord bot and with your Jellyfin and Jellyseerr instances.",
     "subtitle_detail": "Below is a step-by-step walkthrough to help you set up everything you need to get started!"
   },
   "config": {
@@ -86,13 +86,13 @@
     "jellyseerr_api_key_help": "Your API key from Jellyseerr settings",
     "test_connection": "Test Connection",
     "tmdb_api_key": "TMDB API Key",
-    "tmdb_api_key_help": "A <a href=\"https://www.themoviedb.org/settings/api\" target=\"_blank\" rel=\"noopener noreferrer\">TMDB API Key</a> is required for searching and fetching movie/show details. Found in the <a href=\"https://www.themoviedb.org/settings/api\" target=\"_blank\" rel=\"noopener noreferrer\">API settings page of your TMDB account</a> after you log in.",
+    "tmdb_api_key_help": "A <a href=\"https://www.themoviedb.org/settings/api\" target=\"_blank\" rel=\"noopener noreferrer\">TMDB API Key</a> is required for searching and fetching movie/show details. You can find it in the <a href=\"https://www.themoviedb.org/settings/api\" target=\"_blank\" rel=\"noopener noreferrer\">API settings page of your TMDB account</a> after you log in.",
     "omdb_api_key": "OMDb API Key (Optional)",
     "omdb_api_key_help": "Optional, but recommended for richer data like ratings and directors. Create one on the <a href=\"https://www.omdbapi.com/apikey.aspx\" target=\"_blank\" rel=\"noopener noreferrer\">API Key page of OMDb</a>.",
     "jellyfin_url": "Jellyfin Public URL",
     "jellyfin_url_help": "The public URL of your Jellyfin server. Used for the \"Watch Now\" button.",
     "jellyfin_api_key": "Jellyfin API Key",
-    "jellyfin_api_key_help": "API key for your Jellyfin server. Generate one in Jellyfin Dashboard → Administration → API Keys. Required for loading libraries and enhanced features.",
+    "jellyfin_api_key_help": "API key for your Jellyfin server. You can generate one in Jellyfin Dashboard → Administration → API Keys. This is required for loading libraries and enhanced features.",
     "test_endpoint": "Test Endpoint",
     "test_endpoint_help": "Testing the endpoint successfully will automatically populate the Jellyfin Server ID field.",
     "jellyfin_server_id": "Jellyfin Server ID",
@@ -169,5 +169,48 @@
       "episode_added": "New episode available",
       "season_added": "New season available"
     }
+  },
+  "errors": {
+    "loading_servers": "Error loading servers",
+    "loading_servers_check_token": "Error loading servers. Check token.",
+    "loading_channels": "Error loading channels",
+    "loading_members": "Error loading members",
+    "loading_members_bot_running": "Error loading members. Is bot running?",
+    "loading_logs": "Error loading logs",
+    "bot_must_be_running": "Bot must be running to load roles",
+    "no_roles_available": "No roles available"
+  },
+  "modals": {
+    "start_bot_yes": "Yes, Start Bot",
+    "start_bot_no": "No, Save Only"
+  },
+  "about": {
+    "title": "About Anchorr",
+    "description": "Anchorr is a self-hosted, lightweight bridge that connects your Jellyfin media server with Discord. It notifies you on a dedicated channel when new media is added to your library, and with Jellyseerr integration, you can search and request movies and shows directly from Discord.",
+    "features_title": "Features",
+    "feature_search": "/search <title> Search for a movie or show with auto-suggestions. An embed with detailed information is shown, from which you can request the media. For TV shows, you have the option to select the desired seasons for the request.",
+    "feature_request": "/request <title> Instantly send a request for your chosen movie or show directly to Jellyseerr. For TV shows, this automatically requests all seasons.",
+    "feature_notifications": "Receive beautifully formatted notifications on your selected Discord channel whenever new media is added to your Jellyfin library.",
+    "feature_databases": "Using the TMDB and OMDb databases, Discord messages get a beautiful and well-structured look, with essential information about the requested or added media content.",
+    "feature_permissions": "Control permissions with role-based access (allowlist/blocklist), route notifications to different channels by Jellyfin library, and link users to Jellyseerr accounts for accurate request tracking.",
+    "feature_direct_messages": "Get direct messages on Discord when requested content becomes available in your library. Never miss when your requests are ready!",
+    "support_title": "Support the Project",
+    "support_description": "If you find Anchorr useful, consider supporting its development. Every coffee helps fuel late-night coding sessions!",
+    "contribute_title": "Contribute",
+    "contribute_description": "Anchorr is open-source! If you're a developer, your contributions are welcome. Check out the project on GitHub to get started.",
+    "buy_coffee": "Buy me a Coffee",
+    "view_github": "View on GitHub"
+  },
+  "jellyfin_webhook": {
+    "note": "If you're running Anchorr in Docker, you may need to replace localhost with your server's IP address.",
+    "plugin_install": "If you don't have the plugin installed, access the Plugins page in your Jellyfin Dashboard, search for Webhook, install it and restart the server.",
+    "plugin_setup": "After the restart, access your Webhook plugin settings and Add Discord Destination.",
+    "step_server_url": "Complete the Server Url with your Jellyfin server's base URL.",
+    "step_webhook_url": "Insert the previously specified URL in the Webhook Url field.",
+    "step_status": "Status must be Enabled.",
+    "step_notification_type": "For Notification Type enable Item Added.",
+    "step_item_type": "For Item Type select your desired content you want to receive notifications for.",
+    "step_properties": "Enable Send All Properties.",
+    "step_save": "Save."
   }
 }

@@ -40,9 +40,9 @@
     "users": "Användare"
   },
   "dashboard": {
-    "title": "Instrumentpanel",
-    "subtitle": "Anchorr behöver komma åt dina jellyfin och seerr instanser.",
-    "subtitle_detail": "Nedan är en beskrivning av hur du gör för att sätta igång."
+    "title": "Anchorr Konfiguration",
+    "subtitle": "Anchorr behöver anslutas till dina Jellyfin- och Jellyseerr-instanser.",
+    "subtitle_detail": "Nedan följer en steg-för-steg-guide som hjälper dig att komma igång."
   },
   "config": {
     "title": "Inställningar",
@@ -169,5 +169,48 @@
       "episode_added": "Avsnitt tillagt",
       "season_added": "Säsong tillagd"
     }
+  },
+  "errors": {
+    "loading_servers": "",
+    "loading_servers_check_token": "",
+    "loading_channels": "",
+    "loading_members": "",
+    "loading_members_bot_running": "",
+    "loading_logs": "",
+    "bot_must_be_running": "",
+    "no_roles_available": ""
+  },
+  "modals": {
+    "start_bot_yes": "",
+    "start_bot_no": ""
+  },
+  "about": {
+    "title": "",
+    "description": "",
+    "features_title": "",
+    "feature_search": "",
+    "feature_request": "",
+    "feature_notifications": "",
+    "feature_databases": "",
+    "feature_permissions": "",
+    "feature_direct_messages": "",
+    "support_title": "",
+    "support_description": "",
+    "contribute_title": "",
+    "contribute_description": "",
+    "buy_coffee": "",
+    "view_github": ""
+  },
+  "jellyfin_webhook": {
+    "note": "",
+    "plugin_install": "",
+    "plugin_setup": "",
+    "step_server_url": "",
+    "step_webhook_url": "",
+    "step_status": "",
+    "step_notification_type": "",
+    "step_item_type": "",
+    "step_properties": "",
+    "step_save": ""
   }
 }

@@ -557,18 +557,18 @@
                             >Copy URL</button>
                           </div>
                           <p style="margin-top: 0.75rem; font-size: 0.9rem; opacity: 0.8;">
-                            <strong>Note:</strong> If you're running Anchorr in Docker, you may need to replace <code>localhost</code> with your server's IP address.
+                            <strong data-i18n="jellyfin_webhook.note">Note:</strong> If you're running Anchorr in Docker, you may need to replace <code>localhost</code> with your server's IP address.
                           </p>
-                          <p style="margin-top: 1.5rem;">If you don't have the plugin installed, access the <strong class="emphasis-mauve">Plugins page</strong> in your <strong class="emphasis-mauve">Jellyfin Dashboard</strong>, search for <strong class="emphasis-mauve">Webhook</strong>, install it and restart the server.</p>
-                          <p>After the reset, access your <strong class="emphasis-mauve">Webhook plugin settings</strong> and <strong class="emphasis-mauve">Add Discord Destination</strong>.</p>
+                          <p style="margin-top: 1.5rem;" data-i18n="jellyfin_webhook.plugin_install">If you don't have the plugin installed, access the <strong class="emphasis-mauve">Plugins page</strong> in your <strong class="emphasis-mauve">Jellyfin Dashboard</strong>, search for <strong class="emphasis-mauve">Webhook</strong>, install it and restart the server.</p>
+                          <p data-i18n="jellyfin_webhook.plugin_setup">After the reset, access your <strong class="emphasis-mauve">Webhook plugin settings</strong> and <strong class="emphasis-mauve">Add Discord Destination</strong>.</p>
                           <ol style="padding-left: 1.5rem; opacity: 0.9;">
-                            <li>Complete the <strong class="emphasis-mauve">Server Url</strong> with your Jellyfin server's base URL.</li>
-                            <li>Insert the previously specified URL in the <strong class="emphasis-mauve">Webhook Url</strong> field.</li>
-                            <li><strong class="emphasis-mauve">Status</strong> must be <strong class="emphasis-mauve">Enabled</strong>.</li>
-                            <li>For <strong class="emphasis-mauve">Notification Type</strong> enable <strong class="emphasis-mauve">Item Added</strong>.</li>
-                            <li>For <strong class="emphasis-mauve">Item Type</strong> select your desired content you want to receive notifications for.</li>
-                            <li>Enable <strong class="emphasis-mauve">Send All Properties</strong>.</li>
-                            <li><strong class="emphasis-mauve">Save</strong>.</li>
+                            <li data-i18n="jellyfin_webhook.step_server_url">Complete the <strong class="emphasis-mauve">Server Url</strong> with your Jellyfin server's base URL.</li>
+                            <li data-i18n="jellyfin_webhook.step_webhook_url">Insert the previously specified URL in the <strong class="emphasis-mauve">Webhook Url</strong> field.</li>
+                            <li data-i18n="jellyfin_webhook.step_status"><strong class="emphasis-mauve">Status</strong> must be <strong class="emphasis-mauve">Enabled</strong>.</li>
+                            <li data-i18n="jellyfin_webhook.step_notification_type">For <strong class="emphasis-mauve">Notification Type</strong> enable <strong class="emphasis-mauve">Item Added</strong>.</li>
+                            <li data-i18n="jellyfin_webhook.step_item_type">For <strong class="emphasis-mauve">Item Type</strong> select your desired content you want to receive notifications for.</li>
+                            <li data-i18n="jellyfin_webhook.step_properties">Enable <strong class="emphasis-mauve">Send All Properties</strong>.</li>
+                            <li data-i18n="jellyfin_webhook.step_save"><strong class="emphasis-mauve">Save</strong>.</li>
                           </ol>
                         </div>
                       </div>
@@ -793,35 +793,35 @@
           <!-- About Page (Independent) -->
           <div id="about-page" class="about-page" style="display: none;">
             <div class="about-content">
-              <h2>About Anchorr</h2>
-              <p class="about-description">
+              <h2 data-i18n="about.title">About Anchorr</h2>
+              <p class="about-description" data-i18n="about.description">
                 <strong class="anchor-highlight">Anchorr</strong> is a self-hosted, lightweight bridge that connects your <strong style="color: var(--blue);">Jellyfin</strong> media server with <strong style="color: var(--blue);">Discord</strong>. It notifies you on a dedicated channel when new media is added to your library, and with <strong style="color: var(--blue);">Jellyseerr</strong> integration, you can search and request movies and shows directly from Discord.
               </p>
 
               <div class="features-list">
-                <h3 class="features-title">Features</h3>
+                <h3 class="features-title" data-i18n="about.features_title">Features</h3>
                 <ul>
-                  <li><i class="bi bi-search"></i><div><code>/search &lt;title&gt;</code> Search for a movie or show with auto-suggestions. An embed with detailed information is shown, from which you can request the media. For <strong style="color: var(--blue);">TV shows</strong>, you have the option to select the desired seasons for the request.</div></li>
-                  <li><i class="bi bi-send-fill"></i><div><code>/request &lt;title&gt;</code> Instantly send a request for your chosen movie or show directly to <strong style="color: var(--blue);">Jellyseerr</strong>. For <strong style="color: var(--blue);">TV shows</strong>, this automatically requests all seasons.</div></li>
-                  <li><i class="bi bi-bell-fill"></i><div>Receive beautifully formatted notifications on your selected <strong style="color: var(--blue);">Discord</strong> channel whenever new media is added to your <strong style="color: var(--blue);">Jellyfin</strong> library.</div></li>
-                  <li><i class="bi bi-film"></i><div>Using the <strong style="color: var(--blue);">TMDB</strong> and <strong style="color: var(--blue);">OMDb</strong> databases, <strong style="color: var(--blue);">Discord</strong> messages get a beautiful and well-structured look, with essential information about the requested or added media content.</div></li>
-                  <li><i class="bi bi-sliders"></i><div>Control permissions with <strong style="color: var(--blue);">role-based access</strong> (allowlist/blocklist), route notifications to different channels by <strong style="color: var(--blue);">Jellyfin library</strong>, and link users to <strong style="color: var(--blue);">Jellyseerr</strong> accounts for accurate request tracking.</div></li>
-                  <li><i class="bi bi-chat-left-dots"></i><div>Get <strong style="color: var(--blue);">direct messages</strong> on <strong style="color: var(--blue);">Discord</strong> when requested content becomes available in your library. Never miss when your requests are ready!</div></li>
+                  <li><i class="bi bi-search"></i><div data-i18n="about.feature_search"><code>/search &lt;title&gt;</code> Search for a movie or show with auto-suggestions. An embed with detailed information is shown, from which you can request the media. For <strong style="color: var(--blue);">TV shows</strong>, you have the option to select the desired seasons for the request.</div></li>
+                  <li><i class="bi bi-send-fill"></i><div data-i18n="about.feature_request"><code>/request &lt;title&gt;</code> Instantly send a request for your chosen movie or show directly to <strong style="color: var(--blue);">Jellyseerr</strong>. For <strong style="color: var(--blue);">TV shows</strong>, this automatically requests all seasons.</div></li>
+                  <li><i class="bi bi-bell-fill"></i><div data-i18n="about.feature_notifications">Receive beautifully formatted notifications on your selected <strong style="color: var(--blue);">Discord</strong> channel whenever new media is added to your <strong style="color: var(--blue);">Jellyfin</strong> library.</div></li>
+                  <li><i class="bi bi-film"></i><div data-i18n="about.feature_databases">Using the <strong style="color: var(--blue);">TMDB</strong> and <strong style="color: var(--blue);">OMDb</strong> databases, <strong style="color: var(--blue);">Discord</strong> messages get a beautiful and well-structured look, with essential information about the requested or added media content.</div></li>
+                  <li><i class="bi bi-sliders"></i><div data-i18n="about.feature_permissions">Control permissions with <strong style="color: var(--blue);">role-based access</strong> (allowlist/blocklist), route notifications to different channels by <strong style="color: var(--blue);">Jellyfin library</strong>, and link users to <strong style="color: var(--blue);">Jellyseerr</strong> accounts for accurate request tracking.</div></li>
+                  <li><i class="bi bi-chat-left-dots"></i><div data-i18n="about.feature_direct_messages">Get <strong style="color: var(--blue);">direct messages</strong> on <strong style="color: var(--blue);">Discord</strong> when requested content becomes available in your library. Never miss when your requests are ready!</div></li>
                 </ul>
               </div>
 
               <div class="about-cards">
                 <div class="about-card support-card">
                   <i class="bi bi-heart-fill"></i>
-                  <h3>Support the Project</h3>
-                  <p>If you find Anchorr useful, consider supporting its development. Every coffee helps fuel late-night coding sessions!</p>
-                  <a href="https://ko-fi.com/nairdah" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Buy me a Coffee</a>
+                  <h3 data-i18n="about.support_title">Support the Project</h3>
+                  <p data-i18n="about.support_description">If you find Anchorr useful, consider supporting its development. Every coffee helps fuel late-night coding sessions!</p>
+                  <a href="https://ko-fi.com/nairdah" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" data-i18n="about.buy_coffee">Buy me a Coffee</a>
                 </div>
                 <div class="about-card contribute-card">
                   <i class="bi bi-github"></i>
-                  <h3>Contribute</h3>
-                  <p>Anchorr is open-source! If you're a developer, your contributions are welcome. Check out the project on GitHub to get started.</p>
-                  <a href="https://github.com/nairdahh/Anchorr" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">View on GitHub</a>
+                  <h3 data-i18n="about.contribute_title">Contribute</h3>
+                  <p data-i18n="about.contribute_description">Anchorr is open-source! If you're a developer, your contributions are welcome. Check out the project on GitHub to get started.</p>
+                  <a href="https://github.com/nairdahh/Anchorr" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" data-i18n="about.view_github">View on GitHub</a>
                 </div>
               </div>
 
@@ -1067,10 +1067,10 @@
           <p class="modal-note">The bot will automatically connect to Discord and start monitoring for notifications.</p>
         </div>
         <div class="modal-actions">
-          <button id="modal-start-yes" class="btn btn-primary">
+          <button id="modal-start-yes" class="btn btn-primary" data-i18n="modals.start_bot_yes">
             <i class="bi bi-play-fill"></i> Yes, Start Bot
           </button>
-          <button id="modal-start-no" class="btn btn-secondary">
+          <button id="modal-start-no" class="btn btn-secondary" data-i18n="modals.start_bot_no">
             <i class="bi bi-x-circle"></i> No, Save Only
           </button>
         </div>
