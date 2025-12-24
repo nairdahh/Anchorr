@@ -299,7 +299,7 @@ export async function fetchServers(jellyseerrUrl, apiKey) {
   const now = Date.now();
 
   // Return cached servers if still valid
-  if (serversCache && now - serversCacheTime < CACHE_TTL.TAGS) {
+  if (serversCache && now - serversCacheTime < CACHE_TTL.SERVERS) {
     return serversCache;
   }
 
@@ -337,7 +337,7 @@ export async function fetchQualityProfiles(jellyseerrUrl, apiKey) {
   const now = Date.now();
 
   // Return cached profiles if still valid
-  if (qualityProfilesCache && now - qualityProfilesCacheTime < CACHE_TTL.TAGS) {
+  if (qualityProfilesCache && now - qualityProfilesCacheTime < CACHE_TTL.QUALITY_PROFILES) {
     return qualityProfilesCache;
   }
 

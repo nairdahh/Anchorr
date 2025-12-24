@@ -306,9 +306,16 @@ async function startBot() {
       const [qProfileId, qServerId, qType] = options.quality.split("|");
       // Only use if matching media type (radarr for movies, sonarr for TV)
       if ((mediaType === "movie" && qType === "radarr") || (mediaType === "tv" && qType === "sonarr")) {
-        profileId = parseInt(qProfileId, 10);
-        serverId = parseInt(qServerId, 10);
-        logger.debug(`Using quality profile ID: ${profileId} from server ID: ${serverId}`);
+        const parsedProfileId = parseInt(qProfileId, 10);
+        const parsedServerId = parseInt(qServerId, 10);
+
+        if (!isNaN(parsedProfileId) && !isNaN(parsedServerId)) {
+          profileId = parsedProfileId;
+          serverId = parsedServerId;
+          logger.debug(`Using quality profile ID: ${profileId} from server ID: ${serverId}`);
+        } else {
+          logger.warn(`Invalid quality option format - non-numeric values: profileId=${qProfileId}, serverId=${qServerId}`);
+        }
       } else {
         logger.debug(`Ignoring quality option - type mismatch (${qType} vs ${mediaType})`);
       }
@@ -319,8 +326,14 @@ async function startBot() {
       const [sServerId, sType] = options.server.split("|");
       // Only use if matching media type
       if ((mediaType === "movie" && sType === "radarr") || (mediaType === "tv" && sType === "sonarr")) {
-        serverId = parseInt(sServerId, 10);
-        logger.debug(`Using server ID: ${serverId} from server option`);
+        const parsedServerId = parseInt(sServerId, 10);
+
+        if (!isNaN(parsedServerId)) {
+          serverId = parsedServerId;
+          logger.debug(`Using server ID: ${serverId} from server option`);
+        } else {
+          logger.warn(`Invalid server option format - non-numeric serverId: ${sServerId}`);
+        }
       } else {
         logger.debug(`Ignoring server option - type mismatch (${sType} vs ${mediaType})`);
       }
@@ -329,31 +342,44 @@ async function startBot() {
     // Apply defaults from config if not specified
     if (profileId === null && serverId === null) {
       // Check for default quality profile
-      const defaultQualityConfig = mediaType === "movie" 
-        ? process.env.DEFAULT_QUALITY_PROFILE_MOVIE 
+      const defaultQualityConfig = mediaType === "movie"
+        ? process.env.DEFAULT_QUALITY_PROFILE_MOVIE
         : process.env.DEFAULT_QUALITY_PROFILE_TV;
-      
+
       if (defaultQualityConfig) {
         const [dProfileId, dServerId] = defaultQualityConfig.split("|");
         if (dProfileId && dServerId) {
-          profileId = parseInt(dProfileId, 10);
-          serverId = parseInt(dServerId, 10);
-          logger.debug(`Using default quality profile ID: ${profileId} from config`);
+          const parsedProfileId = parseInt(dProfileId, 10);
+          const parsedServerId = parseInt(dServerId, 10);
+
+          if (!isNaN(parsedProfileId) && !isNaN(parsedServerId)) {
+            profileId = parsedProfileId;
+            serverId = parsedServerId;
+            logger.debug(`Using default quality profile ID: ${profileId} from config`);
+          } else {
+            logger.warn(`Invalid default quality config format - non-numeric values: profileId=${dProfileId}, serverId=${dServerId}`);
+          }
         }
       }
     }
 
     if (serverId === null) {
       // Default to configured default server if not set
-      const defaultServerConfig = mediaType === "movie" 
-        ? process.env.DEFAULT_SERVER_MOVIE 
+      const defaultServerConfig = mediaType === "movie"
+        ? process.env.DEFAULT_SERVER_MOVIE
         : process.env.DEFAULT_SERVER_TV;
-      
+
       if (defaultServerConfig) {
         const [dServerId] = defaultServerConfig.split("|");
         if (dServerId) {
-          serverId = parseInt(dServerId, 10);
-          logger.debug(`Using default server ID: ${serverId} from config`);
+          const parsedServerId = parseInt(dServerId, 10);
+
+          if (!isNaN(parsedServerId)) {
+            serverId = parsedServerId;
+            logger.debug(`Using default server ID: ${serverId} from config`);
+          } else {
+            logger.warn(`Invalid default server config format - non-numeric serverId: ${dServerId}`);
+          }
         }
       }
     }
@@ -1010,10 +1036,16 @@ async function startBot() {
             // Get selected server to filter by specific server
             const serverOption = interaction.options.getString("server");
             let selectedServerId = null;
-            
+
             if (serverOption && serverOption.includes("|")) {
               const parts = serverOption.split("|");
-              selectedServerId = parseInt(parts[0], 10); // serverId
+              const parsedServerId = parseInt(parts[0], 10); // serverId
+
+              if (!isNaN(parsedServerId)) {
+                selectedServerId = parsedServerId;
+              } else {
+                logger.warn(`Invalid server option in autocomplete - non-numeric serverId: ${parts[0]}`);
+              }
             }
 
             const allProfiles = await jellyseerrApi.fetchQualityProfiles(

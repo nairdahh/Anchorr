@@ -708,13 +708,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
       });
-      const result = await response.json();
       if (!response.ok) {
+        const result = await response.json();
         const errorMsg =
           result.errors?.map((e) => `${e.field}: ${e.message}`).join(", ") ||
           result.message;
         showToast(`Error: ${errorMsg}`);
       } else {
+        const result = await response.json();
         showToast(result.message);
       }
     } catch (error) {
@@ -732,12 +733,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     try {
       const response = await fetch(`/api/${action}-bot`, { method: "POST" });
-      const result = await response.json();
       if (!response.ok) {
+        const result = await response.json();
         showToast(`Error: ${result.message}`);
         botControlText.textContent = originalText; // Restore text on failure
         botControlBtn.disabled = false;
       } else {
+        const result = await response.json();
         showToast(result.message);
         setTimeout(() => {
           fetchStatus();
@@ -907,12 +909,12 @@ document.addEventListener("DOMContentLoaded", async () => {
           body: JSON.stringify({ url, apiKey }),
         });
 
-        const result = await response.json();
-
         if (response.ok) {
+          const result = await response.json();
           testJellyseerrStatus.textContent = result.message;
           testJellyseerrStatus.style.color = "var(--green)";
         } else {
+          const result = await response.json();
           throw new Error(result.message);
         }
       } catch (error) {
@@ -951,6 +953,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url, apiKey }),
         });
+
+        if (!profilesResponse.ok) {
+          throw new Error("Failed to fetch quality profiles");
+        }
         const profilesResult = await profilesResponse.json();
 
         // Fetch servers
@@ -959,10 +965,18 @@ document.addEventListener("DOMContentLoaded", async () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url, apiKey }),
         });
+
+        if (!serversResponse.ok) {
+          throw new Error("Failed to fetch servers");
+        }
         const serversResult = await serversResponse.json();
 
-        if (!profilesResponse.ok || !serversResponse.ok) {
-          throw new Error("Failed to fetch options");
+        // Validate API responses
+        if (!Array.isArray(profilesResult.profiles)) {
+          throw new Error("Invalid quality profiles response");
+        }
+        if (!Array.isArray(serversResult.servers)) {
+          throw new Error("Invalid servers response");
         }
 
         // Get current saved values
@@ -1050,9 +1064,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           body: JSON.stringify({ url, apiKey }),
         });
 
-        const result = await response.json();
-
         if (response.ok) {
+          const result = await response.json();
           testJellyfinStatus.textContent = result.message;
           testJellyfinStatus.style.color = "var(--green)";
 
@@ -1071,6 +1084,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
           }
         } else {
+          const result = await response.json();
           throw new Error(result.message);
         }
       } catch (error) {
@@ -1119,9 +1133,14 @@ document.addEventListener("DOMContentLoaded", async () => {
           body: JSON.stringify({ url, apiKey }),
         });
 
+        if (!response.ok) {
+          const result = await response.json();
+          throw new Error(result.message || "Failed to fetch libraries");
+        }
+
         const result = await response.json();
 
-        if (response.ok && result.success) {
+        if (result.success) {
           const libraries = result.libraries || [];
 
           if (libraries.length === 0) {
@@ -1305,8 +1324,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
 
           // Libraries loaded successfully
-        } else {
-          throw new Error(result.message || "Failed to fetch libraries");
         }
       } catch (error) {
         librariesList.innerHTML = `<div style="padding: 1rem; color: var(--red); background: var(--surface0); border-radius: 6px;">
@@ -2866,13 +2883,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       botControlTextLogs.textContent = "Processing...";
 
       const response = await fetch(endpoint, { method: "POST" });
-      const data = await response.json();
 
       if (!response.ok) {
+        const data = await response.json();
         showToast(`Error: ${data.message}`);
         botControlTextLogs.textContent = originalText;
         botControlBtnLogs.disabled = false;
       } else {
+        const data = await response.json();
         showToast(data.message);
         setTimeout(async () => {
           await updateBotControlButtonLogs();
