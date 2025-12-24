@@ -998,15 +998,49 @@ async function startBot() {
         // Handle Quality Profile Autocomplete
         if (focusedOption.name === "quality") {
           try {
+            // Determine media type from title
+            const titleOption = interaction.options.getString("title");
+            let mediaType = null;
+            
+            if (titleOption && titleOption.includes("|")) {
+              const parts = titleOption.split("|");
+              mediaType = parts[1]; // "movie" or "tv"
+            }
+
+            // Get selected server to filter by specific server
+            const serverOption = interaction.options.getString("server");
+            let selectedServerId = null;
+            
+            if (serverOption && serverOption.includes("|")) {
+              const parts = serverOption.split("|");
+              selectedServerId = parseInt(parts[0], 10); // serverId
+            }
+
             const allProfiles = await jellyseerrApi.fetchQualityProfiles(
               JELLYSEERR_URL,
               JELLYSEERR_API_KEY
             );
 
-            // Filter profiles based on user input
+            // Filter profiles based on user input, media type, AND selected server
             const filteredProfiles = allProfiles.filter((profile) => {
               const name = profile.name || "";
-              return name.toLowerCase().includes(focusedValue.toLowerCase());
+              const matchesSearch = name.toLowerCase().includes(focusedValue.toLowerCase());
+              
+              // Filter by media type if title is selected
+              let matchesType = true;
+              if (mediaType) {
+                matchesType = 
+                  (mediaType === "movie" && profile.type === "radarr") ||
+                  (mediaType === "tv" && profile.type === "sonarr");
+              }
+              
+              // Filter by server if server is selected
+              let matchesServer = true;
+              if (selectedServerId !== null) {
+                matchesServer = profile.serverId === selectedServerId;
+              }
+              
+              return matchesSearch && matchesType && matchesServer;
             });
 
             // Deduplicate by name + server
@@ -1036,15 +1070,34 @@ async function startBot() {
         // Server Autocomplete
         if (focusedOption.name === "server") {
           try {
+            // Determine media type from title
+            const titleOption = interaction.options.getString("title");
+            let mediaType = null;
+            
+            if (titleOption && titleOption.includes("|")) {
+              const parts = titleOption.split("|");
+              mediaType = parts[1]; // "movie" or "tv"
+            }
+
             const allServers = await jellyseerrApi.fetchServers(
               JELLYSEERR_URL,
               JELLYSEERR_API_KEY
             );
 
-            // Filter servers base on input
+            // Filter servers based on input AND media type
             const filteredServers = allServers.filter((server) => {
               const name = server.name || "";
-              return name.toLowerCase().includes(focusedValue.toLowerCase());
+              const matchesSearch = name.toLowerCase().includes(focusedValue.toLowerCase());
+              
+              // If media type known, filter
+              if (mediaType) {
+                const matchesType = 
+                  (mediaType === "movie" && server.type === "radarr") ||
+                  (mediaType === "tv" && server.type === "sonarr");
+                return matchesSearch && matchesType;
+              }
+              
+              return matchesSearch;
             });
 
             // Response with server type
