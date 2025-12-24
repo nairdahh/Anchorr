@@ -35,6 +35,7 @@ I also have a dedicated channel on the [r/JellyfinCommunity](https://discord.gg/
 - **🔥 Trending Content**: Browse weekly trending movies and TV shows with `/trending` command
 - **📤 One-Click Requests**: Directly request media to Jellyseerr with `/request` command
 - **📺 Smart TV Handling**: Choose specific seasons when searching for TV series using `/search`, or request all the seasons at once with `/request`
+- **🎚️ Server and Quality**: Choose which Radarr or Sonarr instance to request to, and which quality profile
 - **🚫 Duplicate Detection**: Automatically checks if content already exists in Jellyseerr before allowing requests
 - **🏷️ Tag Selection**: Select Radarr/Sonarr tags when requesting media for better organization and categorization
 - **📬 Jellyfin Notifications**: Automatic Discord notifications when new media is added to your library
