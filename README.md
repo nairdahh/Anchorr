@@ -271,37 +271,52 @@ See [TRANSLATION_GUIDE.md](./TRANSLATION_GUIDE.md) for detailed instructions.
 
 ## 👥 Contributors
 
-Thanks to all the amazing people who have contributed to Anchorr! 🎉
+A huge thank you to all the amazing people who have contributed to making Anchorr better! 🎉
 
-<table>
-<tr>
-    <td align="center">
-        <a href="https://github.com/nairdahh">
-            <img src="https://github.com/nairdahh.png" width="100px;" alt="nairdahh"/><br />
-            <sub><b>nairdahh</b></sub>
-        </a><br />
-        <a href="https://github.com/nairdahh/anchorr/commits?author=nairdahh" title="Code">💻</a>
-        <a href="#maintenance-nairdahh" title="Maintenance">🚧</a>
-        <a href="#ideas-nairdahh" title="Ideas & Planning">🤔</a>
+<br/>
+
+<table align="center">
+  <tr>
+    <td align="center" width="140">
+      <a href="https://github.com/nairdahh">
+        <img src="https://github.com/nairdahh.png" width="100" height="100" style="display: block; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover;"/><br/>
+        <b>nairdahh</b>
+      </a>
     </td>
-    <td align="center">
-        <a href="https://github.com/retardgerman">
-            <img src="https://github.com/retardgerman.png" width="100px;" alt="retardgerman"/><br />
-            <sub><b>retardgerman</b></sub>
-        </a><br />
-        <a href="https://github.com/nairdahh/anchorr/commits?author=retardgerman" title="Code">💻</a>
-        <a href="https://github.com/nairdahh/anchorr/pulls?q=author%3Aretardgerman" title="Bug fixes">🐛</a>
-        <a href="#ideas-retardgerman" title="Ideas & Planning">🤔</a>
+    <td align="center" width="140">
+      <a href="https://github.com/lucideds">
+        <img src="https://github.com/lucideds.png" width="100" height="100" style="display: block; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover;"/><br/>
+        <b>lucideds</b>
+      </a>
     </td>
-    <td align="center">
-        <a href="https://github.com/whoopsi-daisy">
-            <img src="https://github.com/whoopsi-daisy.png" width="100px;" alt="whoopsi-daisy"/><br />
-            <sub><b>whoopsi-daisy</b></sub>
-        </a><br />
-        <a href="https://github.com/nairdahh/anchorr/pulls?q=author%3Awhoopsi-daisy" title="Documentation">📖</a>
+    <td align="center" width="140">
+      <a href="https://github.com/retardgerman">
+        <img src="https://github.com/retardgerman.png" width="100" height="100" style="display: block; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover;"/><br/>
+        <b>retardgerman</b>
+      </a>
     </td>
-</tr>
+    <td align="center" width="140">
+      <a href="https://github.com/TheColorman">
+        <img src="https://github.com/TheColorman.png" width="100" height="100" style="display: block; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover;"/><br/>
+        <b>TheColorman</b>
+      </a>
+    </td>
+    <td align="center" width="140">
+      <a href="https://github.com/IPvNick">
+        <img src="https://github.com/IPvNick.png" width="100" height="100" style="display: block; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover;"/><br/>
+        <b>IPvNick</b>
+      </a>
+    </td>
+    <td align="center" width="140">
+      <a href="https://github.com/whoopsi-daisy">
+        <img src="https://github.com/whoopsi-daisy.png" width="100" height="100" style="display: block; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover;"/><br/>
+        <b>whoopsi-daisy</b>
+      </a>
+    </td>
+  </tr>
 </table>
+
+<br/>
 
 ## 📄 License
 
