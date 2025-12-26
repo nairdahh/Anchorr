@@ -297,6 +297,96 @@ async function startBot() {
     return null;
   }
 
+  function parseQualityAndServerOptions(options, mediaType) {
+    let profileId = null;
+    let serverId = null;
+
+    // Parse quality option (format: profileId|serverId|type)
+    if (options.quality) {
+      const [qProfileId, qServerId, qType] = options.quality.split("|");
+      // Only use if matching media type (radarr for movies, sonarr for TV)
+      if ((mediaType === "movie" && qType === "radarr") || (mediaType === "tv" && qType === "sonarr")) {
+        const parsedProfileId = parseInt(qProfileId, 10);
+        const parsedServerId = parseInt(qServerId, 10);
+
+        if (!isNaN(parsedProfileId) && !isNaN(parsedServerId)) {
+          profileId = parsedProfileId;
+          serverId = parsedServerId;
+          logger.debug(`Using quality profile ID: ${profileId} from server ID: ${serverId}`);
+        } else {
+          logger.warn(`Invalid quality option format - non-numeric values: profileId=${qProfileId}, serverId=${qServerId}`);
+        }
+      } else {
+        logger.debug(`Ignoring quality option - type mismatch (${qType} vs ${mediaType})`);
+      }
+    }
+
+    // Parse server option (format: serverId|type) - only if not already set from quality
+    if (options.server && serverId === null) {
+      const [sServerId, sType] = options.server.split("|");
+      // Only use if matching media type
+      if ((mediaType === "movie" && sType === "radarr") || (mediaType === "tv" && sType === "sonarr")) {
+        const parsedServerId = parseInt(sServerId, 10);
+
+        if (!isNaN(parsedServerId)) {
+          serverId = parsedServerId;
+          logger.debug(`Using server ID: ${serverId} from server option`);
+        } else {
+          logger.warn(`Invalid server option format - non-numeric serverId: ${sServerId}`);
+        }
+      } else {
+        logger.debug(`Ignoring server option - type mismatch (${sType} vs ${mediaType})`);
+      }
+    }
+
+    // Apply defaults from config if not specified
+    if (profileId === null && serverId === null) {
+      // Check for default quality profile
+      const defaultQualityConfig = mediaType === "movie"
+        ? process.env.DEFAULT_QUALITY_PROFILE_MOVIE
+        : process.env.DEFAULT_QUALITY_PROFILE_TV;
+
+      if (defaultQualityConfig) {
+        const [dProfileId, dServerId] = defaultQualityConfig.split("|");
+        if (dProfileId && dServerId) {
+          const parsedProfileId = parseInt(dProfileId, 10);
+          const parsedServerId = parseInt(dServerId, 10);
+
+          if (!isNaN(parsedProfileId) && !isNaN(parsedServerId)) {
+            profileId = parsedProfileId;
+            serverId = parsedServerId;
+            logger.debug(`Using default quality profile ID: ${profileId} from config`);
+          } else {
+            logger.warn(`Invalid default quality config format - non-numeric values: profileId=${dProfileId}, serverId=${dServerId}`);
+          }
+        }
+      }
+    }
+
+    if (serverId === null) {
+      // Default to configured default server if not set
+      const defaultServerConfig = mediaType === "movie"
+        ? process.env.DEFAULT_SERVER_MOVIE
+        : process.env.DEFAULT_SERVER_TV;
+
+      if (defaultServerConfig) {
+        const [dServerId] = defaultServerConfig.split("|");
+        if (dServerId) {
+          const parsedServerId = parseInt(dServerId, 10);
+
+          if (!isNaN(parsedServerId)) {
+            serverId = parsedServerId;
+            logger.debug(`Using default server ID: ${serverId} from config`);
+          } else {
+            logger.warn(`Invalid default server config format - non-numeric serverId: ${dServerId}`);
+          }
+        }
+      }
+    }
+
+    return { profileId, serverId };
+  }
+
   // ----------------- EMBED BUILDER -----------------
   function buildNotificationEmbed(
     details,
@@ -572,7 +662,7 @@ async function startBot() {
   }
 
   // ----------------- COMMON SEARCH LOGIC -----------------
-  async function handleSearchOrRequest(interaction, rawInput, mode, tags = []) {
+  async function handleSearchOrRequest(interaction, rawInput, mode, tags = [], options = {}) {
     // IMPORTANT: Defer reply FIRST to prevent timeout
     const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
 
@@ -688,11 +778,16 @@ async function startBot() {
           }
         }
 
+        // Parse quality and server
+        const { profileId, serverId } = parseQualityAndServerOptions(options, mediaType);
+
         await jellyseerrApi.sendRequest({
           tmdbId,
           mediaType,
           seasons: ["all"],
           tags: tagIds,
+          profileId,
+          serverId,
           jellyseerrUrl: JELLYSEERR_URL,
           apiKey: JELLYSEERR_API_KEY,
           discordUserId: interaction.user.id,
@@ -926,6 +1021,135 @@ async function startBot() {
           }
         }
 
+        // Handle Quality Profile Autocomplete
+        if (focusedOption.name === "quality") {
+          try {
+            // Determine media type from title
+            const titleOption = interaction.options.getString("title");
+            let mediaType = null;
+            
+            if (titleOption && titleOption.includes("|")) {
+              const parts = titleOption.split("|");
+              mediaType = parts[1]; // "movie" or "tv"
+            }
+
+            // Get selected server to filter by specific server
+            const serverOption = interaction.options.getString("server");
+            let selectedServerId = null;
+
+            if (serverOption && serverOption.includes("|")) {
+              const parts = serverOption.split("|");
+              const parsedServerId = parseInt(parts[0], 10); // serverId
+
+              if (!isNaN(parsedServerId)) {
+                selectedServerId = parsedServerId;
+              } else {
+                logger.warn(`Invalid server option in autocomplete - non-numeric serverId: ${parts[0]}`);
+              }
+            }
+
+            const allProfiles = await jellyseerrApi.fetchQualityProfiles(
+              JELLYSEERR_URL,
+              JELLYSEERR_API_KEY
+            );
+
+            // Filter profiles based on user input, media type, AND selected server
+            const filteredProfiles = allProfiles.filter((profile) => {
+              const name = profile.name || "";
+              const matchesSearch = name.toLowerCase().includes(focusedValue.toLowerCase());
+              
+              // Filter by media type if title is selected
+              let matchesType = true;
+              if (mediaType) {
+                matchesType = 
+                  (mediaType === "movie" && profile.type === "radarr") ||
+                  (mediaType === "tv" && profile.type === "sonarr");
+              }
+              
+              // Filter by server if server is selected
+              let matchesServer = true;
+              if (selectedServerId !== null) {
+                matchesServer = profile.serverId === selectedServerId;
+              }
+              
+              return matchesSearch && matchesType && matchesServer;
+            });
+
+            // Deduplicate by name + server
+            const uniqueProfiles = [];
+            const seenNames = new Set();
+
+            for (const profile of filteredProfiles) {
+              const displayName = `${profile.name} (${profile.serverName})`;
+              const key = `${profile.id}-${profile.serverId}`;
+              if (!seenNames.has(key)) {
+                seenNames.add(key);
+                uniqueProfiles.push({
+                  name: displayName.length > 100 ? displayName.substring(0, 97) + "..." : displayName,
+                  value: `${profile.id}|${profile.serverId}|${profile.type}`, // profileId|serverId|type
+                });
+              }
+            }
+
+            // Limit to 25
+            return await interaction.respond(uniqueProfiles.slice(0, 25));
+          } catch (e) {
+            logger.error("Quality profile autocomplete error:", e);
+            return await interaction.respond([]);
+          }
+        }
+
+        // Server Autocomplete
+        if (focusedOption.name === "server") {
+          try {
+            // Determine media type from title
+            const titleOption = interaction.options.getString("title");
+            let mediaType = null;
+            
+            if (titleOption && titleOption.includes("|")) {
+              const parts = titleOption.split("|");
+              mediaType = parts[1]; // "movie" or "tv"
+            }
+
+            const allServers = await jellyseerrApi.fetchServers(
+              JELLYSEERR_URL,
+              JELLYSEERR_API_KEY
+            );
+
+            // Filter servers based on input AND media type
+            const filteredServers = allServers.filter((server) => {
+              const name = server.name || "";
+              const matchesSearch = name.toLowerCase().includes(focusedValue.toLowerCase());
+              
+              // If media type known, filter
+              if (mediaType) {
+                const matchesType = 
+                  (mediaType === "movie" && server.type === "radarr") ||
+                  (mediaType === "tv" && server.type === "sonarr");
+                return matchesSearch && matchesType;
+              }
+              
+              return matchesSearch;
+            });
+
+            // Response with server type
+            const serverChoices = filteredServers.map((server) => {
+              const typeEmoji = server.type === "radarr" ? "🎬" : "📺";
+              const displayName = `${typeEmoji} ${server.name}${server.isDefault ? " (default)" : ""}`;
+              return {
+                name: displayName.length > 100 ? displayName.substring(0, 97) + "..." : displayName,
+                value: `${server.id}|${server.type}`, // serverId|type
+              };
+            });
+
+            // Limit to 25
+            return await interaction.respond(serverChoices.slice(0, 25));
+          } catch (e) {
+            logger.error("Server autocomplete error:", e);
+            return await interaction.respond([]);
+          }
+        }
+
         // Handle Title Autocomplete
         // For trending command, show trending content instead of search results
         if (interaction.commandName === "trending") {
@@ -1139,12 +1363,15 @@ async function startBot() {
           return handleSearchOrRequest(interaction, raw, "search");
         if (interaction.commandName === "request") {
           const tag = interaction.options.getString("tag");
-          // Pass tag as an array if present
+          const quality = interaction.options.getString("quality");
+          const server = interaction.options.getString("server");
+          // Pass tag as an array if present, and quality/server options
           return handleSearchOrRequest(
             interaction,
             raw,
             "request",
-            tag ? [tag] : []
+            tag ? [tag] : [],
+            { quality, server }
           );
         }
         if (interaction.commandName === "trending") {
@@ -1242,11 +1469,16 @@ async function startBot() {
               ? selectedSeasons
               : ["all"];
 
+          // Apply defaults from config
+          const { profileId, serverId } = parseQualityAndServerOptions({}, mediaType);
+
           await jellyseerrApi.sendRequest({
             tmdbId,
             mediaType,
             seasons: seasonsToRequest,
             tags: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+            profileId,
+            serverId,
             jellyseerrUrl: JELLYSEERR_URL,
             apiKey: JELLYSEERR_API_KEY,
             discordUserId: interaction.user.id,
@@ -2343,6 +2575,58 @@ function configureWebServer() {
     }
   });
 
+  // Fetch quality profiles
+  app.post("/api/jellyseerr/quality-profiles", authenticateToken, async (req, res) => {
+    const { url, apiKey } = req.body;
+    if (!url || !apiKey) {
+      return res
+        .status(400)
+        .json({ success: false, message: "URL and API Key are required." });
+    }
+
+    try {
+      let baseUrl = url.replace(/\/$/, "");
+      if (!baseUrl.endsWith("/api/v1")) {
+        baseUrl += "/api/v1";
+      }
+
+      const profiles = await jellyseerrApi.fetchQualityProfiles(baseUrl, apiKey);
+      res.json({ success: true, profiles });
+    } catch (error) {
+      logger.error("Failed to fetch quality profiles:", error.message);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch quality profiles.",
+      });
+    }
+  });
+
+  // Fetch servers
+  app.post("/api/jellyseerr/servers", authenticateToken, async (req, res) => {
+    const { url, apiKey } = req.body;
+    if (!url || !apiKey) {
+      return res
+        .status(400)
+        .json({ success: false, message: "URL and API Key are required." });
+    }
+
+    try {
+      let baseUrl = url.replace(/\/$/, "");
+      if (!baseUrl.endsWith("/api/v1")) {
+        baseUrl += "/api/v1";
+      }
+
+      const servers = await jellyseerrApi.fetchServers(baseUrl, apiKey);
+      res.json({ success: true, servers });
+    } catch (error) {
+      logger.error("Failed to fetch servers:", error.message);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch servers.",
+      });
+    }
+  });
+
   app.post("/api/test-jellyfin", authenticateToken, async (req, res) => {
     const { url } = req.body;
     if (!url) {
@@ -2404,6 +2688,244 @@ function configureWebServer() {
       res.status(500).json({
         success: false,
         message: "Failed to fetch libraries. Check Jellyfin configuration.",
+      });
+    }
+  });
+
+  // Test notification endpoint - sends sample notifications with random data
+  app.post("/api/test-notification", authenticateToken, async (req, res) => {
+    try {
+      const { type } = req.body;
+
+      if (!type || !["movie", "series", "season", "batch-seasons", "episodes", "batch-episodes"].includes(type)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid notification type. Must be: movie, series, season, batch-seasons, episodes, or batch-episodes.",
+        });
+      }
+
+      // Check if Discord bot is running and configured
+      if (!discordClient || !discordClient.isReady()) {
+        return res.status(400).json({
+          success: false,
+          message: "Discord bot is not running. Please start the bot first.",
+        });
+      }
+
+      const guildId = process.env.GUILD_ID;
+      const channelId = process.env.JELLYFIN_CHANNEL_ID;
+
+      if (!guildId || !channelId) {
+        return res.status(400).json({
+          success: false,
+          message: "Discord server and channel must be configured first.",
+        });
+      }
+
+      // Fetch real data from TMDB/OMDB for realistic test notifications
+      const { tmdbGetDetails, tmdbGetExternalImdb } = await import("./api/tmdb.js");
+      const { fetchOMDbData } = await import("./api/omdb.js");
+      
+      const TMDB_API_KEY = process.env.TMDB_API_KEY;
+      if (!TMDB_API_KEY) {
+        return res.status(400).json({
+          success: false,
+          message: "TMDB API key is required for test notifications. Configure it in Step 3.",
+        });
+      }
+
+      let notificationData;
+
+      // Build realistic notification data based on type
+      if (type === "movie") {
+        // Interstellar TMDB ID: 157336
+        const movieDetails = await tmdbGetDetails(157336, "movie", TMDB_API_KEY);
+        const imdbId = await tmdbGetExternalImdb(157336, "movie", TMDB_API_KEY);
+        
+        notificationData = {
+          ItemType: "Movie",
+          Name: movieDetails.title,
+          Year: movieDetails.release_date ? movieDetails.release_date.split("-")[0] : "",
+          Overview: movieDetails.overview,
+          Provider_tmdb: "157336",
+          Provider_imdb: imdbId,
+          ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+          ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+          ItemId: "test-movie-" + Date.now(),
+        };
+      } else if (type === "series") {
+        // Breaking Bad TMDB ID: 1396
+        const seriesDetails = await tmdbGetDetails(1396, "tv", TMDB_API_KEY);
+        const imdbId = await tmdbGetExternalImdb(1396, "tv", TMDB_API_KEY);
+        
+        notificationData = {
+          ItemType: "Series",
+          Name: seriesDetails.name,
+          Year: seriesDetails.first_air_date ? seriesDetails.first_air_date.split("-")[0] : "",
+          Overview: seriesDetails.overview,
+          Provider_tmdb: "1396",
+          Provider_imdb: imdbId,
+          ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+          ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+          ItemId: "test-series-" + Date.now(),
+        };
+      } else if (type === "season") {
+        // Breaking Bad Season 1
+        const seriesDetails = await tmdbGetDetails(1396, "tv", TMDB_API_KEY);
+        const imdbId = await tmdbGetExternalImdb(1396, "tv", TMDB_API_KEY);
+        
+        notificationData = {
+          ItemType: "Season",
+          SeriesName: seriesDetails.name,
+          SeriesId: "test-series-" + Date.now(),
+          Name: "Season 1",
+          SeasonNumber: 1,
+          Year: seriesDetails.first_air_date ? seriesDetails.first_air_date.split("-")[0] : "",
+          Overview: "High school chemistry teacher Walter White's life is suddenly transformed by a dire medical diagnosis. Street-savvy former student Jesse Pinkman \"teaches\" Walter a new trade.",
+          Provider_tmdb: "1396",
+          Provider_imdb: imdbId,
+          ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+          ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+          ItemId: "test-season-" + Date.now(),
+        };
+      } else if (type === "episodes") {
+        // Breaking Bad first episodes
+        const seriesDetails = await tmdbGetDetails(1396, "tv", TMDB_API_KEY);
+        const imdbId = await tmdbGetExternalImdb(1396, "tv", TMDB_API_KEY);
+        
+        notificationData = {
+          ItemType: "Episode",
+          SeriesName: seriesDetails.name,
+          SeriesId: "test-series-" + Date.now(),
+          Name: "Pilot, Cat's in the Bag...",
+          SeasonNumber: 1,
+          EpisodeNumber: 1,
+          Year: seriesDetails.first_air_date ? seriesDetails.first_air_date.split("-")[0] : "",
+          Overview: "When an unassuming high school chemistry teacher discovers he has a rare form of lung cancer, he decides to team up with a former student and create a top of the line crystal meth in a used RV, to provide for his family once he is gone.",
+          Provider_tmdb: "1396",
+          Provider_imdb: imdbId,
+          ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+          ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+          ItemId: "test-episode-" + Date.now(),
+        };
+      } else if (type === "batch-seasons") {
+        // The Mandalorian - Send 2 separate season notifications to test batching (TMDB ID: 82856)
+        const seriesDetails = await tmdbGetDetails(82856, "tv", TMDB_API_KEY);
+        const imdbId = await tmdbGetExternalImdb(82856, "tv", TMDB_API_KEY);
+        
+        const { handleJellyfinWebhook } = await import("./jellyfinWebhook.js");
+        const baseSeriesId = "batch-test-series-" + Date.now();
+        
+        // Send Season 1
+        const season1Data = {
+          ItemType: "Season",
+          SeriesName: seriesDetails.name,
+          SeriesId: baseSeriesId,
+          Name: "Season 1",
+          SeasonNumber: 1,
+          Year: seriesDetails.first_air_date ? seriesDetails.first_air_date.split("-")[0] : "",
+          Overview: "After the fall of the Galactic Empire, lawlessness has spread throughout the galaxy. A lone gunfighter makes his way through the outer reaches, earning his keep as a bounty hunter.",
+          Provider_tmdb: "82856",
+          Provider_imdb: imdbId,
+          ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+          ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+          ItemId: "batch-season-1-" + Date.now(),
+        };
+        
+        // Send Season 2
+        const season2Data = {
+          ItemType: "Season",
+          SeriesName: seriesDetails.name,
+          SeriesId: baseSeriesId,
+          Name: "Season 2",
+          SeasonNumber: 2,
+          Year: seriesDetails.first_air_date ? seriesDetails.first_air_date.split("-")[0] : "",
+          Overview: "The Mandalorian and the Child continue their journey, facing enemies and rallying allies as they make their way through a dangerous galaxy in the tumultuous era after the collapse of the Galactic Empire.",
+          Provider_tmdb: "82856",
+          Provider_imdb: imdbId,
+          ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+          ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+          ItemId: "batch-season-2-" + Date.now(),
+        };
+        
+        // Send both seasons (they should be batched together by debouncing logic)
+        const fakeReq1 = { body: season1Data };
+        const fakeReq2 = { body: season2Data };
+        
+        await handleJellyfinWebhook(fakeReq1, null, discordClient, pendingRequests);
+        await handleJellyfinWebhook(fakeReq2, null, discordClient, pendingRequests);
+        
+        return res.json({
+          success: true,
+          message: `Test batch-seasons notification sent! 2 seasons should be batched together. Check your Discord channel.`,
+        });
+      } else if (type === "batch-episodes") {
+        // Stranger Things - Send 6 separate episode notifications to test batching (TMDB ID: 66732)
+        const seriesDetails = await tmdbGetDetails(66732, "tv", TMDB_API_KEY);
+        const imdbId = await tmdbGetExternalImdb(66732, "tv", TMDB_API_KEY);
+        
+        const { handleJellyfinWebhook } = await import("./jellyfinWebhook.js");
+        const baseSeriesId = "batch-test-series-" + Date.now();
+        
+        const episodes = [
+          { num: "01", name: "Chapter One: The Hellfire Club", overview: "Spring break turns into a nightmare when a new evil emerges in Hawkins." },
+          { num: "02", name: "Chapter Two: Vecna's Curse", overview: "A plane brings Mike to California, and to his girlfriend, and to new, high school, problems." },
+          { num: "03", name: "Chapter Three: The Monster and the Superhero", overview: "Murray and Joyce fly to Alaska, and El faces serious consequences. Robin and Nancy dig for information." },
+          { num: "04", name: "Chapter Four: Dear Billy", overview: "Max is in grave danger, and running out of time. A patient at Pennhurst asylum has visitors. Elsewhere, in Russia, Hopper is hard at work." },
+          { num: "05", name: "Chapter Five: The Nina Project", overview: "Owens takes El to Nevada, where she's forced to confront her past, while the Hawkins kids comb a crumbling house for answers." },
+          { num: "06", name: "Chapter Six: The Dive", overview: "Behind the Iron Curtain, a risky rescue mission gets underway. The California crew seeks help from a hacker. Steve takes one for the team." },
+        ];
+        
+        // Send all 6 episodes (they should be batched together by debouncing logic)
+        for (const ep of episodes) {
+          const episodeData = {
+            ItemType: "Episode",
+            SeriesName: seriesDetails.name,
+            SeriesId: baseSeriesId,
+            Name: ep.name,
+            SeasonNumber: 4,
+            EpisodeNumber: parseInt(ep.num),
+            Year: seriesDetails.first_air_date ? seriesDetails.first_air_date.split("-")[0] : "",
+            Overview: ep.overview,
+            Provider_tmdb: "66732",
+            Provider_imdb: imdbId,
+            ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+            ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+            ItemId: "batch-episode-" + ep.num + "-" + Date.now(),
+          };
+          
+          const fakeReq = { body: episodeData };
+          await handleJellyfinWebhook(fakeReq, null, discordClient, pendingRequests);
+          // Small delay between episodes to simulate realistic webhook timing
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        
+        return res.json({
+          success: true,
+          message: `Test batch-episodes notification sent! 6 episodes should be batched together. Check your Discord channel.`,
+        });
+      }
+
+      // Import webhook handler
+      const { handleJellyfinWebhook } = await import("./jellyfinWebhook.js");
+
+      // Create a fake request object with the test data
+      const fakeReq = {
+        body: notificationData
+      };
+
+      // Send the test notification (pass null for res since we don't need response handling)
+      await handleJellyfinWebhook(fakeReq, null, discordClient, pendingRequests);
+
+      res.json({
+        success: true,
+        message: `Test ${type} notification sent successfully! Check your Discord channel.`,
+      });
+    } catch (error) {
+      logger.error("Failed to send test notification:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to send test notification. Check logs for details.",
       });
     }
   });

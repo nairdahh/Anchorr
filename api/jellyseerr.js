@@ -7,11 +7,103 @@ import axios from "axios";
 import logger from "../utils/logger.js";
 import { TIMEOUTS, CACHE_TTL } from "../lib/constants.js";
 
-// Cache for root folders and tags
+// Cache for root folders, tags, quality profiles, and servers
 let rootFoldersCache = null;
 let rootFoldersCacheTime = 0;
 let tagsCache = null;
 let tagsCacheTime = 0;
+let qualityProfilesCache = null;
+let qualityProfilesCacheTime = 0;
+let serversCache = null;
+let serversCacheTime = 0;
+
+/**
+ * Fetch data from Radarr/Sonarr servers
+ * @param {string} jellyseerrUrl - Jellyseerr API URL
+ * @param {string} apiKey - Jellyseerr API key
+ * @param {boolean} fetchDetails - Whether to fetch detailed info for each server
+ * @param {Function} extractData - Function to extract data from server/details response
+ * @returns {Promise<Array>} Extracted data
+ */
+async function fetchFromServers(jellyseerrUrl, apiKey, fetchDetails, extractData) {
+  const results = [];
+
+  // Fetch from Radarr servers
+  try {
+    const radarrListResponse = await axios.get(
+      `${jellyseerrUrl}/service/radarr`,
+      {
+        headers: { "X-Api-Key": apiKey },
+        timeout: TIMEOUTS.JELLYSEERR_API,
+      }
+    );
+
+    for (const server of radarrListResponse.data) {
+      try {
+        if (fetchDetails) {
+          const detailsResponse = await axios.get(
+            `${jellyseerrUrl}/service/radarr/${server.id}`,
+            {
+              headers: { "X-Api-Key": apiKey },
+              timeout: TIMEOUTS.JELLYSEERR_API,
+            }
+          );
+          const data = extractData(server, detailsResponse.data, "radarr");
+          if (data) results.push(...(Array.isArray(data) ? data : [data]));
+        } else {
+          const data = extractData(server, null, "radarr");
+          if (data) results.push(...(Array.isArray(data) ? data : [data]));
+        }
+      } catch (err) {
+        logger.warn(
+          `Failed to fetch Radarr ${server.id} details:`,
+          err?.message
+        );
+      }
+    }
+  } catch (err) {
+    logger.warn("Failed to fetch Radarr servers:", err?.message);
+  }
+
+  // Fetch from Sonarr servers
+  try {
+    const sonarrListResponse = await axios.get(
+      `${jellyseerrUrl}/service/sonarr`,
+      {
+        headers: { "X-Api-Key": apiKey },
+        timeout: TIMEOUTS.JELLYSEERR_API,
+      }
+    );
+
+    for (const server of sonarrListResponse.data) {
+      try {
+        if (fetchDetails) {
+          const detailsResponse = await axios.get(
+            `${jellyseerrUrl}/service/sonarr/${server.id}`,
+            {
+              headers: { "X-Api-Key": apiKey },
+              timeout: TIMEOUTS.JELLYSEERR_API,
+            }
+          );
+          const data = extractData(server, detailsResponse.data, "sonarr");
+          if (data) results.push(...(Array.isArray(data) ? data : [data]));
+        } else {
+          const data = extractData(server, null, "sonarr");
+          if (data) results.push(...(Array.isArray(data) ? data : [data]));
+        }
+      } catch (err) {
+        logger.warn(
+          `Failed to fetch Sonarr ${server.id} details:`,
+          err?.message
+        );
+      }
+    }
+  } catch (err) {
+    logger.warn("Failed to fetch Sonarr servers:", err?.message);
+  }
+
+  return results;
+}
 
 /**
  * Check if media exists and is available in Jellyseerr
@@ -128,91 +220,21 @@ export async function fetchRootFolders(jellyseerrUrl, apiKey) {
   }
 
   try {
-    const folders = [];
-
-    // Fetch Radarr servers (for movies)
-    try {
-      const radarrListResponse = await axios.get(
-        `${jellyseerrUrl}/service/radarr`,
-        {
-          headers: { "X-Api-Key": apiKey },
-          timeout: TIMEOUTS.JELLYSEERR_API,
-        }
-      );
-
-      for (const server of radarrListResponse.data) {
-        try {
-          const detailsResponse = await axios.get(
-            `${jellyseerrUrl}/service/radarr/${server.id}`,
-            {
-              headers: { "X-Api-Key": apiKey },
-              timeout: TIMEOUTS.JELLYSEERR_API,
-            }
-          );
-
-          if (detailsResponse.data.rootFolder) {
-            detailsResponse.data.rootFolder.forEach((folder) => {
-              folders.push({
-                id: folder.id,
-                path: folder.path,
-                serverId: server.id,
-                serverName: server.name || `Radarr ${server.id}`,
-                type: "radarr",
-              });
-            });
-          }
-        } catch (err) {
-          logger.warn(
-            `Failed to fetch Radarr ${server.id} details:`,
-            err?.message
-          );
-        }
+    const folders = await fetchFromServers(
+      jellyseerrUrl,
+      apiKey,
+      true,
+      (server, details, type) => {
+        if (!details?.rootFolder) return [];
+        return details.rootFolder.map((folder) => ({
+          id: folder.id,
+          path: folder.path,
+          serverId: server.id,
+          serverName: server.name || `${type === "radarr" ? "Radarr" : "Sonarr"} ${server.id}`,
+          type,
+        }));
       }
-    } catch (err) {
-      logger.warn("Failed to fetch Radarr servers:", err?.message);
-    }
-
-    // Fetch Sonarr servers (for TV shows)
-    try {
-      const sonarrListResponse = await axios.get(
-        `${jellyseerrUrl}/service/sonarr`,
-        {
-          headers: { "X-Api-Key": apiKey },
-          timeout: TIMEOUTS.JELLYSEERR_API,
-        }
-      );
-
-      for (const server of sonarrListResponse.data) {
-        try {
-          const detailsResponse = await axios.get(
-            `${jellyseerrUrl}/service/sonarr/${server.id}`,
-            {
-              headers: { "X-Api-Key": apiKey },
-              timeout: TIMEOUTS.JELLYSEERR_API,
-            }
-          );
-
-          if (detailsResponse.data.rootFolder) {
-            detailsResponse.data.rootFolder.forEach((folder) => {
-              folders.push({
-                id: folder.id,
-                path: folder.path,
-                serverId: server.id,
-                serverName: server.name || `Sonarr ${server.id}`,
-                type: "sonarr",
-              });
-            });
-          }
-        } catch (err) {
-          logger.warn(
-            `Failed to fetch Sonarr ${server.id} details:`,
-            err?.message
-          );
-        }
-      }
-    } catch (err) {
-      logger.warn("Failed to fetch Sonarr servers:", err?.message);
-    }
+    );
 
     rootFoldersCache = folders;
     rootFoldersCacheTime = now;
@@ -240,91 +262,21 @@ export async function fetchTags(jellyseerrUrl, apiKey) {
   }
 
   try {
-    const tags = [];
-
-    // Fetch Radarr servers (for movies)
-    try {
-      const radarrListResponse = await axios.get(
-        `${jellyseerrUrl}/service/radarr`,
-        {
-          headers: { "X-Api-Key": apiKey },
-          timeout: TIMEOUTS.JELLYSEERR_API,
-        }
-      );
-
-      for (const server of radarrListResponse.data) {
-        try {
-          const detailsResponse = await axios.get(
-            `${jellyseerrUrl}/service/radarr/${server.id}`,
-            {
-              headers: { "X-Api-Key": apiKey },
-              timeout: TIMEOUTS.JELLYSEERR_API,
-            }
-          );
-
-          if (detailsResponse.data.tags) {
-            detailsResponse.data.tags.forEach((tag) => {
-              tags.push({
-                id: tag.id,
-                label: tag.label,
-                serverId: server.id,
-                serverName: server.name || `Radarr ${server.id}`,
-                type: "radarr",
-              });
-            });
-          }
-        } catch (err) {
-          logger.warn(
-            `Failed to fetch Radarr ${server.id} details:`,
-            err?.message
-          );
-        }
+    const tags = await fetchFromServers(
+      jellyseerrUrl,
+      apiKey,
+      true,
+      (server, details, type) => {
+        if (!details?.tags) return [];
+        return details.tags.map((tag) => ({
+          id: tag.id,
+          label: tag.label,
+          serverId: server.id,
+          serverName: server.name || `${type === "radarr" ? "Radarr" : "Sonarr"} ${server.id}`,
+          type,
+        }));
       }
-    } catch (err) {
-      logger.warn("Failed to fetch Radarr servers:", err?.message);
-    }
-
-    // Fetch Sonarr servers (for TV shows)
-    try {
-      const sonarrListResponse = await axios.get(
-        `${jellyseerrUrl}/service/sonarr`,
-        {
-          headers: { "X-Api-Key": apiKey },
-          timeout: TIMEOUTS.JELLYSEERR_API,
-        }
-      );
-
-      for (const server of sonarrListResponse.data) {
-        try {
-          const detailsResponse = await axios.get(
-            `${jellyseerrUrl}/service/sonarr/${server.id}`,
-            {
-              headers: { "X-Api-Key": apiKey },
-              timeout: TIMEOUTS.JELLYSEERR_API,
-            }
-          );
-
-          if (detailsResponse.data.tags) {
-            detailsResponse.data.tags.forEach((tag) => {
-              tags.push({
-                id: tag.id,
-                label: tag.label,
-                serverId: server.id,
-                serverName: server.name || `Sonarr ${server.id}`,
-                type: "sonarr",
-              });
-            });
-          }
-        } catch (err) {
-          logger.warn(
-            `Failed to fetch Sonarr ${server.id} details:`,
-            err?.message
-          );
-        }
-      }
-    } catch (err) {
-      logger.warn("Failed to fetch Sonarr servers:", err?.message);
-    }
+    );
 
     tagsCache = tags;
     tagsCacheTime = now;
@@ -334,6 +286,86 @@ export async function fetchTags(jellyseerrUrl, apiKey) {
   } catch (err) {
     logger.warn("Failed to fetch tags:", err?.message);
     return tagsCache || [];
+  }
+}
+
+/**
+ * Fetch servers (Radarr/Sonarr) via Jellyseerr
+ * @param {string} jellyseerrUrl - Jellyseerr API URL
+ * @param {string} apiKey - Jellyseerr API key
+ * @returns {Promise<Array>} Servers list
+ */
+export async function fetchServers(jellyseerrUrl, apiKey) {
+  const now = Date.now();
+
+  // Return cached servers if still valid
+  if (serversCache && now - serversCacheTime < CACHE_TTL.SERVERS) {
+    return serversCache;
+  }
+
+  try {
+    const servers = await fetchFromServers(
+      jellyseerrUrl,
+      apiKey,
+      false,
+      (server, details, type) => ({
+        id: server.id,
+        name: server.name || `${type === "radarr" ? "Radarr" : "Sonarr"} ${server.id}`,
+        isDefault: server.isDefault || false,
+        type,
+      })
+    );
+
+    serversCache = servers;
+    serversCacheTime = now;
+
+    logger.info(`✅ Fetched ${servers.length} servers from Jellyseerr`);
+    return servers;
+  } catch (err) {
+    logger.warn("Failed to fetch servers:", err?.message);
+    return serversCache || [];
+  }
+}
+
+/**
+ * Fetch quality profiles from Radarr/Sonarr via Jellyseerr
+ * @param {string} jellyseerrUrl - Jellyseerr API URL
+ * @param {string} apiKey - Jellyseerr API key
+ * @returns {Promise<Array>} Quality profiles
+ */
+export async function fetchQualityProfiles(jellyseerrUrl, apiKey) {
+  const now = Date.now();
+
+  // Return cached profiles if still valid
+  if (qualityProfilesCache && now - qualityProfilesCacheTime < CACHE_TTL.QUALITY_PROFILES) {
+    return qualityProfilesCache;
+  }
+
+  try {
+    const profiles = await fetchFromServers(
+      jellyseerrUrl,
+      apiKey,
+      true,
+      (server, details, type) => {
+        if (!details?.profiles) return [];
+        return details.profiles.map((profile) => ({
+          id: profile.id,
+          name: profile.name,
+          serverId: server.id,
+          serverName: server.name || `${type === "radarr" ? "Radarr" : "Sonarr"} ${server.id}`,
+          type,
+        }));
+      }
+    );
+
+    qualityProfilesCache = profiles;
+    qualityProfilesCacheTime = now;
+
+    logger.info(`✅ Fetched ${profiles.length} quality profiles from Jellyseerr`);
+    return profiles;
+  } catch (err) {
+    logger.warn("Failed to fetch quality profiles:", err?.message);
+    return qualityProfilesCache || [];
   }
 }
 
@@ -349,6 +381,7 @@ export async function sendRequest({
   discordUserId = null,
   rootFolder = null,
   serverId = null,
+  profileId = null,
   tags = null,
   jellyseerrUrl,
   apiKey,
@@ -388,6 +421,12 @@ export async function sendRequest({
   if (serverId !== null && serverId !== undefined) {
     payload.serverId = parseInt(serverId, 10);
     logger.debug(`Using server ID: ${serverId}`);
+  }
+
+  // Add quality profile ID if provided
+  if (profileId !== null && profileId !== undefined) {
+    payload.profileId = parseInt(profileId, 10);
+    logger.debug(`Using quality profile ID: ${profileId}`);
   }
 
   // Check if we have a user mapping for this Discord user

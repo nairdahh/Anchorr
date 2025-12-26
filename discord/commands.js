@@ -39,6 +39,24 @@ export function getCommands() {
           )
           .setRequired(false)
           .setAutocomplete(true)
+      )
+      .addStringOption((opt) =>
+        opt
+          .setName("server")
+          .setDescription(
+            "Select a Radarr/Sonarr server (optional, uses default if not specified)"
+          )
+          .setRequired(false)
+          .setAutocomplete(true)
+      )
+      .addStringOption((opt) =>
+        opt
+          .setName("quality")
+          .setDescription(
+            "Select a quality profile (optional, uses default if not specified)"
+          )
+          .setRequired(false)
+          .setAutocomplete(true)
       ),
     new SlashCommandBuilder()
       .setName("trending")
