@@ -4,8 +4,8 @@
     "language_code": "sv",
     "contributors": ["Simon Eklundh", "GitHub Copilot"],
     "completion": "100%",
-    "last_updated": "2025-12-20",
-    "notes": "Complete Swedish translation - all sections translated"
+    "last_updated": "2025-12-23",
+    "notes": "Complete Swedish translation - all sections translated, merged PR improvements"
   },
   "common": {
     "yes": "Ja",
