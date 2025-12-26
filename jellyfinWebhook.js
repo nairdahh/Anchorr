@@ -141,7 +141,8 @@ async function processAndSendNotification(
   episodeCount = 0,
   episodeDetails = null,
   seasonCount = 0,
-  seasonDetails = null
+  seasonDetails = null,
+  isTestNotif = false
 ) {
   const {
     ItemType,
@@ -171,9 +172,21 @@ async function processAndSendNotification(
   // We need to fetch details from TMDB to get the backdrop
   const tmdbId = data.Provider_tmdb;
 
+  const testPrefix = isTestNotif ? "[TEST NOTIFICATION] " : "";
+
   logger.info(
-    `Webhook received: ItemType=${ItemType}, Name=${Name}, tmdbId=${tmdbId}, Provider_imdb=${data.Provider_imdb}`
+    `${testPrefix}Webhook received: ItemType=${ItemType}, Name=${Name}, tmdbId=${tmdbId}, Provider_imdb=${data.Provider_imdb}`
   );
+
+  // Get embed customization settings from environment
+  const showBackdrop = process.env.EMBED_SHOW_BACKDROP !== "false";
+  const showOverview = process.env.EMBED_SHOW_OVERVIEW !== "false";
+  const showGenre = process.env.EMBED_SHOW_GENRE !== "false";
+  const showRuntime = process.env.EMBED_SHOW_RUNTIME !== "false";
+  const showRating = process.env.EMBED_SHOW_RATING !== "false";
+  const showButtonLetterboxd = process.env.EMBED_SHOW_BUTTON_LETTERBOXD !== "false";
+  const showButtonImdb = process.env.EMBED_SHOW_BUTTON_IMDB !== "false";
+  const showButtonWatch = process.env.EMBED_SHOW_BUTTON_WATCH !== "false";
 
   // Check if anyone requested this content
   const notifyEnabled = process.env.NOTIFY_ON_AVAILABLE === "true";
@@ -405,12 +418,27 @@ async function processAndSendNotification(
     // Episodes and Seasons: No fields, just title and optional list below
   } else {
     // Movies and Series: Summary, Genre, Runtime, Rating
-    embed.addFields(
-      { name: headerLine, value: overviewText || "No description available." },
-      { name: "Genre", value: genreList || "Unknown", inline: true },
-      { name: "Runtime", value: runtime || "Unknown", inline: true },
-      { name: "Rating", value: rating || "N/A", inline: true }
-    );
+    const fields = [];
+    
+    if (showOverview) {
+      fields.push({ name: headerLine, value: overviewText || "No description available." });
+    }
+    
+    if (showGenre) {
+      fields.push({ name: "Genre", value: genreList || "Unknown", inline: true });
+    }
+    
+    if (showRuntime) {
+      fields.push({ name: "Runtime", value: runtime || "Unknown", inline: true });
+    }
+    
+    if (showRating) {
+      fields.push({ name: "Rating", value: rating || "N/A", inline: true });
+    }
+    
+    if (fields.length > 0) {
+      embed.addFields(...fields);
+    }
   }
 
   // Add season list for multiple seasons
@@ -474,37 +502,49 @@ async function processAndSendNotification(
   const backdrop = backdropPath
     ? `https://image.tmdb.org/t/p/w1280${backdropPath}`
     : buildJellyfinUrl(ServerUrl, `Items/${ItemId}/Images/Backdrop`);
-  embed.setImage(backdrop);
+  
+  if (showBackdrop) {
+    embed.setImage(backdrop);
+  }
 
   const buttonComponents = [];
 
   if (imdbId) {
+    if (showButtonLetterboxd) {
+      buttonComponents.push(
+        new ButtonBuilder()
+          .setStyle(ButtonStyle.Link)
+          .setLabel("Letterboxd")
+          .setURL(`https://letterboxd.com/imdb/${imdbId}`)
+      );
+    }
+    
+    if (showButtonImdb) {
+      buttonComponents.push(
+        new ButtonBuilder()
+          .setStyle(ButtonStyle.Link)
+          .setLabel("IMDb")
+          .setURL(`https://www.imdb.com/title/${imdbId}/`)
+      );
+    }
+  }
+
+  if (showButtonWatch) {
     buttonComponents.push(
       new ButtonBuilder()
         .setStyle(ButtonStyle.Link)
-        .setLabel("Letterboxd")
-        .setURL(`https://letterboxd.com/imdb/${imdbId}`),
-      new ButtonBuilder()
-        .setStyle(ButtonStyle.Link)
-        .setLabel("IMDb")
-        .setURL(`https://www.imdb.com/title/${imdbId}/`)
+        .setLabel("▶ Watch Now!")
+        .setURL(
+          buildJellyfinUrl(
+            ServerUrl,
+            "web/index.html",
+            `!/details?id=${ItemId}&serverId=${ServerId}`
+          )
+        )
     );
   }
 
-  buttonComponents.push(
-    new ButtonBuilder()
-      .setStyle(ButtonStyle.Link)
-      .setLabel("▶ Watch Now!")
-      .setURL(
-        buildJellyfinUrl(
-          ServerUrl,
-          "web/index.html",
-          `!/details?id=${ItemId}&serverId=${ServerId}`
-        )
-      )
-  );
-
-  const buttons = new ActionRowBuilder().addComponents(buttonComponents);
+  const buttons = buttonComponents.length > 0 ? new ActionRowBuilder().addComponents(buttonComponents) : null;
 
   // Select channel with priority hierarchy:
   // 1. Episode/Season specific channel (if enabled and configured)
@@ -589,10 +629,15 @@ async function processAndSendNotification(
 
   let sentMessage;
   try {
-    sentMessage = await channel.send({
+    const messageOptions = {
       embeds: [embed],
-      components: [buttons],
-    });
+    };
+    
+    if (buttons) {
+      messageOptions.components = [buttons];
+    }
+    
+    sentMessage = await channel.send(messageOptions);
   } catch (error) {
     logger.error(`Failed to send Discord message:`, error);
     throw new Error(`Failed to send Discord notification: ${error.message}`);
@@ -616,7 +661,8 @@ async function processAndSendNotification(
       logger.debug(`Cleaned up message reference for SeriesId: ${SeriesId}`);
     }, 6 * 60 * 60 * 1000); // 6 hours
   }
-  logger.info(`Sent notification for: ${embedTitle}`);
+  
+  logger.info(`${testPrefix}Sent notification for: ${embedTitle}`);
 
   // Send DMs to users who requested this content
   if (usersToNotify.length > 0) {
@@ -690,8 +736,12 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
     // Get library ID - try multiple sources from webhook data
     let libraryId = data.LibraryId || data.CollectionId || data.Library_Id;
 
+    // Check if this is a test notification
+    const isTestNotification = data.ItemId && (data.ItemId.startsWith("test-") || data.ItemId.startsWith("batch-"));
+
     // If no library ID in webhook, use advanced detection (traverse parent chain)
-    if (!libraryId && data.ItemId) {
+    // Skip library detection for test notifications
+    if (!libraryId && data.ItemId && !isTestNotification) {
       try {
         const apiKey = process.env.JELLYFIN_API_KEY;
         const baseUrl = process.env.JELLYFIN_BASE_URL;
@@ -765,7 +815,9 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
           }
         }
       } catch (err) {
-        logger.warn(`Advanced library detection failed:`, err?.message || err);
+        if (!isTestNotification) {
+          logger.warn(`Advanced library detection failed:`, err?.message || err);
+        }
       }
     }
 
@@ -773,41 +825,47 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
     let notificationLibraries = {};
     let libraryChannelId = null;
 
-    try {
-      const parsedLibraries = JSON.parse(
-        process.env.JELLYFIN_NOTIFICATION_LIBRARIES || "{}"
+    // Check if this is a test notification - if so, use default channel
+    if (isTestNotification) {
+      libraryChannelId = process.env.JELLYFIN_CHANNEL_ID;
+      logger.info(`🧪 Test notification detected. Using default channel: ${libraryChannelId}`);
+    } else {
+      // Normal library checking logic
+      try {
+        const parsedLibraries = JSON.parse(
+          process.env.JELLYFIN_NOTIFICATION_LIBRARIES || "{}"
+        );
+
+        // Handle both array (legacy) and object format
+        if (Array.isArray(parsedLibraries)) {
+          // Convert array to object with default channel
+          parsedLibraries.forEach((libId) => {
+            notificationLibraries[libId] = process.env.JELLYFIN_CHANNEL_ID || "";
+          });
+        } else {
+          notificationLibraries = parsedLibraries;
+        }
+      } catch (e) {
+        logger.error("Error parsing JELLYFIN_NOTIFICATION_LIBRARIES:", e);
+        notificationLibraries = {};
+      }
+
+      logger.debug(
+        `Configured libraries: ${JSON.stringify(notificationLibraries)}`
       );
 
-      // Handle both array (legacy) and object format
-      if (Array.isArray(parsedLibraries)) {
-        // Convert array to object with default channel
-        parsedLibraries.forEach((libId) => {
-          notificationLibraries[libId] = process.env.JELLYFIN_CHANNEL_ID || "";
-        });
-      } else {
-        notificationLibraries = parsedLibraries;
-      }
-    } catch (e) {
-      logger.error("Error parsing JELLYFIN_NOTIFICATION_LIBRARIES:", e);
-      notificationLibraries = {};
-    }
-
-    logger.debug(
-      `Configured libraries: ${JSON.stringify(notificationLibraries)}`
-    );
-
-    // Check if library is enabled and get specific channel
-    const libraryKeys = Object.keys(notificationLibraries);
-    if (
-      libraryKeys.length > 0 &&
-      libraryId &&
-      libraryId in notificationLibraries
-    ) {
-      // Library found in configuration - use its specific channel or default if empty
-      libraryChannelId =
-        notificationLibraries[libraryId] || process.env.JELLYFIN_CHANNEL_ID;
-      logger.info(
-        `✅ Using channel: ${libraryChannelId} for configured library: ${libraryId}`
+      // Check if library is enabled and get specific channel
+      const libraryKeys = Object.keys(notificationLibraries);
+      if (
+        libraryKeys.length > 0 &&
+        libraryId &&
+        libraryId in notificationLibraries
+      ) {
+        // Library found in configuration - use its specific channel or default if empty
+        libraryChannelId =
+          notificationLibraries[libraryId] || process.env.JELLYFIN_CHANNEL_ID;
+        logger.info(
+          `✅ Using channel: ${libraryChannelId} for configured library: ${libraryId}`
       );
     } else if (libraryKeys.length > 0 && libraryId) {
       // Library detected but not in configuration - disable notifications
@@ -824,19 +882,23 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       // Libraries are configured but we couldn't detect which library this item belongs to
       // Use default channel instead of skipping to ensure notification is sent
       libraryChannelId = process.env.JELLYFIN_CHANNEL_ID;
-      logger.warn(
-        `⚠️ Could not detect library for item "${data.Name}". Using default channel: ${libraryChannelId}`
-      );
+      if (!isTestNotification) {
+        logger.warn(
+          `⚠️ Could not detect library for item "${data.Name}". Using default channel: ${libraryChannelId}`
+        );
+      }
     } else {
       // No library filtering configured - use default channel
       libraryChannelId = process.env.JELLYFIN_CHANNEL_ID;
       logger.debug(
         `No library filtering configured. Using default channel: ${libraryChannelId}`
       );
+      }
     }
 
     if (data.ItemType === "Movie") {
       const { ItemId } = data;
+      const isTestMovie = ItemId && ItemId.startsWith("test-");
 
       // Check if we already sent a notification for this movie
       if (sentNotifications.has(ItemId)) {
@@ -855,7 +917,12 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
         data,
         client,
         pendingRequests,
-        libraryChannelId
+        libraryChannelId,
+        0,
+        null,
+        0,
+        null,
+        isTestMovie
       );
 
       // Mark this movie as notified
@@ -883,24 +950,34 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       // For Series type, SeriesId is undefined, so use ItemId instead
       const SeriesId =
         data.SeriesId || (data.ItemType === "Series" ? data.ItemId : null);
+      
+      // Initialize variables outside the if block so they're accessible later
+      let sentNotificationData = null;
+      let sentLevel = 0;
+      let sentTimestamp = 0;
+      let currentLevel = 0;
+      let shouldBlock = false;
+      
+      // Only skip duplicate check for individual test notifications (not batch tests)
+      const skipDuplicateCheck = data.ItemId && data.ItemId.startsWith("test-");
+      
+      if (!skipDuplicateCheck) {
+        sentNotificationData = sentNotifications.get(SeriesId);
+        sentLevel = sentNotificationData ? sentNotificationData.level : 0;
+        sentTimestamp = sentNotificationData
+          ? sentNotificationData.timestamp
+          : 0;
+        currentLevel = getItemLevel(data.ItemType);
 
-      const sentNotificationData = sentNotifications.get(SeriesId);
-      const sentLevel = sentNotificationData ? sentNotificationData.level : 0;
-      const sentTimestamp = sentNotificationData
-        ? sentNotificationData.timestamp
-        : 0;
-      const currentLevel = getItemLevel(data.ItemType);
-
-      logger.info(
-        `[DUPLICATE CHECK] ${data.ItemType} "${
-          data.Name
-        }" - SeriesId: ${SeriesId}, sentLevel: ${sentLevel}, currentLevel: ${currentLevel}, has debouncer: ${debouncedSenders.has(
-          SeriesId
-        )}`
-      );
+        logger.info(
+          `[DUPLICATE CHECK] ${data.ItemType} "${
+            data.Name
+          }" - SeriesId: ${SeriesId}, sentLevel: ${sentLevel}, currentLevel: ${currentLevel}, has debouncer: ${debouncedSenders.has(
+            SeriesId
+          )}`
+        );
 
       // Smart blocking logic: Allow season notifications after a delay from series notifications
-      let shouldBlock = false;
 
       // If sentLevel === -1 (temporary marker), it means notification is being processed
       // Only block if there's no active debouncer (which would allow batching)
@@ -956,18 +1033,46 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
         }
         return;
       }
+      } // Close the if (!skipDuplicateCheck) block
 
       if (!SeriesId) {
         await processAndSendNotification(
           data,
           client,
           pendingRequests,
-          libraryChannelId
+          libraryChannelId,
+          0,
+          null,
+          0,
+          null,
+          isTestNotification
         );
         if (res)
           return res
             .status(200)
             .send("OK: TV notification sent (no SeriesId).");
+      }
+
+      // Skip debouncing and caching logic for individual test notifications (not batch tests)
+      const isIndividualTest = data.ItemId && data.ItemId.startsWith("test-");
+      if (isIndividualTest) {
+        // For individual test notifications, send immediately without debouncing
+        await processAndSendNotification(
+          data,
+          client,
+          pendingRequests,
+          libraryChannelId,
+          0,
+          null,
+          0,
+          null,
+          isTestNotification
+        );
+        if (res)
+          return res
+            .status(200)
+            .send("OK: Test notification sent.");
+        return;
       }
 
       // If we don't have a debounced function for this series yet, create one.
@@ -996,18 +1101,23 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
         // Mark this SeriesId as currently creating a debouncer
         creatingDebouncers.add(SeriesId);
 
+        // Check if this is a batch test notification
+        const isBatchTest = data.ItemId && data.ItemId.startsWith("batch-");
+
         // Use longer debounce for episodes/seasons of completely new series
         // This gives the series notification more time to arrive first
         const isNewSeries = sentLevel === 0; // No previous notifications for this series
         const isLowerLevel = currentLevel < 3; // Episode (1) or Season (2), not Series (3)
         const shouldUseLongerDebounce = isNewSeries && isLowerLevel;
 
-        const debounceMs = shouldUseLongerDebounce
+        const debounceMs = isBatchTest
+          ? 3000 // Force 3 seconds for batch test notifications
+          : shouldUseLongerDebounce
           ? NEW_SERIES_DEBOUNCE_MS
           : parseInt(process.env.WEBHOOK_DEBOUNCE_MS) || DEFAULT_DEBOUNCE_MS;
 
-        logger.debug(
-          `Creating debouncer for ${data.ItemType} with ${debounceMs}ms timeout (new series: ${isNewSeries}, lower level: ${isLowerLevel})`
+        logger.info(
+          `[DEBOUNCER] Creating debouncer for ${data.ItemType} "${data.Name}" with ${debounceMs}ms timeout (new series: ${isNewSeries}, lower level: ${isLowerLevel}${isBatchTest ? ', batch test' : ''})`
         );
 
         const newDebouncedSender = debounce(
@@ -1019,6 +1129,8 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
             seasonDetails = null
           ) => {
             try {
+              logger.info(`[DEBOUNCER] Firing debouncer for SeriesId: ${SeriesId} after ${debounceMs}ms wait. Episodes: ${episodeCount}, Seasons: ${seasonCount}`);
+              const isBatchTestNotif = latestData.ItemId && latestData.ItemId.startsWith("batch-");
               await processAndSendNotification(
                 latestData,
                 client,
@@ -1027,7 +1139,8 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
                 episodeCount,
                 episodeDetails,
                 seasonCount,
-                seasonDetails
+                seasonDetails,
+                isBatchTestNotif
               );
 
               const levelSent = getItemLevel(latestData.ItemType);
@@ -1077,12 +1190,12 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
         debouncedSenders.set(SeriesId, {
           sender: newDebouncedSender,
           latestData: data,
-          episodeCount: data.ItemType === "Episode" ? 1 : 0,
-          episodes: data.ItemType === "Episode" ? [data] : [], // Track individual episodes
-          firstEpisode: data.ItemType === "Episode" ? data : null,
-          lastEpisode: data.ItemType === "Episode" ? data : null,
-          seasonCount: data.ItemType === "Season" ? 1 : 0,
-          seasons: data.ItemType === "Season" ? [data] : [], // Track individual seasons
+          episodeCount: 0,
+          episodes: [], // Track individual episodes - will be added below
+          firstEpisode: null,
+          lastEpisode: null,
+          seasonCount: 0,
+          seasons: [], // Track individual seasons - will be added below
           timestamp: Date.now(), // Track creation time for periodic cleanup
         });
 
@@ -1116,7 +1229,15 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
       }
 
       // Update the data to be sent with the highest-level notification received so far.
+      logger.info(`[DEBOUNCER] Getting existing debouncer for SeriesId: ${SeriesId}, exists: ${debouncedSenders.has(SeriesId)}`);
       const debouncer = debouncedSenders.get(SeriesId);
+      
+      if (!debouncer) {
+        logger.error(`[DEBOUNCER] ERROR: Debouncer not found for SeriesId: ${SeriesId} even though has() returned ${debouncedSenders.has(SeriesId)}`);
+        if (res) return res.status(500).send("Internal error: debouncer not found");
+        return;
+      }
+      
       const existingLevel = getItemLevel(debouncer.latestData.ItemType);
 
       // Always prefer higher-level notifications (Series > Season > Episode)
@@ -1133,21 +1254,25 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
       // Track season count for better notifications
       if (data.ItemType === "Season") {
+        logger.info(`[DEBOUNCER] Processing season update for "${data.Name}", SeasonNumber: ${data.SeasonNumber}, IndexNumber: ${data.IndexNumber}, existing seasons: ${debouncer.seasonCount || 0}`);
         debouncer.seasons = debouncer.seasons || [];
+        
+        // Log existing seasons for debugging
+        if (debouncer.seasons.length > 0) {
+          logger.info(`[DEBOUNCER] Existing seasons in array: ${debouncer.seasons.map(s => `S${s.SeasonNumber} (idx:${s.IndexNumber}, name:"${s.Name}")`).join(', ')}`);
+        }
 
         // Check for duplicates by SeasonNumber before adding
         const existingSeason = debouncer.seasons.find(
           (s) =>
-            s.SeasonNumber === data.SeasonNumber ||
-            s.IndexNumber === data.IndexNumber
+            (s.SeasonNumber !== undefined && s.SeasonNumber === data.SeasonNumber) ||
+            (s.IndexNumber !== undefined && s.IndexNumber === data.IndexNumber)
         );
 
         if (existingSeason) {
           // Duplicate season - skip processing to avoid double notifications
-          logger.debug(
-            `Duplicate season detected: Season ${
-              data.SeasonNumber || data.IndexNumber
-            } - ${data.Name}. Skipping.`
+          logger.info(
+            `[DEBOUNCER] Duplicate season detected! Incoming: S${data.SeasonNumber} (idx:${data.IndexNumber}, name:"${data.Name}"), Existing: S${existingSeason.SeasonNumber} (idx:${existingSeason.IndexNumber}, name:"${existingSeason.Name}")`
           );
           if (res) {
             return res
@@ -1157,9 +1282,11 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
           return;
         }
 
+        logger.info(`[DEBOUNCER] Adding season "${data.Name}" (SeasonNumber: ${data.SeasonNumber}) to batch, new count: ${(debouncer.seasonCount || 0) + 1}`);
         // Only increment count and add season if it's not a duplicate
         debouncer.seasonCount = (debouncer.seasonCount || 0) + 1;
         debouncer.seasons.push(data);
+        logger.info(`[DEBOUNCER] Season added successfully. Total seasons in debouncer: ${debouncer.seasons.length}, seasons: [${debouncer.seasons.map(s => `S${s.SeasonNumber}`).join(', ')}]`);
 
         // Smart rate limiting: if many seasons are coming in at once, fire debouncer faster
         if (debouncer.seasonCount > 10) {
@@ -1173,19 +1300,27 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
 
       // Track episode count for better notifications
       if (data.ItemType === "Episode") {
+        logger.info(`[DEBOUNCER] Processing episode update for "${data.Name}", SeasonNumber: ${data.SeasonNumber}, EpisodeNumber: ${data.EpisodeNumber}, existing episodes: ${debouncer.episodeCount || 0}`);
         debouncer.episodes = debouncer.episodes || [];
+        
+        // Log existing episodes for debugging
+        if (debouncer.episodes.length > 0) {
+          logger.info(`[DEBOUNCER] Existing episodes in array: ${debouncer.episodes.map(ep => `S${ep.SeasonNumber}E${ep.EpisodeNumber} ("${ep.Name}")`).join(', ')}`);
+        }
 
         // Check for duplicates by EpisodeNumber before adding
         const existingEpisode = debouncer.episodes.find(
           (ep) =>
+            ep.EpisodeNumber !== undefined && 
+            data.EpisodeNumber !== undefined &&
             ep.EpisodeNumber === data.EpisodeNumber &&
             ep.SeasonNumber === data.SeasonNumber
         );
 
         if (existingEpisode) {
           // Duplicate episode - skip processing to avoid double notifications
-          logger.debug(
-            `Duplicate episode detected: S${data.SeasonNumber}E${data.EpisodeNumber} - ${data.Name}. Skipping.`
+          logger.info(
+            `[DEBOUNCER] Duplicate episode detected! Incoming: S${data.SeasonNumber}E${data.EpisodeNumber} ("${data.Name}"), Existing: S${existingEpisode.SeasonNumber}E${existingEpisode.EpisodeNumber} ("${existingEpisode.Name}")`
           );
           if (res) {
             return res
@@ -1195,9 +1330,13 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
           return;
         }
 
+        logger.info(`[DEBOUNCER] Adding episode "${data.Name}" (S${data.SeasonNumber}E${data.EpisodeNumber}) to batch, new count: ${(debouncer.episodeCount || 0) + 1}`);
+
         // Only increment count and add episode if it's not a duplicate
         debouncer.episodeCount = (debouncer.episodeCount || 0) + 1;
         debouncer.episodes.push(data);
+        
+        logger.info(`[DEBOUNCER] Episode added successfully. Total episodes in debouncer: ${debouncer.episodes.length}, episodes: [${debouncer.episodes.map(ep => `S${ep.SeasonNumber}E${ep.EpisodeNumber}`).join(', ')}]`);
 
         // Track first and last episode for range display
         if (
@@ -1245,6 +1384,13 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
           }
         : null;
 
+      logger.info(`[DEBOUNCER] Calling debouncer.sender() for SeriesId: ${SeriesId}, episodeCount: ${debouncer.episodeCount || 0}, seasonCount: ${debouncer.seasonCount || 0}`);
+      
+      // Log the actual seasons being sent
+      if (seasonDetails && seasonDetails.seasons) {
+        logger.info(`[DEBOUNCER] Seasons in batch: ${seasonDetails.seasons.map(s => `S${s.SeasonNumber} (${s.Name})`).join(', ')}`);
+      }
+      
       debouncer.sender(
         debouncer.latestData,
         debouncer.episodeCount || 0,
@@ -1252,6 +1398,8 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
         debouncer.seasonCount || 0,
         seasonDetails
       );
+      
+      logger.info(`[DEBOUNCER] Debouncer.sender() called successfully for SeriesId: ${SeriesId}`);
 
       if (res) {
         return res
@@ -1262,11 +1410,17 @@ export async function handleJellyfinWebhook(req, res, client, pendingRequests) {
     }
 
     // If we reach here, it's an unknown item type - process it normally
+    const isUnknownTest = data.ItemId && (data.ItemId.startsWith("test-") || data.ItemId.startsWith("batch-"));
     await processAndSendNotification(
       data,
       client,
       pendingRequests,
-      libraryChannelId
+      libraryChannelId,
+      0,
+      null,
+      0,
+      null,
+      isUnknownTest
     );
     if (res) return res.status(200).send("OK: Notification sent.");
   } catch (err) {

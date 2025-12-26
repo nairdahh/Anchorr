@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.5] - 2025-12-26
+
+### ✨ Added
+
+- **Notification Testing**: New testing section in Jellyfin Notifications settings with 6 test buttons (Movie, Series, Season, Episodes, and batch tests for seasons/episodes) to preview notification appearance with real data
+- **Embed Customization**: Granular control over notification embed elements - individually toggle backdrop image, overview/description, genre, runtime, rating, and each button (Letterboxd, IMDb, Watch Now)
+- **Separate Channel Mapping**: Added dedicated optional channel settings for episodes and seasons, allowing you to route different notification types to specific Discord channels
+- **Localizations**: Added Swedish (sv) and German (de) language support with work-in-progress translations
+- **Quality Profile Integration**: Radarr and Sonarr quality profile selection in Jellyseerr settings for movie and TV requests
+
+---
+
 ## [1.3.4] - 2025-12-02
 
 ### 🐛 Fixed

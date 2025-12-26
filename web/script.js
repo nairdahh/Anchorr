@@ -658,6 +658,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       modal.style.display = "none";
       config.startBot = true;
       await saveConfig(config);
+      
+      // Wait a moment for the bot to start, then reload Discord data
+      setTimeout(async () => {
+        await loadDiscordGuilds();
+        // If a guild is already selected, reload its channels
+        const guildSelect = document.getElementById("GUILD_ID");
+        if (guildSelect && guildSelect.value) {
+          await loadDiscordChannels(guildSelect.value);
+        }
+      }, 2000);
+      
       cleanupModal();
     };
 
@@ -1095,6 +1106,62 @@ document.addEventListener("DOMContentLoaded", async () => {
         testJellyfinBtn.disabled = false;
       }
     });
+  }
+
+  // Test Notification Buttons
+  const testNotificationStatus = document.getElementById("test-notification-status");
+  const testMovieBtn = document.getElementById("test-movie-notification-btn");
+  const testSeriesBtn = document.getElementById("test-series-notification-btn");
+  const testSeasonBtn = document.getElementById("test-season-notification-btn");
+  const testBatchSeasonsBtn = document.getElementById("test-batch-seasons-notification-btn");
+  const testEpisodesBtn = document.getElementById("test-episodes-notification-btn");
+  const testBatchEpisodesBtn = document.getElementById("test-batch-episodes-notification-btn");
+
+  async function sendTestNotification(type) {
+    const statusEl = testNotificationStatus;
+    if (!statusEl) return;
+
+    statusEl.textContent = `Sending test ${type} notification...`;
+    statusEl.style.color = "var(--text)";
+
+    try {
+      const response = await fetch("/api/test-notification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        statusEl.textContent = result.message || `Test ${type} notification sent successfully!`;
+        statusEl.style.color = "var(--green)";
+      } else {
+        throw new Error(result.message || "Failed to send test notification");
+      }
+    } catch (error) {
+      statusEl.textContent = error.message || `Failed to send test ${type} notification`;
+      statusEl.style.color = "#f38ba8"; // Red
+    }
+  }
+
+  if (testMovieBtn) {
+    testMovieBtn.addEventListener("click", () => sendTestNotification("movie"));
+  }
+  if (testSeriesBtn) {
+    testSeriesBtn.addEventListener("click", () => sendTestNotification("series"));
+  }
+  if (testSeasonBtn) {
+    testSeasonBtn.addEventListener("click", () => sendTestNotification("season"));
+  }
+  if (testBatchSeasonsBtn) {
+    testBatchSeasonsBtn.addEventListener("click", () => sendTestNotification("batch-seasons"));
+  }
+  if (testEpisodesBtn) {
+    testEpisodesBtn.addEventListener("click", () => sendTestNotification("episodes"));
+  }
+  if (testBatchEpisodesBtn) {
+    testBatchEpisodesBtn.addEventListener("click", () => sendTestNotification("batch-episodes"));
   }
 
   // Fetch and display Jellyfin libraries for notifications

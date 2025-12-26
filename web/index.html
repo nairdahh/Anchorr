@@ -204,7 +204,7 @@
                             Copy the generated URL, open it in your browser, and authorize the bot on your Discord server
                           </li>
                           <li data-i18n="config.discord_instructions_7">
-                            Come back here and fill in the <strong>Discord Bot Token</strong> and <strong>Bot Client ID</strong> below, then select your server and notification channel from the dropdowns
+                            Come back here and fill in the <strong>Discord Bot Token</strong> and <strong>Bot Client ID</strong> below, <strong>save your settings</strong>, <strong>start the bot</strong>, and then select your server and notification channel from the dropdowns
                           </li>
                         </ol>
                       </div>
@@ -247,6 +247,20 @@
                           -&gt; OAuth2 -&gt; Client ID
                         </div>
                       </div>
+
+                      <!-- Important Note Box -->
+                      <div class="setup-instructions-box" style="background: linear-gradient(135deg, rgba(203, 166, 247, 0.1) 0%, rgba(137, 180, 250, 0.1) 100%); border-left: 4px solid var(--mauve); margin: 1.5rem 0;">
+                        <p style="margin: 0; font-weight: 600; color: var(--mauve); display: flex; align-items: center; gap: 0.5rem;">
+                          <i class="bi bi-info-circle-fill"></i>
+                          <span data-i18n="config.next_steps_title">Next Steps</span>
+                        </p>
+                        <ol style="margin: 0.75rem 0 0 0; padding-left: 1.5rem; line-height: 1.8;">
+                          <li data-i18n="config.next_step_1">Click <strong>Save Settings</strong> button at the bottom of the sidebar</li>
+                          <li data-i18n="config.next_step_2">Click the <strong>Start Bot</strong> button at the top of the page</li>
+                          <li data-i18n="config.next_step_3">Once the bot is running, the dropdowns below will automatically populate with your servers and channels</li>
+                        </ol>
+                      </div>
+
                       <div class="form-group">
                         <label for="GUILD_ID" data-i18n="config.discord_server">Discord Server</label>
                         <select 
@@ -320,7 +334,7 @@
                           <strong data-i18n="config.default_quality_profiles">Default Quality Profiles (Optional)</strong>
                         </label>
                         <div class="form-text" style="margin-bottom: 1rem;" data-i18n="config.default_quality_profiles_help">
-                          Set default quality profiles and servers for media requests. These will be used when users don't specify a profile via the /request command.
+                          Set default quality profiles and servers for media requests. These will be used when users don't specify a profile via the <code>/request</code> command.
                         </div>
                         
                         <div class="form-group">
@@ -334,7 +348,7 @@
                           <!-- Default Movie Quality Profile -->
                           <div class="form-group">
                             <label for="DEFAULT_QUALITY_PROFILE_MOVIE" style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="config.default_movie_quality">🎬 Default Movie Quality</label>
-                            <select id="DEFAULT_QUALITY_PROFILE_MOVIE" name="DEFAULT_QUALITY_PROFILE_MOVIE" style="width: 100%; background-color: var(--surface0); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                            <select id="DEFAULT_QUALITY_PROFILE_MOVIE" name="DEFAULT_QUALITY_PROFILE_MOVIE" style="width: 100%; background-color: #1e1e2e; border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
                               <option value="" data-i18n="config.use_jellyseerr_default">Use Jellyseerr default</option>
                             </select>
                             <div class="form-text" style="margin-top: 0.25rem;" data-i18n="config.default_movie_quality_help">
@@ -345,7 +359,7 @@
                           <!-- Default TV Quality Profile -->
                           <div class="form-group">
                             <label for="DEFAULT_QUALITY_PROFILE_TV" style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="config.default_tv_quality">📺 Default TV Quality</label>
-                            <select id="DEFAULT_QUALITY_PROFILE_TV" name="DEFAULT_QUALITY_PROFILE_TV" style="width: 100%; background-color: var(--surface0); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                            <select id="DEFAULT_QUALITY_PROFILE_TV" name="DEFAULT_QUALITY_PROFILE_TV" style="width: 100%; background-color: #1e1e2e; border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
                               <option value="" data-i18n="config.use_jellyseerr_default">Use Jellyseerr default</option>
                             </select>
                             <div class="form-text" style="margin-top: 0.25rem;" data-i18n="config.default_tv_quality_help">
@@ -356,7 +370,7 @@
                           <!-- Default Movie Server -->
                           <div class="form-group">
                             <label for="DEFAULT_SERVER_MOVIE" style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="config.default_movie_server">🎬 Default Movie Server</label>
-                            <select id="DEFAULT_SERVER_MOVIE" name="DEFAULT_SERVER_MOVIE" style="width: 100%; background-color: var(--surface0); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                            <select id="DEFAULT_SERVER_MOVIE" name="DEFAULT_SERVER_MOVIE" style="width: 100%; background-color: #1e1e2e; border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
                               <option value="" data-i18n="config.use_jellyseerr_default">Use Jellyseerr default</option>
                             </select>
                             <div class="form-text" style="margin-top: 0.25rem;" data-i18n="config.default_movie_server_help">
@@ -367,7 +381,7 @@
                           <!-- Default TV Server -->
                           <div class="form-group">
                             <label for="DEFAULT_SERVER_TV" style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="config.default_tv_server">📺 Default TV Server</label>
-                            <select id="DEFAULT_SERVER_TV" name="DEFAULT_SERVER_TV" style="width: 100%; background-color: var(--surface0); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                            <select id="DEFAULT_SERVER_TV" name="DEFAULT_SERVER_TV" style="width: 100%; background-color: #1e1e2e; border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
                               <option value="" data-i18n="config.use_jellyseerr_default">Use Jellyseerr default</option>
                             </select>
                             <div class="form-text" style="margin-top: 0.25rem;" data-i18n="config.default_tv_server_help">
@@ -637,6 +651,115 @@
                           </ol>
                         </div>
                       </div>
+
+                      <!-- Embed Customization Section -->
+                      <div class="form-group" style="margin-top: 2rem;">
+                        <label style="font-size: 1.2rem; font-weight: 700; color: var(--mauve);">
+                          <strong>Embed Customization</strong>
+                        </label>
+                        <div class="form-text" style="margin-bottom: 1rem;">
+                          Customize which elements appear in your Discord notification embeds.
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                          <div class="form-check form-switch" style="padding: 0.75rem; background-color: var(--surface0); border-radius: 8px;">
+                            <input class="form-check-input" type="checkbox" id="EMBED_SHOW_BACKDROP" name="EMBED_SHOW_BACKDROP" checked>
+                            <label class="form-check-label" for="EMBED_SHOW_BACKDROP" style="margin-left: 0.5rem;">
+                              <strong>Backdrop Image</strong>
+                              <div style="font-size: 0.85rem; color: var(--subtext0); margin-top: 0.25rem;">Large background image</div>
+                            </label>
+                          </div>
+
+                          <div class="form-check form-switch" style="padding: 0.75rem; background-color: var(--surface0); border-radius: 8px;">
+                            <input class="form-check-input" type="checkbox" id="EMBED_SHOW_OVERVIEW" name="EMBED_SHOW_OVERVIEW" checked>
+                            <label class="form-check-label" for="EMBED_SHOW_OVERVIEW" style="margin-left: 0.5rem;">
+                              <strong>Overview/Description</strong>
+                              <div style="font-size: 0.85rem; color: var(--subtext0); margin-top: 0.25rem;">Plot summary text</div>
+                            </label>
+                          </div>
+
+                          <div class="form-check form-switch" style="padding: 0.75rem; background-color: var(--surface0); border-radius: 8px;">
+                            <input class="form-check-input" type="checkbox" id="EMBED_SHOW_GENRE" name="EMBED_SHOW_GENRE" checked>
+                            <label class="form-check-label" for="EMBED_SHOW_GENRE" style="margin-left: 0.5rem;">
+                              <strong>Genre</strong>
+                              <div style="font-size: 0.85rem; color: var(--subtext0); margin-top: 0.25rem;">Genre field</div>
+                            </label>
+                          </div>
+
+                          <div class="form-check form-switch" style="padding: 0.75rem; background-color: var(--surface0); border-radius: 8px;">
+                            <input class="form-check-input" type="checkbox" id="EMBED_SHOW_RUNTIME" name="EMBED_SHOW_RUNTIME" checked>
+                            <label class="form-check-label" for="EMBED_SHOW_RUNTIME" style="margin-left: 0.5rem;">
+                              <strong>Runtime</strong>
+                              <div style="font-size: 0.85rem; color: var(--subtext0); margin-top: 0.25rem;">Duration field</div>
+                            </label>
+                          </div>
+
+                          <div class="form-check form-switch" style="padding: 0.75rem; background-color: var(--surface0); border-radius: 8px;">
+                            <input class="form-check-input" type="checkbox" id="EMBED_SHOW_RATING" name="EMBED_SHOW_RATING" checked>
+                            <label class="form-check-label" for="EMBED_SHOW_RATING" style="margin-left: 0.5rem;">
+                              <strong>Rating</strong>
+                              <div style="font-size: 0.85rem; color: var(--subtext0); margin-top: 0.25rem;">IMDB/TMDB rating</div>
+                            </label>
+                          </div>
+
+                          <div class="form-check form-switch" style="padding: 0.75rem; background-color: var(--surface0); border-radius: 8px;">
+                            <input class="form-check-input" type="checkbox" id="EMBED_SHOW_BUTTON_LETTERBOXD" name="EMBED_SHOW_BUTTON_LETTERBOXD" checked>
+                            <label class="form-check-label" for="EMBED_SHOW_BUTTON_LETTERBOXD" style="margin-left: 0.5rem;">
+                              <strong>Letterboxd Button</strong>
+                              <div style="font-size: 0.85rem; color: var(--subtext0); margin-top: 0.25rem;">Link to Letterboxd</div>
+                            </label>
+                          </div>
+
+                          <div class="form-check form-switch" style="padding: 0.75rem; background-color: var(--surface0); border-radius: 8px;">
+                            <input class="form-check-input" type="checkbox" id="EMBED_SHOW_BUTTON_IMDB" name="EMBED_SHOW_BUTTON_IMDB" checked>
+                            <label class="form-check-label" for="EMBED_SHOW_BUTTON_IMDB" style="margin-left: 0.5rem;">
+                              <strong>IMDb Button</strong>
+                              <div style="font-size: 0.85rem; color: var(--subtext0); margin-top: 0.25rem;">Link to IMDb</div>
+                            </label>
+                          </div>
+
+                          <div class="form-check form-switch" style="padding: 0.75rem; background-color: var(--surface0); border-radius: 8px;">
+                            <input class="form-check-input" type="checkbox" id="EMBED_SHOW_BUTTON_WATCH" name="EMBED_SHOW_BUTTON_WATCH" checked>
+                            <label class="form-check-label" for="EMBED_SHOW_BUTTON_WATCH" style="margin-left: 0.5rem;">
+                              <strong>Watch Now Button</strong>
+                              <div style="font-size: 0.85rem; color: var(--subtext0); margin-top: 0.25rem;">Link to Jellyfin</div>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Notification Testing Section -->
+                      <div class="form-group" style="margin-top: 2rem;">
+                        <label style="font-size: 1.2rem; font-weight: 700; color: var(--mauve);">
+                          <strong>Notification Testing</strong>
+                        </label>
+                        <div class="form-text" style="margin-bottom: 1rem;">
+                          Test your notification templates by sending sample notifications to your Discord channel. This helps you preview how different types of notifications will appear.
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                          <button type="button" id="test-movie-notification-btn" class="btn btn-secondary" style="padding: 0.75rem 1rem; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <i class="bi bi-film"></i> Test Movie
+                          </button>
+                          <button type="button" id="test-series-notification-btn" class="btn btn-secondary" style="padding: 0.75rem 1rem; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <i class="bi bi-tv"></i> Test Series
+                          </button>
+                          <button type="button" id="test-season-notification-btn" class="btn btn-secondary" style="padding: 0.75rem 1rem; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <i class="bi bi-collection"></i> Test Season
+                          </button>
+                          <button type="button" id="test-batch-seasons-notification-btn" class="btn btn-secondary" style="padding: 0.75rem 1rem; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <i class="bi bi-collection-fill"></i> Test Seasons Batch
+                          </button>
+                          <button type="button" id="test-episodes-notification-btn" class="btn btn-secondary" style="padding: 0.75rem 1rem; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <i class="bi bi-collection-play"></i> Test Episodes
+                          </button>
+                          <button type="button" id="test-batch-episodes-notification-btn" class="btn btn-secondary" style="padding: 0.75rem 1rem; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <i class="bi bi-collection-play-fill"></i> Test Episodes Batch
+                          </button>
+                        </div>
+                        
+                        <div id="test-notification-status" style="margin-top: 1rem;"></div>
+                      </div>
                     </fieldset>
                   </div>
 
@@ -839,8 +962,8 @@
                         </div>
 
                         <div class="form-group">
-                          <label for="app-language" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">🌐 Language</label>
-                          <select id="app-language" name="LANGUAGE" style="width: 100%; max-width: 300px; background-color: var(--surface0); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                          <label for="app-language" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Language</label>
+                          <select id="app-language" name="LANGUAGE" style="width: 100%; max-width: 300px; background-color: #1e1e2e; border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
                             <!-- Languages will be populated dynamically -->
                           </select>
                           <div class="form-text" style="margin-top: 0.5rem;">
@@ -1125,14 +1248,14 @@
     <div id="bot-autostart-modal" class="modal-overlay" style="display: none;">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>🤖 Start Bot?</h3>
+          <h3><i class="bi bi-play-circle-fill" style="color: var(--mauve);"></i> Start Bot?</h3>
         </div>
         <div class="modal-body">
           <p>You've filled all the bot's requirements. Would you like to start the bot now?</p>
           <p class="modal-note">The bot will automatically connect to Discord and start monitoring for notifications.</p>
         </div>
         <div class="modal-actions">
-          <button id="modal-start-yes" class="btn btn-primary" data-i18n="modals.start_bot_yes">
+          <button id="modal-start-yes" class="btn btn-primary" style="background-color: var(--mauve); border-color: var(--mauve);" data-i18n="modals.start_bot_yes">
             <i class="bi bi-play-fill"></i> Yes, Start Bot
           </button>
           <button id="modal-start-no" class="btn btn-secondary" data-i18n="modals.start_bot_no">

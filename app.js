@@ -2692,6 +2692,244 @@ function configureWebServer() {
     }
   });
 
+  // Test notification endpoint - sends sample notifications with random data
+  app.post("/api/test-notification", authenticateToken, async (req, res) => {
+    try {
+      const { type } = req.body;
+
+      if (!type || !["movie", "series", "season", "batch-seasons", "episodes", "batch-episodes"].includes(type)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid notification type. Must be: movie, series, season, batch-seasons, episodes, or batch-episodes.",
+        });
+      }
+
+      // Check if Discord bot is running and configured
+      if (!discordClient || !discordClient.isReady()) {
+        return res.status(400).json({
+          success: false,
+          message: "Discord bot is not running. Please start the bot first.",
+        });
+      }
+
+      const guildId = process.env.GUILD_ID;
+      const channelId = process.env.JELLYFIN_CHANNEL_ID;
+
+      if (!guildId || !channelId) {
+        return res.status(400).json({
+          success: false,
+          message: "Discord server and channel must be configured first.",
+        });
+      }
+
+      // Fetch real data from TMDB/OMDB for realistic test notifications
+      const { tmdbGetDetails, tmdbGetExternalImdb } = await import("./api/tmdb.js");
+      const { fetchOMDbData } = await import("./api/omdb.js");
+      
+      const TMDB_API_KEY = process.env.TMDB_API_KEY;
+      if (!TMDB_API_KEY) {
+        return res.status(400).json({
+          success: false,
+          message: "TMDB API key is required for test notifications. Configure it in Step 3.",
+        });
+      }
+
+      let notificationData;
+
+      // Build realistic notification data based on type
+      if (type === "movie") {
+        // Interstellar TMDB ID: 157336
+        const movieDetails = await tmdbGetDetails(157336, "movie", TMDB_API_KEY);
+        const imdbId = await tmdbGetExternalImdb(157336, "movie", TMDB_API_KEY);
+        
+        notificationData = {
+          ItemType: "Movie",
+          Name: movieDetails.title,
+          Year: movieDetails.release_date ? movieDetails.release_date.split("-")[0] : "",
+          Overview: movieDetails.overview,
+          Provider_tmdb: "157336",
+          Provider_imdb: imdbId,
+          ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+          ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+          ItemId: "test-movie-" + Date.now(),
+        };
+      } else if (type === "series") {
+        // Breaking Bad TMDB ID: 1396
+        const seriesDetails = await tmdbGetDetails(1396, "tv", TMDB_API_KEY);
+        const imdbId = await tmdbGetExternalImdb(1396, "tv", TMDB_API_KEY);
+        
+        notificationData = {
+          ItemType: "Series",
+          Name: seriesDetails.name,
+          Year: seriesDetails.first_air_date ? seriesDetails.first_air_date.split("-")[0] : "",
+          Overview: seriesDetails.overview,
+          Provider_tmdb: "1396",
+          Provider_imdb: imdbId,
+          ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+          ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+          ItemId: "test-series-" + Date.now(),
+        };
+      } else if (type === "season") {
+        // Breaking Bad Season 1
+        const seriesDetails = await tmdbGetDetails(1396, "tv", TMDB_API_KEY);
+        const imdbId = await tmdbGetExternalImdb(1396, "tv", TMDB_API_KEY);
+        
+        notificationData = {
+          ItemType: "Season",
+          SeriesName: seriesDetails.name,
+          SeriesId: "test-series-" + Date.now(),
+          Name: "Season 1",
+          SeasonNumber: 1,
+          Year: seriesDetails.first_air_date ? seriesDetails.first_air_date.split("-")[0] : "",
+          Overview: "High school chemistry teacher Walter White's life is suddenly transformed by a dire medical diagnosis. Street-savvy former student Jesse Pinkman \"teaches\" Walter a new trade.",
+          Provider_tmdb: "1396",
+          Provider_imdb: imdbId,
+          ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+          ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+          ItemId: "test-season-" + Date.now(),
+        };
+      } else if (type === "episodes") {
+        // Breaking Bad first episodes
+        const seriesDetails = await tmdbGetDetails(1396, "tv", TMDB_API_KEY);
+        const imdbId = await tmdbGetExternalImdb(1396, "tv", TMDB_API_KEY);
+        
+        notificationData = {
+          ItemType: "Episode",
+          SeriesName: seriesDetails.name,
+          SeriesId: "test-series-" + Date.now(),
+          Name: "Pilot, Cat's in the Bag...",
+          SeasonNumber: 1,
+          EpisodeNumber: 1,
+          Year: seriesDetails.first_air_date ? seriesDetails.first_air_date.split("-")[0] : "",
+          Overview: "When an unassuming high school chemistry teacher discovers he has a rare form of lung cancer, he decides to team up with a former student and create a top of the line crystal meth in a used RV, to provide for his family once he is gone.",
+          Provider_tmdb: "1396",
+          Provider_imdb: imdbId,
+          ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+          ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+          ItemId: "test-episode-" + Date.now(),
+        };
+      } else if (type === "batch-seasons") {
+        // The Mandalorian - Send 2 separate season notifications to test batching (TMDB ID: 82856)
+        const seriesDetails = await tmdbGetDetails(82856, "tv", TMDB_API_KEY);
+        const imdbId = await tmdbGetExternalImdb(82856, "tv", TMDB_API_KEY);
+        
+        const { handleJellyfinWebhook } = await import("./jellyfinWebhook.js");
+        const baseSeriesId = "batch-test-series-" + Date.now();
+        
+        // Send Season 1
+        const season1Data = {
+          ItemType: "Season",
+          SeriesName: seriesDetails.name,
+          SeriesId: baseSeriesId,
+          Name: "Season 1",
+          SeasonNumber: 1,
+          Year: seriesDetails.first_air_date ? seriesDetails.first_air_date.split("-")[0] : "",
+          Overview: "After the fall of the Galactic Empire, lawlessness has spread throughout the galaxy. A lone gunfighter makes his way through the outer reaches, earning his keep as a bounty hunter.",
+          Provider_tmdb: "82856",
+          Provider_imdb: imdbId,
+          ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+          ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+          ItemId: "batch-season-1-" + Date.now(),
+        };
+        
+        // Send Season 2
+        const season2Data = {
+          ItemType: "Season",
+          SeriesName: seriesDetails.name,
+          SeriesId: baseSeriesId,
+          Name: "Season 2",
+          SeasonNumber: 2,
+          Year: seriesDetails.first_air_date ? seriesDetails.first_air_date.split("-")[0] : "",
+          Overview: "The Mandalorian and the Child continue their journey, facing enemies and rallying allies as they make their way through a dangerous galaxy in the tumultuous era after the collapse of the Galactic Empire.",
+          Provider_tmdb: "82856",
+          Provider_imdb: imdbId,
+          ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+          ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+          ItemId: "batch-season-2-" + Date.now(),
+        };
+        
+        // Send both seasons (they should be batched together by debouncing logic)
+        const fakeReq1 = { body: season1Data };
+        const fakeReq2 = { body: season2Data };
+        
+        await handleJellyfinWebhook(fakeReq1, null, discordClient, pendingRequests);
+        await handleJellyfinWebhook(fakeReq2, null, discordClient, pendingRequests);
+        
+        return res.json({
+          success: true,
+          message: `Test batch-seasons notification sent! 2 seasons should be batched together. Check your Discord channel.`,
+        });
+      } else if (type === "batch-episodes") {
+        // Stranger Things - Send 6 separate episode notifications to test batching (TMDB ID: 66732)
+        const seriesDetails = await tmdbGetDetails(66732, "tv", TMDB_API_KEY);
+        const imdbId = await tmdbGetExternalImdb(66732, "tv", TMDB_API_KEY);
+        
+        const { handleJellyfinWebhook } = await import("./jellyfinWebhook.js");
+        const baseSeriesId = "batch-test-series-" + Date.now();
+        
+        const episodes = [
+          { num: "01", name: "Chapter One: The Hellfire Club", overview: "Spring break turns into a nightmare when a new evil emerges in Hawkins." },
+          { num: "02", name: "Chapter Two: Vecna's Curse", overview: "A plane brings Mike to California, and to his girlfriend, and to new, high school, problems." },
+          { num: "03", name: "Chapter Three: The Monster and the Superhero", overview: "Murray and Joyce fly to Alaska, and El faces serious consequences. Robin and Nancy dig for information." },
+          { num: "04", name: "Chapter Four: Dear Billy", overview: "Max is in grave danger, and running out of time. A patient at Pennhurst asylum has visitors. Elsewhere, in Russia, Hopper is hard at work." },
+          { num: "05", name: "Chapter Five: The Nina Project", overview: "Owens takes El to Nevada, where she's forced to confront her past, while the Hawkins kids comb a crumbling house for answers." },
+          { num: "06", name: "Chapter Six: The Dive", overview: "Behind the Iron Curtain, a risky rescue mission gets underway. The California crew seeks help from a hacker. Steve takes one for the team." },
+        ];
+        
+        // Send all 6 episodes (they should be batched together by debouncing logic)
+        for (const ep of episodes) {
+          const episodeData = {
+            ItemType: "Episode",
+            SeriesName: seriesDetails.name,
+            SeriesId: baseSeriesId,
+            Name: ep.name,
+            SeasonNumber: 4,
+            EpisodeNumber: parseInt(ep.num),
+            Year: seriesDetails.first_air_date ? seriesDetails.first_air_date.split("-")[0] : "",
+            Overview: ep.overview,
+            Provider_tmdb: "66732",
+            Provider_imdb: imdbId,
+            ServerUrl: process.env.JELLYFIN_BASE_URL || process.env.JELLYFIN_URL || "https://jellyfin.example.com",
+            ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
+            ItemId: "batch-episode-" + ep.num + "-" + Date.now(),
+          };
+          
+          const fakeReq = { body: episodeData };
+          await handleJellyfinWebhook(fakeReq, null, discordClient, pendingRequests);
+          // Small delay between episodes to simulate realistic webhook timing
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        
+        return res.json({
+          success: true,
+          message: `Test batch-episodes notification sent! 6 episodes should be batched together. Check your Discord channel.`,
+        });
+      }
+
+      // Import webhook handler
+      const { handleJellyfinWebhook } = await import("./jellyfinWebhook.js");
+
+      // Create a fake request object with the test data
+      const fakeReq = {
+        body: notificationData
+      };
+
+      // Send the test notification (pass null for res since we don't need response handling)
+      await handleJellyfinWebhook(fakeReq, null, discordClient, pendingRequests);
+
+      res.json({
+        success: true,
+        message: `Test ${type} notification sent successfully! Check your Discord channel.`,
+      });
+    } catch (error) {
+      logger.error("Failed to send test notification:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to send test notification. Check logs for details.",
+      });
+    }
+  });
+
   // Health check endpoint for monitoring
   app.get("/api/health", (req, res) => {
     const uptime = process.uptime();
