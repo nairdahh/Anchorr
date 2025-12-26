@@ -277,42 +277,42 @@ A huge thank you to all the amazing people who have contributed to making Anchor
   <tr>
     <td align="center">
       <a href="https://github.com/nairdahh">
-        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/nairdahh?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" />
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/nairdahh?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" border="0" style="border:none;" />
         <br/>
         <sub><b>nairdahh</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/lucideds">
-        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/lucideds?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" />
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/lucideds?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" border="0" style="border:none;" />
         <br/>
         <sub><b>lucideds</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/retardgerman">
-        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/retardgerman?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" />
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/retardgerman?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" border="0" style="border:none;" />
         <br/>
         <sub><b>retardgerman</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/TheColorman">
-        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/TheColorman?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" />
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/TheColorman?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" border="0" style="border:none;" />
         <br/>
         <sub><b>TheColorman</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/IPvNick">
-        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/IPvNick?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" />
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/IPvNick?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" border="0" style="border:none;" />
         <br/>
         <sub><b>IPvNick</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/whoopsi-daisy">
-        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/whoopsi-daisy?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" />
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/whoopsi-daisy?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" border="0" style="border:none;" />
         <br/>
         <sub><b>whoopsi-daisy</b></sub>
       </a>
