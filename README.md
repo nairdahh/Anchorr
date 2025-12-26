@@ -273,56 +273,52 @@ See [TRANSLATION_GUIDE.md](./TRANSLATION_GUIDE.md) for detailed instructions.
 
 A huge thank you to all the amazing people who have contributed to making Anchorr better! 🎉
 
-<br/>
-
 <table align="center">
   <tr>
-    <td align="center" width="140">
+    <td align="center">
       <a href="https://github.com/nairdahh">
-        <img src="https://avatars.githubusercontent.com/nairdahh?s=100&v=4" width="100px;" alt="nairdahh" style="border-radius:50%"/>
+        <img src="https://github.com/nairdahh.png" width="80" style="border-radius:50%;" />
+        <br/>
+        <sub><b>nairdahh</b></sub>
       </a>
-      <br/>
-      <a href="https://github.com/nairdahh"><b>nairdahh</b></a>
     </td>
-    <td align="center" width="140">
+    <td align="center">
       <a href="https://github.com/lucideds">
-        <img src="https://avatars.githubusercontent.com/lucideds?s=100&v=4" width="100px;" alt="lucideds" style="border-radius:50%"/>
+        <img src="https://github.com/lucideds.png" width="80" style="border-radius:50%;" />
+        <br/>
+        <sub><b>lucideds</b></sub>
       </a>
-      <br/>
-      <a href="https://github.com/lucideds"><b>lucideds</b></a>
     </td>
-    <td align="center" width="140">
+    <td align="center">
       <a href="https://github.com/retardgerman">
-        <img src="https://avatars.githubusercontent.com/retardgerman?s=100&v=4" width="100px;" alt="retardgerman" style="border-radius:50%"/>
+        <img src="https://github.com/retardgerman.png" width="80" style="border-radius:50%;" />
+        <br/>
+        <sub><b>retardgerman</b></sub>
       </a>
-      <br/>
-      <a href="https://github.com/retardgerman"><b>retardgerman</b></a>
     </td>
-    <td align="center" width="140">
+    <td align="center">
       <a href="https://github.com/TheColorman">
-        <img src="https://avatars.githubusercontent.com/TheColorman?s=100&v=4" width="100px;" alt="TheColorman" style="border-radius:50%"/>
+        <img src="https://github.com/TheColorman.png" width="80" style="border-radius:50%;" />
+        <br/>
+        <sub><b>TheColorman</b></sub>
       </a>
-      <br/>
-      <a href="https://github.com/TheColorman"><b>TheColorman</b></a>
     </td>
-    <td align="center" width="140">
+    <td align="center">
       <a href="https://github.com/IPvNick">
-        <img src="https://avatars.githubusercontent.com/IPvNick?s=100&v=4" width="100px;" alt="IPvNick" style="border-radius:50%"/>
+        <img src="https://github.com/IPvNick.png" width="80" style="border-radius:50%;" />
+        <br/>
+        <sub><b>IPvNick</b></sub>
       </a>
-      <br/>
-      <a href="https://github.com/IPvNick"><b>IPvNick</b></a>
     </td>
-    <td align="center" width="140">
+    <td align="center">
       <a href="https://github.com/whoopsi-daisy">
-        <img src="https://avatars.githubusercontent.com/whoopsi-daisy?s=100&v=4" width="100px;" alt="whoopsi-daisy" style="border-radius:50%"/>
+        <img src="https://github.com/whoopsi-daisy.png" width="80" style="border-radius:50%;" />
+        <br/>
+        <sub><b>whoopsi-daisy</b></sub>
       </a>
-      <br/>
-      <a href="https://github.com/whoopsi-daisy"><b>whoopsi-daisy</b></a>
     </td>
   </tr>
 </table>
-
-<br/>
 
 ## 📄 License
 
