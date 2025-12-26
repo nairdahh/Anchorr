@@ -273,46 +273,46 @@ See [TRANSLATION_GUIDE.md](./TRANSLATION_GUIDE.md) for detailed instructions.
 
 A huge thank you to all the amazing people who have contributed to making Anchorr better! 🎉
 
-<table align="center">
+<table>
   <tr>
     <td align="center">
       <a href="https://github.com/nairdahh">
-        <img src="https://github.com/nairdahh.png" width="80" style="border-radius:50%;" />
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/nairdahh?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" />
         <br/>
         <sub><b>nairdahh</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/lucideds">
-        <img src="https://github.com/lucideds.png" width="80" style="border-radius:50%;" />
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/lucideds?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" />
         <br/>
         <sub><b>lucideds</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/retardgerman">
-        <img src="https://github.com/retardgerman.png" width="80" style="border-radius:50%;" />
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/retardgerman?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" />
         <br/>
         <sub><b>retardgerman</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/TheColorman">
-        <img src="https://github.com/TheColorman.png" width="80" style="border-radius:50%;" />
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/TheColorman?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" />
         <br/>
         <sub><b>TheColorman</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/IPvNick">
-        <img src="https://github.com/IPvNick.png" width="80" style="border-radius:50%;" />
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/IPvNick?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" />
         <br/>
         <sub><b>IPvNick</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/whoopsi-daisy">
-        <img src="https://github.com/whoopsi-daisy.png" width="80" style="border-radius:50%;" />
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/whoopsi-daisy?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" />
         <br/>
         <sub><b>whoopsi-daisy</b></sub>
       </a>
