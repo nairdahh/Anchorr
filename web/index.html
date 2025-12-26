@@ -313,6 +313,69 @@
                           style="margin-left: 1rem;"
                         ></span>
                       </div>
+
+                      <!-- Default Quality Profiles Section -->
+                      <div class="form-group" style="margin-top: 2rem;">
+                        <label style="font-size: 1.1rem; font-weight: 700; color: var(--mauve);">
+                          <strong data-i18n="config.default_quality_profiles">Default Quality Profiles (Optional)</strong>
+                        </label>
+                        <div class="form-text" style="margin-bottom: 1rem;" data-i18n="config.default_quality_profiles_help">
+                          Set default quality profiles and servers for media requests. These will be used when users don't specify a profile via the /request command.
+                        </div>
+                        
+                        <div class="form-group">
+                          <button type="button" id="load-jellyseerr-options-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem; margin: 0;" data-i18n="config.load_profiles_servers">
+                            Load Profiles & Servers
+                          </button>
+                          <span id="load-jellyseerr-options-status" style="margin-left: 1rem;"></span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                          <!-- Default Movie Quality Profile -->
+                          <div class="form-group">
+                            <label for="DEFAULT_QUALITY_PROFILE_MOVIE" style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="config.default_movie_quality">🎬 Default Movie Quality</label>
+                            <select id="DEFAULT_QUALITY_PROFILE_MOVIE" name="DEFAULT_QUALITY_PROFILE_MOVIE" style="width: 100%; background-color: var(--surface0); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                              <option value="" data-i18n="config.use_jellyseerr_default">Use Jellyseerr default</option>
+                            </select>
+                            <div class="form-text" style="margin-top: 0.25rem;" data-i18n="config.default_movie_quality_help">
+                              Quality profile for movie requests (Radarr)
+                            </div>
+                          </div>
+
+                          <!-- Default TV Quality Profile -->
+                          <div class="form-group">
+                            <label for="DEFAULT_QUALITY_PROFILE_TV" style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="config.default_tv_quality">📺 Default TV Quality</label>
+                            <select id="DEFAULT_QUALITY_PROFILE_TV" name="DEFAULT_QUALITY_PROFILE_TV" style="width: 100%; background-color: var(--surface0); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                              <option value="" data-i18n="config.use_jellyseerr_default">Use Jellyseerr default</option>
+                            </select>
+                            <div class="form-text" style="margin-top: 0.25rem;" data-i18n="config.default_tv_quality_help">
+                              Quality profile for TV show requests (Sonarr)
+                            </div>
+                          </div>
+
+                          <!-- Default Movie Server -->
+                          <div class="form-group">
+                            <label for="DEFAULT_SERVER_MOVIE" style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="config.default_movie_server">🎬 Default Movie Server</label>
+                            <select id="DEFAULT_SERVER_MOVIE" name="DEFAULT_SERVER_MOVIE" style="width: 100%; background-color: var(--surface0); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                              <option value="" data-i18n="config.use_jellyseerr_default">Use Jellyseerr default</option>
+                            </select>
+                            <div class="form-text" style="margin-top: 0.25rem;" data-i18n="config.default_movie_server_help">
+                              Radarr server for movie requests
+                            </div>
+                          </div>
+
+                          <!-- Default TV Server -->
+                          <div class="form-group">
+                            <label for="DEFAULT_SERVER_TV" style="display: block; margin-bottom: 0.5rem; font-weight: 600;" data-i18n="config.default_tv_server">📺 Default TV Server</label>
+                            <select id="DEFAULT_SERVER_TV" name="DEFAULT_SERVER_TV" style="width: 100%; background-color: var(--surface0); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                              <option value="" data-i18n="config.use_jellyseerr_default">Use Jellyseerr default</option>
+                            </select>
+                            <div class="form-text" style="margin-top: 0.25rem;" data-i18n="config.default_tv_server_help">
+                              Sonarr server for TV show requests
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </fieldset>
                   </div>
 

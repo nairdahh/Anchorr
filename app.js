@@ -297,6 +297,96 @@ async function startBot() {
     return null;
   }
 
+  function parseQualityAndServerOptions(options, mediaType) {
+    let profileId = null;
+    let serverId = null;
+
+    // Parse quality option (format: profileId|serverId|type)
+    if (options.quality) {
+      const [qProfileId, qServerId, qType] = options.quality.split("|");
+      // Only use if matching media type (radarr for movies, sonarr for TV)
+      if ((mediaType === "movie" && qType === "radarr") || (mediaType === "tv" && qType === "sonarr")) {
+        const parsedProfileId = parseInt(qProfileId, 10);
+        const parsedServerId = parseInt(qServerId, 10);
+
+        if (!isNaN(parsedProfileId) && !isNaN(parsedServerId)) {
+          profileId = parsedProfileId;
+          serverId = parsedServerId;
+          logger.debug(`Using quality profile ID: ${profileId} from server ID: ${serverId}`);
+        } else {
+          logger.warn(`Invalid quality option format - non-numeric values: profileId=${qProfileId}, serverId=${qServerId}`);
+        }
+      } else {
+        logger.debug(`Ignoring quality option - type mismatch (${qType} vs ${mediaType})`);
+      }
+    }
+
+    // Parse server option (format: serverId|type) - only if not already set from quality
+    if (options.server && serverId === null) {
+      const [sServerId, sType] = options.server.split("|");
+      // Only use if matching media type
+      if ((mediaType === "movie" && sType === "radarr") || (mediaType === "tv" && sType === "sonarr")) {
+        const parsedServerId = parseInt(sServerId, 10);
+
+        if (!isNaN(parsedServerId)) {
+          serverId = parsedServerId;
+          logger.debug(`Using server ID: ${serverId} from server option`);
+        } else {
+          logger.warn(`Invalid server option format - non-numeric serverId: ${sServerId}`);
+        }
+      } else {
+        logger.debug(`Ignoring server option - type mismatch (${sType} vs ${mediaType})`);
+      }
+    }
+
+    // Apply defaults from config if not specified
+    if (profileId === null && serverId === null) {
+      // Check for default quality profile
+      const defaultQualityConfig = mediaType === "movie"
+        ? process.env.DEFAULT_QUALITY_PROFILE_MOVIE
+        : process.env.DEFAULT_QUALITY_PROFILE_TV;
+
+      if (defaultQualityConfig) {
+        const [dProfileId, dServerId] = defaultQualityConfig.split("|");
+        if (dProfileId && dServerId) {
+          const parsedProfileId = parseInt(dProfileId, 10);
+          const parsedServerId = parseInt(dServerId, 10);
+
+          if (!isNaN(parsedProfileId) && !isNaN(parsedServerId)) {
+            profileId = parsedProfileId;
+            serverId = parsedServerId;
+            logger.debug(`Using default quality profile ID: ${profileId} from config`);
+          } else {
+            logger.warn(`Invalid default quality config format - non-numeric values: profileId=${dProfileId}, serverId=${dServerId}`);
+          }
+        }
+      }
+    }
+
+    if (serverId === null) {
+      // Default to configured default server if not set
+      const defaultServerConfig = mediaType === "movie"
+        ? process.env.DEFAULT_SERVER_MOVIE
+        : process.env.DEFAULT_SERVER_TV;
+
+      if (defaultServerConfig) {
+        const [dServerId] = defaultServerConfig.split("|");
+        if (dServerId) {
+          const parsedServerId = parseInt(dServerId, 10);
+
+          if (!isNaN(parsedServerId)) {
+            serverId = parsedServerId;
+            logger.debug(`Using default server ID: ${serverId} from config`);
+          } else {
+            logger.warn(`Invalid default server config format - non-numeric serverId: ${dServerId}`);
+          }
+        }
+      }
+    }
+
+    return { profileId, serverId };
+  }
+
   // ----------------- EMBED BUILDER -----------------
   function buildNotificationEmbed(
     details,
@@ -572,7 +662,7 @@ async function startBot() {
   }
 
   // ----------------- COMMON SEARCH LOGIC -----------------
-  async function handleSearchOrRequest(interaction, rawInput, mode, tags = []) {
+  async function handleSearchOrRequest(interaction, rawInput, mode, tags = [], options = {}) {
     // IMPORTANT: Defer reply FIRST to prevent timeout
     const isPrivateMode = process.env.PRIVATE_MESSAGE_MODE === "true";
 
@@ -688,11 +778,16 @@ async function startBot() {
           }
         }
 
+        // Parse quality and server
+        const { profileId, serverId } = parseQualityAndServerOptions(options, mediaType);
+
         await jellyseerrApi.sendRequest({
           tmdbId,
           mediaType,
           seasons: ["all"],
           tags: tagIds,
+          profileId,
+          serverId,
           jellyseerrUrl: JELLYSEERR_URL,
           apiKey: JELLYSEERR_API_KEY,
           discordUserId: interaction.user.id,
@@ -926,6 +1021,135 @@ async function startBot() {
           }
         }
 
+        // Handle Quality Profile Autocomplete
+        if (focusedOption.name === "quality") {
+          try {
+            // Determine media type from title
+            const titleOption = interaction.options.getString("title");
+            let mediaType = null;
+            
+            if (titleOption && titleOption.includes("|")) {
+              const parts = titleOption.split("|");
+              mediaType = parts[1]; // "movie" or "tv"
+            }
+
+            // Get selected server to filter by specific server
+            const serverOption = interaction.options.getString("server");
+            let selectedServerId = null;
+
+            if (serverOption && serverOption.includes("|")) {
+              const parts = serverOption.split("|");
+              const parsedServerId = parseInt(parts[0], 10); // serverId
+
+              if (!isNaN(parsedServerId)) {
+                selectedServerId = parsedServerId;
+              } else {
+                logger.warn(`Invalid server option in autocomplete - non-numeric serverId: ${parts[0]}`);
+              }
+            }
+
+            const allProfiles = await jellyseerrApi.fetchQualityProfiles(
+              JELLYSEERR_URL,
+              JELLYSEERR_API_KEY
+            );
+
+            // Filter profiles based on user input, media type, AND selected server
+            const filteredProfiles = allProfiles.filter((profile) => {
+              const name = profile.name || "";
+              const matchesSearch = name.toLowerCase().includes(focusedValue.toLowerCase());
+              
+              // Filter by media type if title is selected
+              let matchesType = true;
+              if (mediaType) {
+                matchesType = 
+                  (mediaType === "movie" && profile.type === "radarr") ||
+                  (mediaType === "tv" && profile.type === "sonarr");
+              }
+              
+              // Filter by server if server is selected
+              let matchesServer = true;
+              if (selectedServerId !== null) {
+                matchesServer = profile.serverId === selectedServerId;
+              }
+              
+              return matchesSearch && matchesType && matchesServer;
+            });
+
+            // Deduplicate by name + server
+            const uniqueProfiles = [];
+            const seenNames = new Set();
+
+            for (const profile of filteredProfiles) {
+              const displayName = `${profile.name} (${profile.serverName})`;
+              const key = `${profile.id}-${profile.serverId}`;
+              if (!seenNames.has(key)) {
+                seenNames.add(key);
+                uniqueProfiles.push({
+                  name: displayName.length > 100 ? displayName.substring(0, 97) + "..." : displayName,
+                  value: `${profile.id}|${profile.serverId}|${profile.type}`, // profileId|serverId|type
+                });
+              }
+            }
+
+            // Limit to 25
+            return await interaction.respond(uniqueProfiles.slice(0, 25));
+          } catch (e) {
+            logger.error("Quality profile autocomplete error:", e);
+            return await interaction.respond([]);
+          }
+        }
+
+        // Server Autocomplete
+        if (focusedOption.name === "server") {
+          try {
+            // Determine media type from title
+            const titleOption = interaction.options.getString("title");
+            let mediaType = null;
+            
+            if (titleOption && titleOption.includes("|")) {
+              const parts = titleOption.split("|");
+              mediaType = parts[1]; // "movie" or "tv"
+            }
+
+            const allServers = await jellyseerrApi.fetchServers(
+              JELLYSEERR_URL,
+              JELLYSEERR_API_KEY
+            );
+
+            // Filter servers based on input AND media type
+            const filteredServers = allServers.filter((server) => {
+              const name = server.name || "";
+              const matchesSearch = name.toLowerCase().includes(focusedValue.toLowerCase());
+              
+              // If media type known, filter
+              if (mediaType) {
+                const matchesType = 
+                  (mediaType === "movie" && server.type === "radarr") ||
+                  (mediaType === "tv" && server.type === "sonarr");
+                return matchesSearch && matchesType;
+              }
+              
+              return matchesSearch;
+            });
+
+            // Response with server type
+            const serverChoices = filteredServers.map((server) => {
+              const typeEmoji = server.type === "radarr" ? "🎬" : "📺";
+              const displayName = `${typeEmoji} ${server.name}${server.isDefault ? " (default)" : ""}`;
+              return {
+                name: displayName.length > 100 ? displayName.substring(0, 97) + "..." : displayName,
+                value: `${server.id}|${server.type}`, // serverId|type
+              };
+            });
+
+            // Limit to 25
+            return await interaction.respond(serverChoices.slice(0, 25));
+          } catch (e) {
+            logger.error("Server autocomplete error:", e);
+            return await interaction.respond([]);
+          }
+        }
+
         // Handle Title Autocomplete
         // For trending command, show trending content instead of search results
         if (interaction.commandName === "trending") {
@@ -1139,12 +1363,15 @@ async function startBot() {
           return handleSearchOrRequest(interaction, raw, "search");
         if (interaction.commandName === "request") {
           const tag = interaction.options.getString("tag");
-          // Pass tag as an array if present
+          const quality = interaction.options.getString("quality");
+          const server = interaction.options.getString("server");
+          // Pass tag as an array if present, and quality/server options
           return handleSearchOrRequest(
             interaction,
             raw,
             "request",
-            tag ? [tag] : []
+            tag ? [tag] : [],
+            { quality, server }
           );
         }
         if (interaction.commandName === "trending") {
@@ -1242,11 +1469,16 @@ async function startBot() {
               ? selectedSeasons
               : ["all"];
 
+          // Apply defaults from config
+          const { profileId, serverId } = parseQualityAndServerOptions({}, mediaType);
+
           await jellyseerrApi.sendRequest({
             tmdbId,
             mediaType,
             seasons: seasonsToRequest,
             tags: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+            profileId,
+            serverId,
             jellyseerrUrl: JELLYSEERR_URL,
             apiKey: JELLYSEERR_API_KEY,
             discordUserId: interaction.user.id,
@@ -2339,6 +2571,58 @@ function configureWebServer() {
       res.status(500).json({
         success: false,
         message: "Connection failed. Check URL and API Key.",
+      });
+    }
+  });
+
+  // Fetch quality profiles
+  app.post("/api/jellyseerr/quality-profiles", authenticateToken, async (req, res) => {
+    const { url, apiKey } = req.body;
+    if (!url || !apiKey) {
+      return res
+        .status(400)
+        .json({ success: false, message: "URL and API Key are required." });
+    }
+
+    try {
+      let baseUrl = url.replace(/\/$/, "");
+      if (!baseUrl.endsWith("/api/v1")) {
+        baseUrl += "/api/v1";
+      }
+
+      const profiles = await jellyseerrApi.fetchQualityProfiles(baseUrl, apiKey);
+      res.json({ success: true, profiles });
+    } catch (error) {
+      logger.error("Failed to fetch quality profiles:", error.message);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch quality profiles.",
+      });
+    }
+  });
+
+  // Fetch servers
+  app.post("/api/jellyseerr/servers", authenticateToken, async (req, res) => {
+    const { url, apiKey } = req.body;
+    if (!url || !apiKey) {
+      return res
+        .status(400)
+        .json({ success: false, message: "URL and API Key are required." });
+    }
+
+    try {
+      let baseUrl = url.replace(/\/$/, "");
+      if (!baseUrl.endsWith("/api/v1")) {
+        baseUrl += "/api/v1";
+      }
+
+      const servers = await jellyseerrApi.fetchServers(baseUrl, apiKey);
+      res.json({ success: true, servers });
+    } catch (error) {
+      logger.error("Failed to fetch servers:", error.message);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch servers.",
       });
     }
   });

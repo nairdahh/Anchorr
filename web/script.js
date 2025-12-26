@@ -708,13 +708,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
       });
-      const result = await response.json();
       if (!response.ok) {
+        const result = await response.json();
         const errorMsg =
           result.errors?.map((e) => `${e.field}: ${e.message}`).join(", ") ||
           result.message;
         showToast(`Error: ${errorMsg}`);
       } else {
+        const result = await response.json();
         showToast(result.message);
       }
     } catch (error) {
@@ -732,12 +733,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     try {
       const response = await fetch(`/api/${action}-bot`, { method: "POST" });
-      const result = await response.json();
       if (!response.ok) {
+        const result = await response.json();
         showToast(`Error: ${result.message}`);
         botControlText.textContent = originalText; // Restore text on failure
         botControlBtn.disabled = false;
       } else {
+        const result = await response.json();
         showToast(result.message);
         setTimeout(() => {
           fetchStatus();
@@ -907,12 +909,12 @@ document.addEventListener("DOMContentLoaded", async () => {
           body: JSON.stringify({ url, apiKey }),
         });
 
-        const result = await response.json();
-
         if (response.ok) {
+          const result = await response.json();
           testJellyseerrStatus.textContent = result.message;
           testJellyseerrStatus.style.color = "var(--green)";
         } else {
+          const result = await response.json();
           throw new Error(result.message);
         }
       } catch (error) {
@@ -921,6 +923,126 @@ document.addEventListener("DOMContentLoaded", async () => {
         testJellyseerrStatus.style.color = "#f38ba8"; // Red
       } finally {
         testJellyseerrBtn.disabled = false;
+      }
+    });
+  }
+
+  // Load Quality Profiles and Servers
+  const loadJellyseerrOptionsBtn = document.getElementById("load-jellyseerr-options-btn");
+  const loadJellyseerrOptionsStatus = document.getElementById("load-jellyseerr-options-status");
+  
+  if (loadJellyseerrOptionsBtn) {
+    loadJellyseerrOptionsBtn.addEventListener("click", async () => {
+      const url = document.getElementById("JELLYSEERR_URL").value;
+      const apiKey = document.getElementById("JELLYSEERR_API_KEY").value;
+
+      if (!url || !apiKey) {
+        loadJellyseerrOptionsStatus.textContent = "Enter URL and API Key first";
+        loadJellyseerrOptionsStatus.style.color = "#f38ba8";
+        return;
+      }
+
+      loadJellyseerrOptionsBtn.disabled = true;
+      loadJellyseerrOptionsStatus.textContent = "Loading...";
+      loadJellyseerrOptionsStatus.style.color = "var(--text)";
+
+      try {
+        // Fetch quality profiles
+        const profilesResponse = await fetch("/api/jellyseerr/quality-profiles", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, apiKey }),
+        });
+
+        if (!profilesResponse.ok) {
+          throw new Error("Failed to fetch quality profiles");
+        }
+        const profilesResult = await profilesResponse.json();
+
+        // Fetch servers
+        const serversResponse = await fetch("/api/jellyseerr/servers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, apiKey }),
+        });
+
+        if (!serversResponse.ok) {
+          throw new Error("Failed to fetch servers");
+        }
+        const serversResult = await serversResponse.json();
+
+        // Validate API responses
+        if (!Array.isArray(profilesResult.profiles)) {
+          throw new Error("Invalid quality profiles response");
+        }
+        if (!Array.isArray(serversResult.servers)) {
+          throw new Error("Invalid servers response");
+        }
+
+        // Get current saved values
+        const movieQualitySelect = document.getElementById("DEFAULT_QUALITY_PROFILE_MOVIE");
+        const tvQualitySelect = document.getElementById("DEFAULT_QUALITY_PROFILE_TV");
+        const movieServerSelect = document.getElementById("DEFAULT_SERVER_MOVIE");
+        const tvServerSelect = document.getElementById("DEFAULT_SERVER_TV");
+
+        const savedMovieQuality = movieQualitySelect.dataset.savedValue || movieQualitySelect.value;
+        const savedTvQuality = tvQualitySelect.dataset.savedValue || tvQualitySelect.value;
+        const savedMovieServer = movieServerSelect.dataset.savedValue || movieServerSelect.value;
+        const savedTvServer = tvServerSelect.dataset.savedValue || tvServerSelect.value;
+
+        // Movie quality profiles (Radarr)
+        movieQualitySelect.innerHTML = '<option value="">Use Jellyseerr default</option>';
+        const radarrProfiles = profilesResult.profiles.filter(p => p.type === "radarr");
+        radarrProfiles.forEach(profile => {
+          const option = document.createElement("option");
+          option.value = `${profile.id}|${profile.serverId}`;
+          option.textContent = `${profile.name} (${profile.serverName})`;
+          movieQualitySelect.appendChild(option);
+        });
+        if (savedMovieQuality) movieQualitySelect.value = savedMovieQuality;
+
+        // TV quality profiles (Sonarr)
+        tvQualitySelect.innerHTML = '<option value="">Use Jellyseerr default</option>';
+        const sonarrProfiles = profilesResult.profiles.filter(p => p.type === "sonarr");
+        sonarrProfiles.forEach(profile => {
+          const option = document.createElement("option");
+          option.value = `${profile.id}|${profile.serverId}`;
+          option.textContent = `${profile.name} (${profile.serverName})`;
+          tvQualitySelect.appendChild(option);
+        });
+        if (savedTvQuality) tvQualitySelect.value = savedTvQuality;
+
+        // Movie servers (Radarr)
+        movieServerSelect.innerHTML = '<option value="">Use Jellyseerr default</option>';
+        const radarrServers = serversResult.servers.filter(s => s.type === "radarr");
+        radarrServers.forEach(server => {
+          const option = document.createElement("option");
+          option.value = `${server.id}|${server.type}`;
+          option.textContent = `${server.name}${server.isDefault ? " (default)" : ""}`;
+          movieServerSelect.appendChild(option);
+        });
+        if (savedMovieServer) movieServerSelect.value = savedMovieServer;
+
+        // TV servers (Sonarr)
+        tvServerSelect.innerHTML = '<option value="">Use Jellyseerr default</option>';
+        const sonarrServers = serversResult.servers.filter(s => s.type === "sonarr");
+        sonarrServers.forEach(server => {
+          const option = document.createElement("option");
+          option.value = `${server.id}|${server.type}`;
+          option.textContent = `${server.name}${server.isDefault ? " (default)" : ""}`;
+          tvServerSelect.appendChild(option);
+        });
+        if (savedTvServer) tvServerSelect.value = savedTvServer;
+
+        const totalProfiles = radarrProfiles.length + sonarrProfiles.length;
+        const totalServers = radarrServers.length + sonarrServers.length;
+        loadJellyseerrOptionsStatus.textContent = `Loaded ${totalProfiles} profiles, ${totalServers} servers`;
+        loadJellyseerrOptionsStatus.style.color = "var(--green)";
+      } catch (error) {
+        loadJellyseerrOptionsStatus.textContent = error.message || "Failed to load options";
+        loadJellyseerrOptionsStatus.style.color = "#f38ba8";
+      } finally {
+        loadJellyseerrOptionsBtn.disabled = false;
       }
     });
   }
@@ -942,9 +1064,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           body: JSON.stringify({ url, apiKey }),
         });
 
-        const result = await response.json();
-
         if (response.ok) {
+          const result = await response.json();
           testJellyfinStatus.textContent = result.message;
           testJellyfinStatus.style.color = "var(--green)";
 
@@ -963,6 +1084,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
           }
         } else {
+          const result = await response.json();
           throw new Error(result.message);
         }
       } catch (error) {
@@ -1011,9 +1133,14 @@ document.addEventListener("DOMContentLoaded", async () => {
           body: JSON.stringify({ url, apiKey }),
         });
 
+        if (!response.ok) {
+          const result = await response.json();
+          throw new Error(result.message || "Failed to fetch libraries");
+        }
+
         const result = await response.json();
 
-        if (response.ok && result.success) {
+        if (result.success) {
           const libraries = result.libraries || [];
 
           if (libraries.length === 0) {
@@ -1197,8 +1324,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
 
           // Libraries loaded successfully
-        } else {
-          throw new Error(result.message || "Failed to fetch libraries");
         }
       } catch (error) {
         librariesList.innerHTML = `<div style="padding: 1rem; color: var(--red); background: var(--surface0); border-radius: 6px;">
@@ -2758,13 +2883,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       botControlTextLogs.textContent = "Processing...";
 
       const response = await fetch(endpoint, { method: "POST" });
-      const data = await response.json();
 
       if (!response.ok) {
+        const data = await response.json();
         showToast(`Error: ${data.message}`);
         botControlTextLogs.textContent = originalText;
         botControlBtnLogs.disabled = false;
       } else {
+        const data = await response.json();
         showToast(data.message);
         setTimeout(async () => {
           await updateBotControlButtonLogs();
