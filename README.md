@@ -279,39 +279,45 @@ A huge thank you to all the amazing people who have contributed to making Anchor
   <tr>
     <td align="center" width="140">
       <a href="https://github.com/nairdahh">
-        <img src="https://github.com/nairdahh.png" width="100" height="100" style="display: block; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover;"/><br/>
-        <b>nairdahh</b>
+        <img src="https://avatars.githubusercontent.com/nairdahh?s=100&v=4" width="100px;" alt="nairdahh" style="border-radius:50%"/>
       </a>
+      <br/>
+      <a href="https://github.com/nairdahh"><b>nairdahh</b></a>
     </td>
     <td align="center" width="140">
       <a href="https://github.com/lucideds">
-        <img src="https://github.com/lucideds.png" width="100" height="100" style="display: block; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover;"/><br/>
-        <b>lucideds</b>
+        <img src="https://avatars.githubusercontent.com/lucideds?s=100&v=4" width="100px;" alt="lucideds" style="border-radius:50%"/>
       </a>
+      <br/>
+      <a href="https://github.com/lucideds"><b>lucideds</b></a>
     </td>
     <td align="center" width="140">
       <a href="https://github.com/retardgerman">
-        <img src="https://github.com/retardgerman.png" width="100" height="100" style="display: block; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover;"/><br/>
-        <b>retardgerman</b>
+        <img src="https://avatars.githubusercontent.com/retardgerman?s=100&v=4" width="100px;" alt="retardgerman" style="border-radius:50%"/>
       </a>
+      <br/>
+      <a href="https://github.com/retardgerman"><b>retardgerman</b></a>
     </td>
     <td align="center" width="140">
       <a href="https://github.com/TheColorman">
-        <img src="https://github.com/TheColorman.png" width="100" height="100" style="display: block; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover;"/><br/>
-        <b>TheColorman</b>
+        <img src="https://avatars.githubusercontent.com/TheColorman?s=100&v=4" width="100px;" alt="TheColorman" style="border-radius:50%"/>
       </a>
+      <br/>
+      <a href="https://github.com/TheColorman"><b>TheColorman</b></a>
     </td>
     <td align="center" width="140">
       <a href="https://github.com/IPvNick">
-        <img src="https://github.com/IPvNick.png" width="100" height="100" style="display: block; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover;"/><br/>
-        <b>IPvNick</b>
+        <img src="https://avatars.githubusercontent.com/IPvNick?s=100&v=4" width="100px;" alt="IPvNick" style="border-radius:50%"/>
       </a>
+      <br/>
+      <a href="https://github.com/IPvNick"><b>IPvNick</b></a>
     </td>
     <td align="center" width="140">
       <a href="https://github.com/whoopsi-daisy">
-        <img src="https://github.com/whoopsi-daisy.png" width="100" height="100" style="display: block; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover;"/><br/>
-        <b>whoopsi-daisy</b>
+        <img src="https://avatars.githubusercontent.com/whoopsi-daisy?s=100&v=4" width="100px;" alt="whoopsi-daisy" style="border-radius:50%"/>
       </a>
+      <br/>
+      <a href="https://github.com/whoopsi-daisy"><b>whoopsi-daisy</b></a>
     </td>
   </tr>
 </table>
