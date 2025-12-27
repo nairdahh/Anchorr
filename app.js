@@ -925,7 +925,7 @@ async function startBot() {
   );
 
   try {
-    await registerCommands(rest, BOT_ID, GUILD_ID || null, logger);
+    await registerCommands(rest, BOT_ID, GUILD_ID, logger);
   } catch (err) {
     logger.error(
       `[REGISTER COMMANDS] Failed to register Discord commands:`,
