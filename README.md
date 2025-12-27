@@ -271,36 +271,53 @@ See [TRANSLATION_GUIDE.md](./TRANSLATION_GUIDE.md) for detailed instructions.
 
 ## 👥 Contributors
 
-Thanks to all the amazing people who have contributed to Anchorr! 🎉
+A huge thank you to all the amazing people who have contributed to making Anchorr better! 🎉
 
 <table>
-<tr>
+  <tr>
     <td align="center">
-        <a href="https://github.com/nairdahh">
-            <img src="https://github.com/nairdahh.png" width="100px;" alt="nairdahh"/><br />
-            <sub><b>nairdahh</b></sub>
-        </a><br />
-        <a href="https://github.com/nairdahh/anchorr/commits?author=nairdahh" title="Code">💻</a>
-        <a href="#maintenance-nairdahh" title="Maintenance">🚧</a>
-        <a href="#ideas-nairdahh" title="Ideas & Planning">🤔</a>
+      <a href="https://github.com/nairdahh">
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/nairdahh?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" border="0" style="border:none;" />
+        <br/>
+        <sub><b>nairdahh</b></sub>
+      </a>
     </td>
     <td align="center">
-        <a href="https://github.com/retardgerman">
-            <img src="https://github.com/retardgerman.png" width="100px;" alt="retardgerman"/><br />
-            <sub><b>retardgerman</b></sub>
-        </a><br />
-        <a href="https://github.com/nairdahh/anchorr/commits?author=retardgerman" title="Code">💻</a>
-        <a href="https://github.com/nairdahh/anchorr/pulls?q=author%3Aretardgerman" title="Bug fixes">🐛</a>
-        <a href="#ideas-retardgerman" title="Ideas & Planning">🤔</a>
+      <a href="https://github.com/lucideds">
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/lucideds?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" border="0" style="border:none;" />
+        <br/>
+        <sub><b>lucideds</b></sub>
+      </a>
     </td>
     <td align="center">
-        <a href="https://github.com/whoopsi-daisy">
-            <img src="https://github.com/whoopsi-daisy.png" width="100px;" alt="whoopsi-daisy"/><br />
-            <sub><b>whoopsi-daisy</b></sub>
-        </a><br />
-        <a href="https://github.com/nairdahh/anchorr/pulls?q=author%3Awhoopsi-daisy" title="Documentation">📖</a>
+      <a href="https://github.com/retardgerman">
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/retardgerman?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" border="0" style="border:none;" />
+        <br/>
+        <sub><b>retardgerman</b></sub>
+      </a>
     </td>
-</tr>
+    <td align="center">
+      <a href="https://github.com/TheColorman">
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/TheColorman?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" border="0" style="border:none;" />
+        <br/>
+        <sub><b>TheColorman</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/IPvNick">
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/IPvNick?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" border="0" style="border:none;" />
+        <br/>
+        <sub><b>IPvNick</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/whoopsi-daisy">
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/whoopsi-daisy?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" border="0" style="border:none;" />
+        <br/>
+        <sub><b>whoopsi-daisy</b></sub>
+      </a>
+    </td>
+  </tr>
 </table>
 
 ## 📄 License

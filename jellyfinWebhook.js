@@ -403,15 +403,19 @@ async function processAndSendNotification(
 
   const embed = new EmbedBuilder()
     .setAuthor({ name: authorName })
-    .setTitle(embedTitle)
-    .setURL(
-      buildJellyfinUrl(
-        ServerUrl,
-        "web/index.html",
-        `!/details?id=${ItemId}&serverId=${ServerId}`
-      )
-    )
-    .setColor(embedColor);
+    .setTitle(embedTitle);
+
+  // Only set URL if ServerUrl is valid
+  const jellyfinUrl = buildJellyfinUrl(
+    ServerUrl,
+    "web/index.html",
+    `!/details?id=${ItemId}&serverId=${ServerId}`
+  );
+  if (jellyfinUrl && (jellyfinUrl.startsWith("http://") || jellyfinUrl.startsWith("https://"))) {
+    embed.setURL(jellyfinUrl);
+  }
+
+  embed.setColor(embedColor);
 
   // Add fields based on ItemType
   if (ItemType === "Episode" || ItemType === "Season") {
