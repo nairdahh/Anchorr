@@ -17,10 +17,11 @@
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>
-  <DateInstalled>1767011038</DateInstalled>
+  <DateInstalled>1767011865</DateInstalled>
   <DonateText/>
   <DonateLink/>
   <Requires/>
   <Config Name="Host Path 1" Target="/config" Default="" Mode="rw" Description="" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/appdata/anchorr</Config>
+  <Config Name="Host Port 1" Target="8282" Default="" Mode="tcp" Description="" Type="Port" Display="always" Required="false" Mask="false">8282</Config>
   <TailscaleStateDir/>
 </Container>
