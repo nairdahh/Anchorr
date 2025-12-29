@@ -7,7 +7,7 @@
   <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/nairdahh/Anchorr/issues</Support>
+  <Support>https://forums.unraid.net/topic/196118-support-anchorr-discord-bot-for-requesting-moviestv-and-receiving-notifications-when-items-are-added-to-your-media-server/</Support>
   <Project>https://github.com/nairdahh/Anchorr</Project>
   <Overview>Discord bot for requesting movies/TV and receiving notifications when items are added to your Jellyfin server.</Overview>
   <Category>Tools:</Category>
