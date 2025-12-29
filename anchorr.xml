@@ -22,6 +22,6 @@
   <DonateLink/>
   <Requires/>
   <Config Name="Host Path 1" Target="/config" Default="" Mode="rw" Description="" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/appdata/anchorr</Config>
-  <Config Name="Host Port 1" Target="8282" Default="" Mode="tcp" Description="" Type="Port" Display="always" Required="false" Mask="false">8282</Config>
+  <Config Name="Host Port 1" Target="8282" Default="8282" Mode="tcp" Description="Web UI port" Type="Port" Display="always" Required="false" Mask="false">8282</Config>
   <TailscaleStateDir/>
 </Container>
