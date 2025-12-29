@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Anchorr</Name>
+  <Repository>nairdah/anchorr:latest</Repository>
+  <Registry>https://hub.docker.com/r/nairdah/anchorr/</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/nairdahh/Anchorr/issues</Support>
+  <Project>https://github.com/nairdahh/Anchorr</Project>
+  <Overview>Discord bot for requesting movies/TV and receiving notifications when items are added to your Jellyfin server.</Overview>
+  <Category>Tools:</Category>
+  <WebUI>http://[IP]:8282</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/nairdahh/Anchorr/refs/heads/main/assets/logo.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled>1767011038</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="Host Path 1" Target="/config" Default="" Mode="rw" Description="" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/appdata/anchorr</Config>
+  <TailscaleStateDir/>
+</Container>

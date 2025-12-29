@@ -11,6 +11,15 @@ import logger from "./utils/logger.js";
 import { fetchOMDbData } from "./api/omdb.js";
 import { findBestBackdrop } from "./api/tmdb.js";
 
+function isValidUrl(string) {
+  try {
+    new URL(string);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 const debouncedSenders = new Map();
 const sentNotifications = new Map();
 const episodeMessages = new Map(); // Track Discord messages for editing: SeriesId -> { messageId, channelId }
@@ -411,7 +420,7 @@ async function processAndSendNotification(
     "web/index.html",
     `!/details?id=${ItemId}&serverId=${ServerId}`
   );
-  if (jellyfinUrl && (jellyfinUrl.startsWith("http://") || jellyfinUrl.startsWith("https://"))) {
+  if (isValidUrl(jellyfinUrl)) {
     embed.setURL(jellyfinUrl);
   }
 
@@ -515,37 +524,46 @@ async function processAndSendNotification(
 
   if (imdbId) {
     if (showButtonLetterboxd) {
-      buttonComponents.push(
-        new ButtonBuilder()
-          .setStyle(ButtonStyle.Link)
-          .setLabel("Letterboxd")
-          .setURL(`https://letterboxd.com/imdb/${imdbId}`)
-      );
+      const letterboxdUrl = `https://letterboxd.com/imdb/${imdbId}`;
+      if (isValidUrl(letterboxdUrl)) {
+        buttonComponents.push(
+          new ButtonBuilder()
+            .setStyle(ButtonStyle.Link)
+            .setLabel("Letterboxd")
+            .setURL(letterboxdUrl)
+        );
+      }
     }
     
     if (showButtonImdb) {
-      buttonComponents.push(
-        new ButtonBuilder()
-          .setStyle(ButtonStyle.Link)
-          .setLabel("IMDb")
-          .setURL(`https://www.imdb.com/title/${imdbId}/`)
-      );
+      const imdbUrl = `https://www.imdb.com/title/${imdbId}/`;
+      if (isValidUrl(imdbUrl)) {
+        buttonComponents.push(
+          new ButtonBuilder()
+            .setStyle(ButtonStyle.Link)
+            .setLabel("IMDb")
+            .setURL(imdbUrl)
+        );
+      }
     }
   }
 
   if (showButtonWatch) {
-    buttonComponents.push(
-      new ButtonBuilder()
-        .setStyle(ButtonStyle.Link)
-        .setLabel("▶ Watch Now!")
-        .setURL(
-          buildJellyfinUrl(
-            ServerUrl,
-            "web/index.html",
-            `!/details?id=${ItemId}&serverId=${ServerId}`
-          )
-        )
+    const watchUrl = buildJellyfinUrl(
+      ServerUrl,
+      "web/index.html",
+      `!/details?id=${ItemId}&serverId=${ServerId}`
     );
+    if (isValidUrl(watchUrl)) {
+      buttonComponents.push(
+        new ButtonBuilder()
+          .setStyle(ButtonStyle.Link)
+          .setLabel("▶ Watch Now!")
+          .setURL(watchUrl)
+      );
+    } else {
+      logger.warn(`Invalid watch URL generated: ${watchUrl}. Skipping watch button.`);
+    }
   }
 
   const buttons = buttonComponents.length > 0 ? new ActionRowBuilder().addComponents(buttonComponents) : null;
@@ -675,14 +693,17 @@ async function processAndSendNotification(
         const user = await client.users.fetch(userId);
         const dmEmbed = new EmbedBuilder()
           .setAuthor({ name: "✅ Your request is now available!" })
-          .setTitle(embedTitle)
-          .setURL(
-            buildJellyfinUrl(
-              ServerUrl,
-              "web/index.html",
-              `!/details?id=${ItemId}&serverId=${ServerId}`
-            )
-          )
+          .setTitle(embedTitle);
+
+        const dmJellyfinUrl = buildJellyfinUrl(
+          ServerUrl,
+          "web/index.html",
+          `!/details?id=${ItemId}&serverId=${ServerId}`
+        );
+        if (isValidUrl(dmJellyfinUrl)) {
+          dmEmbed.setURL(dmJellyfinUrl);
+        }
+        dmEmbed
           .setColor(process.env.EMBED_COLOR_SUCCESS || "#a6e3a1")
           .setDescription(
             `${
@@ -700,20 +721,18 @@ async function processAndSendNotification(
           dmEmbed.setImage(backdropUrl);
         }
 
-        const dmButtons = new ActionRowBuilder().addComponents(
+        const dmButtons = isValidUrl(dmJellyfinUrl) ? new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setStyle(ButtonStyle.Link)
             .setLabel("▶ Watch Now!")
-            .setURL(
-              buildJellyfinUrl(
-                ServerUrl,
-                "web/index.html",
-                `!/details?id=${ItemId}&serverId=${ServerId}`
-              )
-            )
-        );
+            .setURL(dmJellyfinUrl)
+        ) : null;
 
-        await user.send({ embeds: [dmEmbed], components: [dmButtons] });
+        const messageOptions = { embeds: [dmEmbed] };
+        if (dmButtons) {
+          messageOptions.components = [dmButtons];
+        }
+        await user.send(messageOptions);
         logger.info(`Sent DM notification to user ${userId} for ${embedTitle}`);
       } catch (err) {
         logger.error(
