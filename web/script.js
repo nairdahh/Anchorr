@@ -2159,7 +2159,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (error) {}
   }
 
-  function displayMappings() {
+  async function displayMappings() {
     const container = document.getElementById("mappings-list");
     if (!container) return;
 
@@ -2169,67 +2169,101 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    container.innerHTML = currentMappings
-      .map((mapping) => {
-        // Always prefer saved display names, fallback to IDs only if nothing saved
-        const discordName = mapping.discordDisplayName
-          ? `${mapping.discordDisplayName}${
-              mapping.discordUsername ? ` (@${mapping.discordUsername})` : ""
-            }`
-          : mapping.discordUsername
-          ? `@${mapping.discordUsername}`
-          : `Discord ID: ${mapping.discordUserId}`;
+    // First render mappings without admin badges (faster initial load)
+    const renderMappings = (adminUserIds = new Set()) => {
+      container.innerHTML = currentMappings
+        .map((mapping) => {
+          // Always prefer saved display names, fallback to IDs only if nothing saved
+          const discordName = mapping.discordDisplayName
+            ? `${mapping.discordDisplayName}${
+                mapping.discordUsername ? ` (@${mapping.discordUsername})` : ""
+              }`
+            : mapping.discordUsername
+            ? `@${mapping.discordUsername}`
+            : `Discord ID: ${mapping.discordUserId}`;
 
-        // Dynamic lookup for Jellyseerr user to ensure fresh data
-        let jellyseerrName = mapping.jellyseerrDisplayName;
-        const jellyseerrUser = jellyseerrUsers.find(
-          (u) => String(u.id) === String(mapping.jellyseerrUserId)
-        );
-
-        if (jellyseerrUser) {
-          jellyseerrName = jellyseerrUser.displayName;
-          if (jellyseerrUser.email) {
-            jellyseerrName += ` (${jellyseerrUser.email})`;
-          }
-        } else if (!jellyseerrName) {
-          jellyseerrName = `Jellyseerr ID: ${mapping.jellyseerrUserId}`;
-        }
-
-        // Avatar priority: saved in mapping -> find from loaded members -> no avatar
-        let avatarUrl = mapping.discordAvatar;
-        if (!avatarUrl) {
-          const discordMember = discordMembers.find(
-            (m) => m.id === mapping.discordUserId
+          // Dynamic lookup for Jellyseerr user to ensure fresh data
+          let jellyseerrName = mapping.jellyseerrDisplayName;
+          const jellyseerrUser = jellyseerrUsers.find(
+            (u) => String(u.id) === String(mapping.jellyseerrUserId)
           );
-          avatarUrl = discordMember?.avatar;
-        }
 
-        const avatarHtml = avatarUrl
-          ? `<img src="${avatarUrl}" style="width: 42px; height: 42px; border-radius: 50%; margin-right: 0.75rem; flex-shrink: 0;" alt="${discordName}">`
-          : "";
+          if (jellyseerrUser) {
+            jellyseerrName = jellyseerrUser.displayName;
+            if (jellyseerrUser.email) {
+              jellyseerrName += ` (${jellyseerrUser.email})`;
+            }
+          } else if (!jellyseerrName) {
+            jellyseerrName = `Jellyseerr ID: ${mapping.jellyseerrUserId}`;
+          }
 
-        return `
-        <div class="mapping-item">
-          <div style="display: flex; align-items: center;">
-            ${avatarHtml}
-            <div>
-              <div style="font-weight: 600; color: var(--blue);">${escapeHtml(
-                discordName
-              )}</div>
-              <div style="opacity: 0.8; font-size: 0.9rem;">→ Jellyseerr: ${escapeHtml(
-                jellyseerrName
-              )}</div>
+          // Avatar priority: saved in mapping -> find from loaded members -> no avatar
+          let avatarUrl = mapping.discordAvatar;
+          if (!avatarUrl) {
+            const discordMember = discordMembers.find(
+              (m) => m.id === mapping.discordUserId
+            );
+            avatarUrl = discordMember?.avatar;
+          }
+
+          const avatarHtml = avatarUrl
+            ? `<img src="${avatarUrl}" style="width: 42px; height: 42px; border-radius: 50%; margin-right: 0.75rem; flex-shrink: 0;" alt="${discordName}">`
+            : "";
+
+          // Check if this user is an admin
+          const isAdmin = adminUserIds.has(mapping.discordUserId);
+          const adminBadge = isAdmin 
+            ? `<span class="admin-badge"><i class="bi bi-shield-check"></i>Admin</span>`
+            : adminUserIds.size === 0 && currentMappings.length > 0
+            ? `<span class="admin-badge" style="background: var(--surface2); color: var(--subtext1);"><i class="bi bi-hourglass-split"></i>Checking...</span>`
+            : '';
+
+          return `
+          <div class="mapping-item">
+            <div style="display: flex; align-items: center;">
+              ${avatarHtml}
+              <div style="flex: 1;">
+                <div style="font-weight: 600; color: var(--blue); display: flex; align-items: center; flex-wrap: wrap;">
+                  ${escapeHtml(discordName)}${adminBadge}
+                </div>
+                <div style="opacity: 0.8; font-size: 0.9rem;">→ Jellyseerr: ${escapeHtml(
+                  jellyseerrName
+                )}</div>
+              </div>
             </div>
+            <button class="btn btn-danger btn-sm" onclick="deleteMapping('${
+              mapping.discordUserId
+            }')" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+              <i class="bi bi-trash"></i> Remove
+            </button>
           </div>
-          <button class="btn btn-danger btn-sm" onclick="deleteMapping('${
-            mapping.discordUserId
-          }')" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
-            <i class="bi bi-trash"></i> Remove
-          </button>
-        </div>
-      `;
-      })
-      .join("");
+        `;
+        })
+        .join("");
+    };
+
+    // Render with loading states first
+    renderMappings();
+
+    // Fetch admin users and re-render
+    try {
+      const adminResponse = await fetch("/api/jellyseerr/admin-users");
+      if (adminResponse.ok) {
+        const adminData = await adminResponse.json();
+        const adminUsers = adminData.success ? adminData.adminUsers : [];
+        const adminUserIds = new Set(adminUsers.map(user => user.discordUserId));
+        
+        // Re-render with admin badges
+        renderMappings(adminUserIds);
+      } else {
+        // Re-render without loading states if fetch failed
+        renderMappings();
+      }
+    } catch (error) {
+      console.warn("Failed to fetch admin users:", error);
+      // Re-render without loading states if fetch failed
+      renderMappings();
+    }
   }
 
   window.deleteMapping = async function (discordUserId) {

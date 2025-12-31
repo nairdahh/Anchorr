@@ -1430,6 +1430,28 @@ input:checked + .slider:before {
   font-size: 1.2rem;
 }
 
+/* Admin Badge */
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: linear-gradient(135deg, rgba(203, 166, 247, 0.15) 0%, rgba(137, 180, 250, 0.15) 100%);
+  color: var(--mauve);
+  border: 1px solid rgba(203, 166, 247, 0.3);
+  padding: 0.25rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-left: 0.5rem;
+  flex-shrink: 0;
+}
+
+.admin-badge i {
+  font-size: 0.8rem;
+}
+
 /* Remove grid layout as we now use panes */
 .form-grid {
   display: block;

@@ -482,3 +482,150 @@ export async function sendRequest({
     throw err;
   }
 }
+
+/**
+ * Approve a request in Jellyseerr
+ * @param {Object} params - Request parameters
+ * @returns {Promise<Object>} Response data
+ */
+export async function approveRequest({
+  requestId,
+  jellyseerrUrl,
+  apiKey
+}) {
+  try {
+    logger.debug(`Approving Jellyseerr request ${requestId}`);
+    const response = await axios.post(`${jellyseerrUrl}/request/${requestId}/approve`, {}, {
+      headers: { "X-Api-Key": apiKey },
+      timeout: TIMEOUTS.JELLYSEERR_POST,
+    });
+    logger.info(`✅ Successfully approved request ${requestId}`);
+    return response.data;
+  } catch (err) {
+    logger.error(
+      `❌ Failed to approve request ${requestId}:`,
+      err?.response?.data || err?.message || err
+    );
+    throw err;
+  }
+}
+
+/**
+ * Reject/decline a request in Jellyseerr
+ * @param {Object} params - Request parameters
+ * @returns {Promise<Object>} Response data
+ */
+export async function rejectRequest({
+  requestId,
+  jellyseerrUrl,
+  apiKey
+}) {
+  try {
+    logger.debug(`Rejecting Jellyseerr request ${requestId}`);
+    const response = await axios.delete(`${jellyseerrUrl}/request/${requestId}`, {
+      headers: { "X-Api-Key": apiKey },
+      timeout: TIMEOUTS.JELLYSEERR_POST,
+    });
+    logger.info(`✅ Successfully rejected request ${requestId}`);
+    return response.data;
+  } catch (err) {
+    logger.error(
+      `❌ Failed to reject request ${requestId}:`,
+      err?.response?.data || err?.message || err
+    );
+    throw err;
+  }
+}
+
+/**
+ * Get request details by TMDB ID and media type
+ * @param {Object} params - Request parameters
+ * @returns {Promise<Object|null>} Request data or null if not found
+ */
+export async function getRequestByTmdbId({
+  tmdbId,
+  mediaType,
+  jellyseerrUrl,
+  apiKey
+}) {
+  try {
+    logger.debug(`Looking up request for TMDB ID ${tmdbId} (${mediaType})`);
+    const response = await axios.get(`${jellyseerrUrl}/request?take=50&filter=all&sort=added`, {
+      headers: { "X-Api-Key": apiKey },
+      timeout: TIMEOUTS.JELLYSEERR_API,
+    });
+
+    // Find the request with matching TMDB ID and media type
+    const request = response.data.results?.find(req => 
+      req.media?.tmdbId === tmdbId && 
+      req.type === (mediaType === "tv" ? "tv" : "movie")
+    );
+
+    if (request) {
+      logger.debug(`Found request ${request.id} for TMDB ID ${tmdbId}`);
+      return request;
+    } else {
+      logger.debug(`No pending request found for TMDB ID ${tmdbId} (${mediaType})`);
+      return null;
+    }
+  } catch (err) {
+    logger.error(
+      `❌ Failed to lookup request for TMDB ID ${tmdbId}:`,
+      err?.response?.data || err?.message || err
+    );
+    throw err;
+  }
+}
+
+/**
+ * Check if a Discord user has admin permissions in Jellyseerr
+ * @param {Object} params - Request parameters
+ * @returns {Promise<boolean>} True if user has admin permissions
+ */
+export async function hasAdminPermissions({
+  discordUserId,
+  jellyseerrUrl,
+  apiKey,
+  userMappings = {}
+}) {
+  try {
+    // First, get the Jellyseerr user ID from mappings
+    const mappings = typeof userMappings === "string" ? JSON.parse(userMappings) : userMappings;
+    let jellyseerrUserId = null;
+
+    if (Array.isArray(mappings)) {
+      const mapping = mappings.find(m => m.discordUserId === discordUserId);
+      if (mapping) {
+        jellyseerrUserId = mapping.jellyseerrUserId;
+      }
+    } else if (mappings && typeof mappings === "object" && mappings[discordUserId]) {
+      jellyseerrUserId = mappings[discordUserId];
+    }
+
+    if (!jellyseerrUserId) {
+      logger.debug(`No Jellyseerr mapping found for Discord user ${discordUserId}`);
+      return false;
+    }
+
+    // Get user details from Jellyseerr
+    const response = await axios.get(`${jellyseerrUrl}/user/${jellyseerrUserId}`, {
+      headers: { "X-Api-Key": apiKey },
+      timeout: TIMEOUTS.JELLYSEERR_API,
+    });
+
+    const user = response.data;
+    
+    // Check if user has admin or manage requests permissions
+    // Jellyseerr permissions: 1 = Admin, 2 = Manage Requests
+    const hasPermissions = (user.permissions & 1) === 1 || (user.permissions & 2) === 2;
+    
+    logger.debug(`User ${jellyseerrUserId} has admin permissions: ${hasPermissions} (permissions: ${user.permissions})`);
+    return hasPermissions;
+  } catch (err) {
+    logger.error(
+      `❌ Failed to check admin permissions for Discord user ${discordUserId}:`,
+      err?.response?.data || err?.message || err
+    );
+    return false;
+  }
+}
