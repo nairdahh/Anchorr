@@ -589,6 +589,43 @@ export async function hasAdminPermissions({
   userMappings = {}
 }) {
   try {
+    const userPermissions = await getUserPermissions({
+      discordUserId,
+      jellyseerrUrl,
+      apiKey,
+      userMappings
+    });
+
+    if (!userPermissions.hasMapping || !userPermissions.isValid) {
+      return false;
+    }
+
+    // Import permissions system
+    const { canApproveRequests } = await import('../lib/permissions.js');
+    
+    // Check if user can approve requests (admin or manage requests permission)
+    return canApproveRequests(userPermissions.permissions);
+  } catch (err) {
+    logger.error(
+      `❌ Failed to check admin permissions for Discord user ${discordUserId}:`,
+      err?.message || err
+    );
+    return false;
+  }
+}
+
+/**
+ * Get user permissions and details from Jellyseerr
+ * @param {Object} params - Request parameters
+ * @returns {Promise<Object>} User permissions object
+ */
+export async function getUserPermissions({
+  discordUserId,
+  jellyseerrUrl,
+  apiKey,
+  userMappings = {}
+}) {
+  try {
     // First, get the Jellyseerr user ID from mappings
     const mappings = typeof userMappings === "string" ? JSON.parse(userMappings) : userMappings;
     let jellyseerrUserId = null;
@@ -604,28 +641,66 @@ export async function hasAdminPermissions({
 
     if (!jellyseerrUserId) {
       logger.debug(`No Jellyseerr mapping found for Discord user ${discordUserId}`);
-      return false;
+      return { hasMapping: false, permissionType: 'unmapped', isValid: false };
     }
 
     // Get user details from Jellyseerr
-    const response = await axios.get(`${jellyseerrUrl}/user/${jellyseerrUserId}`, {
+    const response = await axios.get(`${jellyseerrUrl}/api/v1/user/${jellyseerrUserId}`, {
       headers: { "X-Api-Key": apiKey },
       timeout: TIMEOUTS.JELLYSEERR_API,
     });
 
     const user = response.data;
     
-    // Check if user has admin or manage requests permissions
-    // Jellyseerr permissions: 1 = Admin, 2 = Manage Requests
-    const hasPermissions = (user.permissions & 1) === 1 || (user.permissions & 2) === 2;
+    if (!user) {
+      logger.error(`No user data received from Jellyseerr API for user ID ${jellyseerrUserId}`);
+      return { hasMapping: true, permissionType: 'error', isValid: false };
+    }
     
-    logger.debug(`User ${jellyseerrUserId} has admin permissions: ${hasPermissions} (permissions: ${user.permissions})`);
-    return hasPermissions;
+    // Extract and validate permissions
+    let userPermissions = 0;
+    if (user.permissions !== undefined && user.permissions !== null) {
+      userPermissions = parseInt(user.permissions) || 0;
+    }
+    
+    // Import and use the centralized permission system
+    const { analyzePermissions, debugPermissions } = await import('../lib/permissions.js');
+    
+    // Get detailed permission analysis
+    const analysis = analyzePermissions(userPermissions);
+    
+    // Debug logging
+    debugPermissions(jellyseerrUserId, userPermissions);
+    
+    // Enhanced logging for debugging
+    logger.debug(`User ${jellyseerrUserId} permissions analysis:`, {
+      discordUserId,
+      jellyseerrUserId,
+      rawPermissions: userPermissions,
+      permissionType: analysis.permissionType,
+      isValid: analysis.isValid,
+      userDisplayName: user.displayName,
+      userEmail: user.email,
+      capabilities: analysis.capabilities
+    });
+    
+    return {
+      hasMapping: true,
+      permissionType: analysis.permissionType,
+      isValid: analysis.isValid,
+      rawPermissions: userPermissions,
+      permissions: userPermissions,
+      jellyseerrUserId,
+      jellyseerrDisplayName: user.displayName,
+      
+      // Include all capabilities from analysis
+      ...analysis.capabilities
+    };
   } catch (err) {
     logger.error(
-      `❌ Failed to check admin permissions for Discord user ${discordUserId}:`,
+      `❌ Failed to get permissions for Discord user ${discordUserId}:`,
       err?.response?.data || err?.message || err
     );
-    return false;
+    return { hasMapping: true, permissionType: 'error', isValid: false };
   }
 }

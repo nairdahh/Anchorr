@@ -2526,11 +2526,20 @@ function configureWebServer() {
 
       const users = usersResponse.data.results || [];
       
-      // Filter users who have admin or manage requests permissions
-      const adminUsers = users.filter(user => {
-        // Jellyseerr permissions: 1 = Admin, 2 = Manage Requests
-        return (user.permissions & 1) === 1 || (user.permissions & 2) === 2;
-      });
+      const adminUsers = [];
+      for (const user of users) {
+        try {
+          // Import permissions system dynamically
+          const { canApproveRequests } = await import('./lib/permissions.js');
+          
+          // Check if user has admin or management permissions using the correct constants
+          if (canApproveRequests(user.permissions)) {
+            adminUsers.push(user);
+          }
+        } catch (error) {
+          logger.warn(`Error checking permissions for user ${user.id}:`, error);
+        }
+      }
 
       // Get user mappings to find corresponding Discord users
       const mappings = getUserMappings();
@@ -2557,7 +2566,145 @@ function configureWebServer() {
       logger.error("Error fetching admin users:", error);
       res.status(500).json({ 
         success: false, 
-        message: "Failed to fetch admin users" 
+        message: "Failed to fetch admin users"
+      });
+    }
+  });
+
+  // Get user permissions from Jellyseerr (for detailed badges in mappings)
+  app.get("/api/jellyseerr/user-permissions", authenticateToken, async (req, res) => {
+    try {
+      const jellyseerrUrl = process.env.JELLYSEERR_URL;
+      const apiKey = process.env.JELLYSEERR_API_KEY;
+      
+      if (!jellyseerrUrl || !apiKey) {
+        logger.warn("Jellyseerr configuration missing for user permissions check");
+        return res.status(400).json({ 
+          success: false, 
+          message: "Jellyseerr configuration missing" 
+        });
+      }
+
+      const baseUrl = jellyseerrUrl.replace(/\/+$/, "");
+
+      // Get user mappings
+      const mappings = getUserMappings();
+      logger.debug(`Found ${mappings.length} user mappings for permissions check`);
+      
+      const userPermissions = {};
+      
+      // Get permissions for each mapped Discord user
+      for (const mapping of mappings) {
+        try {
+          logger.debug(`Checking permissions for Discord user ${mapping.discordUserId} -> Jellyseerr user ${mapping.jellyseerrUserId}`);
+          const permissions = await jellyseerrApi.getUserPermissions({
+            discordUserId: mapping.discordUserId,
+            jellyseerrUrl: baseUrl,
+            apiKey,
+            userMappings: mappings
+          });
+          userPermissions[mapping.discordUserId] = permissions;
+          logger.debug(`Successfully retrieved permissions for ${mapping.discordUserId}:`, permissions);
+        } catch (error) {
+          logger.error(`Error getting permissions for user ${mapping.discordUserId}:`, error);
+          userPermissions[mapping.discordUserId] = { hasMapping: true, permissionType: 'error' };
+        }
+      }
+      
+      logger.debug(`Returning permissions for ${Object.keys(userPermissions).length} users`);
+      res.json({
+        success: true,
+        userPermissions
+      });
+    } catch (error) {
+      logger.error("Error fetching user permissions:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to fetch user permissions"
+      });
+    }
+  });
+  
+  // Debug endpoint for testing permission badges
+  app.get("/api/debug/test-permissions", authenticateToken, async (req, res) => {
+    try {
+      const jellyseerrUrl = process.env.JELLYSEERR_URL;
+      const apiKey = process.env.JELLYSEERR_API_KEY;
+      
+      if (!jellyseerrUrl || !apiKey) {
+        return res.json({
+          success: false,
+          message: "Jellyseerr not configured",
+          debug: {
+            hasUrl: !!jellyseerrUrl,
+            hasApiKey: !!apiKey
+          }
+        });
+      }
+      
+      const baseUrl = jellyseerrUrl.replace(/\/+$/, "");
+      
+      // Test with a sample user ID (first user in Jellyseerr)
+      try {
+        const usersResponse = await axios.get(`${baseUrl}/user?take=10&skip=0`, {
+          headers: { "X-Api-Key": apiKey },
+          timeout: TIMEOUTS.JELLYSEERR_API,
+        });
+        
+        const users = usersResponse.data?.results || [];
+        logger.debug(`Found ${users.length} Jellyseerr users for permission testing`);
+        
+        const testResults = [];
+        
+        for (const user of users.slice(0, 3)) { // Test first 3 users
+          try {
+            // Import permissions system
+            const { Permission, analyzePermissions } = await import('./lib/permissions.js');
+            
+            const permissions = user.permissions;
+            const analysis = analyzePermissions(permissions);
+            
+            testResults.push({
+              userId: user.id,
+              displayName: user.displayName,
+              email: user.email,
+              rawPermissions: permissions,
+              permissionsBinary: permissions.toString(2),
+              permissionType: analysis.permissionType,
+              isValid: analysis.isValid,
+              capabilities: analysis.capabilities
+            });
+          } catch (err) {
+            testResults.push({
+              userId: user.id,
+              error: err.message
+            });
+          }
+        }
+        
+        res.json({
+          success: true,
+          jellyseerrUrl: baseUrl,
+          totalUsers: users.length,
+          testResults
+        });
+        
+      } catch (apiError) {
+        logger.error("Error testing Jellyseerr API:", apiError);
+        res.json({
+          success: false,
+          message: "Failed to connect to Jellyseerr API",
+          error: apiError.message,
+          jellyseerrUrl: baseUrl
+        });
+      }
+      
+    } catch (error) {
+      logger.error("Debug permissions test error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Debug test failed",
+        error: error.message
       });
     }
   });

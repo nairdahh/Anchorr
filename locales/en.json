@@ -210,6 +210,11 @@
     "loading": "Loading...",
     "checking": "Checking...",
     "admin": "Admin",
+    "manager": "Manager", 
+    "auto_approve": "Auto-Approve",
+    "user": "User",
+    "error": "Error",
+    "unknown": "Unknown",
     "save_button": "Save Settings"
   },
   "ui": {

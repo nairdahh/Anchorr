@@ -2169,8 +2169,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    // First render mappings without admin badges (faster initial load)
-    const renderMappings = (adminUserIds = new Set()) => {
+    // First render mappings without permission badges (faster initial load)
+    const renderMappings = (userPermissions = {}) => {
       container.innerHTML = currentMappings
         .map((mapping) => {
           // Always prefer saved display names, fallback to IDs only if nothing saved
@@ -2210,13 +2210,54 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? `<img src="${avatarUrl}" style="width: 42px; height: 42px; border-radius: 50%; margin-right: 0.75rem; flex-shrink: 0;" alt="${discordName}">`
             : "";
 
-          // Check if this user is an admin
-          const isAdmin = adminUserIds.has(mapping.discordUserId);
-          const adminBadge = isAdmin 
-            ? `<span class="admin-badge"><i class="bi bi-shield-check"></i>Admin</span>`
-            : adminUserIds.size === 0 && currentMappings.length > 0
-            ? `<span class="admin-badge" style="background: var(--surface2); color: var(--subtext1);"><i class="bi bi-hourglass-split"></i>Checking...</span>`
-            : '';
+          // Get user permissions for this Discord user
+          const permissions = userPermissions[mapping.discordUserId];
+          let permissionBadge = '';
+          
+          if (!permissions) {
+            // Still loading permissions
+            permissionBadge = Object.keys(userPermissions).length === 0 && currentMappings.length > 0
+              ? `<span class="admin-badge" style="background: var(--surface2); color: var(--subtext1);"><i class="bi bi-hourglass-split"></i>${window.i18n?.status?.checking || 'Checking...'}</span>`
+              : '';
+          } else if (!permissions.hasMapping) {
+            // No mapping found - shouldn't happen in this context
+            permissionBadge = '';
+          } else {
+            // Generate badge based on permission type
+            let permissionType = permissions.permissionType;
+            
+            // Additional validation: if user has valid permissions but is classified as user,
+            // and has high permission values, this may indicate a permission parsing issue
+            if (permissionType === 'user' && permissions.isValid && permissions.rawPermissions > 100) {
+              console.warn('Client: Potential permission parsing issue - user has high permissions but classified as user:', permissions);
+            }
+            
+            switch (permissionType) {
+              case 'admin':
+                permissionBadge = `<span class="admin-badge" style="background: var(--red); color: var(--crust);"><i class="bi bi-shield-fill"></i> ${window.i18n?.status?.admin || 'Admin'}</span>`;
+                break;
+              case 'manager':
+                permissionBadge = `<span class="admin-badge" style="background: var(--peach); color: var(--crust);"><i class="bi bi-gear-fill"></i> ${window.i18n?.status?.manager || 'Manager'}</span>`;
+                break;
+              case 'auto-approve':
+                permissionBadge = `<span class="admin-badge" style="background: var(--green); color: var(--crust);"><i class="bi bi-check-circle-fill"></i> ${window.i18n?.status?.auto_approve || 'Auto-Approve'}</span>`;
+                break;
+              case 'user':
+                permissionBadge = `<span class="admin-badge" style="background: var(--blue); color: var(--crust);"><i class="bi bi-person-fill"></i> ${window.i18n?.status?.user || 'User'}</span>`;
+                break;
+              case 'error':
+                permissionBadge = `<span class="admin-badge" style="background: var(--surface2); color: var(--subtext1);"><i class="bi bi-exclamation-triangle"></i> ${window.i18n?.status?.error || 'Error'}</span>`;
+                break;
+              case 'unmapped':
+                // This shouldn't happen in the mapping context, but handle it gracefully
+                permissionBadge = `<span class="admin-badge" style="background: var(--surface2); color: var(--subtext1);"><i class="bi bi-question-circle"></i> ${window.i18n?.status?.unmapped || 'Unmapped'}</span>`;
+                break;
+              default:
+                console.warn('Unknown permission type:', permissionType, permissions);
+                permissionBadge = `<span class="admin-badge" style="background: var(--surface2); color: var(--subtext1);"><i class="bi bi-question-circle"></i> ${window.i18n?.status?.unknown || 'Unknown'}</span>`;
+                break;
+            }
+          }
 
           return `
           <div class="mapping-item">
@@ -2224,7 +2265,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               ${avatarHtml}
               <div style="flex: 1;">
                 <div style="font-weight: 600; color: var(--blue); display: flex; align-items: center; flex-wrap: wrap;">
-                  ${escapeHtml(discordName)}${adminBadge}
+                  ${escapeHtml(discordName)}${permissionBadge}
                 </div>
                 <div style="opacity: 0.8; font-size: 0.9rem;">→ Jellyseerr: ${escapeHtml(
                   jellyseerrName
@@ -2245,24 +2286,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Render with loading states first
     renderMappings();
 
-    // Fetch admin users and re-render
+    // Fetch user permissions and re-render
     try {
-      const adminResponse = await fetch("/api/jellyseerr/admin-users");
-      if (adminResponse.ok) {
-        const adminData = await adminResponse.json();
-        const adminUsers = adminData.success ? adminData.adminUsers : [];
-        const adminUserIds = new Set(adminUsers.map(user => user.discordUserId));
+      const permissionsResponse = await fetch("/api/jellyseerr/user-permissions");
+      if (permissionsResponse.ok) {
+        const permissionsData = await permissionsResponse.json();
+        const userPermissions = permissionsData.success ? permissionsData.userPermissions : {};
         
-        // Re-render with admin badges
-        renderMappings(adminUserIds);
+        // Re-render with permission badges
+        renderMappings(userPermissions);
       } else {
         // Re-render without loading states if fetch failed
-        renderMappings();
+        renderMappings({});
       }
     } catch (error) {
-      console.warn("Failed to fetch admin users:", error);
+      console.warn("Failed to fetch user permissions:", error);
       // Re-render without loading states if fetch failed
-      renderMappings();
+      renderMappings({});
     }
   }
 

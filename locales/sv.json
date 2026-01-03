@@ -210,6 +210,11 @@
     "loading": "Laddar...",
     "checking": "Kontrollerar...",
     "admin": "Admin",
+    "manager": "Förvaltare",
+    "auto_approve": "Auto-godkänn",
+    "user": "Användare", 
+    "error": "Fel",
+    "unknown": "Okänd",
     "save_button": "Spara inställningar"
   },
   "ui": {
