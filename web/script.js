@@ -2159,7 +2159,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (error) {}
   }
 
-  function displayMappings() {
+  async function displayMappings() {
     const container = document.getElementById("mappings-list");
     if (!container) return;
 
@@ -2169,67 +2169,144 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    container.innerHTML = currentMappings
-      .map((mapping) => {
-        // Always prefer saved display names, fallback to IDs only if nothing saved
-        const discordName = mapping.discordDisplayName
-          ? `${mapping.discordDisplayName}${
-              mapping.discordUsername ? ` (@${mapping.discordUsername})` : ""
-            }`
-          : mapping.discordUsername
-          ? `@${mapping.discordUsername}`
-          : `Discord ID: ${mapping.discordUserId}`;
+    // First render mappings without permission badges (faster initial load)
+    const renderMappings = (userPermissions = {}) => {
+      container.innerHTML = currentMappings
+        .map((mapping) => {
+          // Always prefer saved display names, fallback to IDs only if nothing saved
+          const discordName = mapping.discordDisplayName
+            ? `${mapping.discordDisplayName}${
+                mapping.discordUsername ? ` (@${mapping.discordUsername})` : ""
+              }`
+            : mapping.discordUsername
+            ? `@${mapping.discordUsername}`
+            : `Discord ID: ${mapping.discordUserId}`;
 
-        // Dynamic lookup for Jellyseerr user to ensure fresh data
-        let jellyseerrName = mapping.jellyseerrDisplayName;
-        const jellyseerrUser = jellyseerrUsers.find(
-          (u) => String(u.id) === String(mapping.jellyseerrUserId)
-        );
-
-        if (jellyseerrUser) {
-          jellyseerrName = jellyseerrUser.displayName;
-          if (jellyseerrUser.email) {
-            jellyseerrName += ` (${jellyseerrUser.email})`;
-          }
-        } else if (!jellyseerrName) {
-          jellyseerrName = `Jellyseerr ID: ${mapping.jellyseerrUserId}`;
-        }
-
-        // Avatar priority: saved in mapping -> find from loaded members -> no avatar
-        let avatarUrl = mapping.discordAvatar;
-        if (!avatarUrl) {
-          const discordMember = discordMembers.find(
-            (m) => m.id === mapping.discordUserId
+          // Dynamic lookup for Jellyseerr user to ensure fresh data
+          let jellyseerrName = mapping.jellyseerrDisplayName;
+          const jellyseerrUser = jellyseerrUsers.find(
+            (u) => String(u.id) === String(mapping.jellyseerrUserId)
           );
-          avatarUrl = discordMember?.avatar;
-        }
 
-        const avatarHtml = avatarUrl
-          ? `<img src="${avatarUrl}" style="width: 42px; height: 42px; border-radius: 50%; margin-right: 0.75rem; flex-shrink: 0;" alt="${discordName}">`
-          : "";
+          if (jellyseerrUser) {
+            jellyseerrName = jellyseerrUser.displayName;
+            if (jellyseerrUser.email) {
+              jellyseerrName += ` (${jellyseerrUser.email})`;
+            }
+          } else if (!jellyseerrName) {
+            jellyseerrName = `Jellyseerr ID: ${mapping.jellyseerrUserId}`;
+          }
 
-        return `
-        <div class="mapping-item">
-          <div style="display: flex; align-items: center;">
-            ${avatarHtml}
-            <div>
-              <div style="font-weight: 600; color: var(--blue);">${escapeHtml(
-                discordName
-              )}</div>
-              <div style="opacity: 0.8; font-size: 0.9rem;">→ Jellyseerr: ${escapeHtml(
-                jellyseerrName
-              )}</div>
+          // Avatar priority: saved in mapping -> find from loaded members -> no avatar
+          let avatarUrl = mapping.discordAvatar;
+          if (!avatarUrl) {
+            const discordMember = discordMembers.find(
+              (m) => m.id === mapping.discordUserId
+            );
+            avatarUrl = discordMember?.avatar;
+          }
+
+          const avatarHtml = avatarUrl
+            ? `<img src="${avatarUrl}" style="width: 42px; height: 42px; border-radius: 50%; margin-right: 0.75rem; flex-shrink: 0;" alt="${discordName}">`
+            : "";
+
+          // Get user permissions for this Discord user
+          const permissions = userPermissions[mapping.discordUserId];
+          let permissionBadge = '';
+          
+          if (!permissions) {
+            // Still loading permissions
+            permissionBadge = Object.keys(userPermissions).length === 0 && currentMappings.length > 0
+              ? `<span class="admin-badge" style="background: var(--surface2); color: var(--subtext1);"><i class="bi bi-hourglass-split"></i>${window.i18n?.status?.checking || 'Checking...'}</span>`
+              : '';
+          } else if (!permissions.hasMapping) {
+            // No mapping found - shouldn't happen in this context
+            permissionBadge = '';
+          } else {
+            // Generate badge based on permission type
+            let permissionType = permissions.permissionType;
+            
+            // Additional validation: if user has valid permissions but is classified as user,
+            // and has high permission values, this may indicate a permission parsing issue
+            if (permissionType === 'user' && permissions.isValid && permissions.rawPermissions > 100) {
+              console.warn('Client: Potential permission parsing issue - user has high permissions but classified as user:', permissions);
+            }
+            
+            switch (permissionType) {
+              case 'admin':
+                permissionBadge = `<span class="admin-badge" style="background: var(--red); color: var(--crust);"><i class="bi bi-shield-fill"></i> ${window.i18n?.status?.admin || 'Admin'}</span>`;
+                break;
+              case 'request-manager':
+                permissionBadge = `<span class="admin-badge" style="background: var(--mauve); color: var(--crust);"><i class="bi bi-check2-square"></i> ${window.i18n?.status?.request_manager || 'Request Manager'}</span>`;
+                break;
+              case 'manager':
+                permissionBadge = `<span class="admin-badge" style="background: var(--peach); color: var(--crust);"><i class="bi bi-gear-fill"></i> ${window.i18n?.status?.manager || 'Manager'}</span>`;
+                break;
+              case 'auto-approve':
+                permissionBadge = `<span class="admin-badge" style="background: var(--green); color: var(--crust);"><i class="bi bi-check-circle-fill"></i> ${window.i18n?.status?.auto_approve || 'Auto-Approve'}</span>`;
+                break;
+              case 'user':
+                permissionBadge = `<span class="admin-badge" style="background: var(--blue); color: var(--crust);"><i class="bi bi-person-fill"></i> ${window.i18n?.status?.user || 'User'}</span>`;
+                break;
+              case 'error':
+                permissionBadge = `<span class="admin-badge" style="background: var(--surface2); color: var(--subtext1);"><i class="bi bi-exclamation-triangle"></i> ${window.i18n?.status?.error || 'Error'}</span>`;
+                break;
+              case 'unmapped':
+                // This shouldn't happen in the mapping context, but handle it gracefully
+                permissionBadge = `<span class="admin-badge" style="background: var(--surface2); color: var(--subtext1);"><i class="bi bi-question-circle"></i> ${window.i18n?.status?.unmapped || 'Unmapped'}</span>`;
+                break;
+              default:
+                console.warn('Unknown permission type:', permissionType, permissions);
+                permissionBadge = `<span class="admin-badge" style="background: var(--surface2); color: var(--subtext1);"><i class="bi bi-question-circle"></i> ${window.i18n?.status?.unknown || 'Unknown'}</span>`;
+                break;
+            }
+          }
+
+          return `
+          <div class="mapping-item">
+            <div style="display: flex; align-items: center;">
+              ${avatarHtml}
+              <div style="flex: 1;">
+                <div style="font-weight: 600; color: var(--blue); display: flex; align-items: center; flex-wrap: wrap;">
+                  ${escapeHtml(discordName)}${permissionBadge}
+                </div>
+                <div style="opacity: 0.8; font-size: 0.9rem;">→ Jellyseerr: ${escapeHtml(
+                  jellyseerrName
+                )}</div>
+              </div>
             </div>
+            <button class="btn btn-danger btn-sm" onclick="deleteMapping('${
+              mapping.discordUserId
+            }')" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+              <i class="bi bi-trash"></i> Remove
+            </button>
           </div>
-          <button class="btn btn-danger btn-sm" onclick="deleteMapping('${
-            mapping.discordUserId
-          }')" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
-            <i class="bi bi-trash"></i> Remove
-          </button>
-        </div>
-      `;
-      })
-      .join("");
+        `;
+        })
+        .join("");
+    };
+
+    // Render with loading states first
+    renderMappings();
+
+    // Fetch user permissions and re-render
+    try {
+      const permissionsResponse = await fetch("/api/jellyseerr/user-permissions");
+      if (permissionsResponse.ok) {
+        const permissionsData = await permissionsResponse.json();
+        const userPermissions = permissionsData.success ? permissionsData.userPermissions : {};
+        
+        // Re-render with permission badges
+        renderMappings(userPermissions);
+      } else {
+        // Re-render without loading states if fetch failed
+        renderMappings({});
+      }
+    } catch (error) {
+      console.warn("Failed to fetch user permissions:", error);
+      // Re-render without loading states if fetch failed
+      renderMappings({});
+    }
   }
 
   window.deleteMapping = async function (discordUserId) {

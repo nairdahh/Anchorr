@@ -781,7 +781,7 @@ async function startBot() {
         // Parse quality and server
         const { profileId, serverId } = parseQualityAndServerOptions(options, mediaType);
 
-        await jellyseerrApi.sendRequest({
+        const requestResponse = await jellyseerrApi.sendRequest({
           tmdbId,
           mediaType,
           seasons: ["all"],
@@ -793,6 +793,9 @@ async function startBot() {
           discordUserId: interaction.user.id,
           userMappings: process.env.USER_MAPPINGS || {},
         });
+
+        // Extract request ID from response
+        const requestId = requestResponse?.id || null;
 
         // Track request for notifications if enabled
         if (process.env.NOTIFY_ON_AVAILABLE === "true") {
@@ -821,13 +824,43 @@ async function startBot() {
         tmdbId
       );
 
-      const components = buildButtons(
+      let components = buildButtons(
         tmdbId,
         imdbId,
         mode === "request",
         mediaType,
         details
       );
+
+      // Check admin permissions and add admin buttons if applicable (for direct requests)
+      if (mode === "request" && requestId && interaction.member) {
+        try {
+          const hasAdmin = await jellyseerrApi.hasAdminPermissions({
+            discordUserId: interaction.user.id,
+            jellyseerrUrl: JELLYSEERR_URL,
+            apiKey: JELLYSEERR_API_KEY,
+            userMappings: process.env.USER_MAPPINGS || {}
+          });
+
+          if (hasAdmin) {
+            const adminButtons = [
+              new ButtonBuilder()
+                .setCustomId(`approve_request|${requestId}|${tmdbId}|${mediaType}`)
+                .setLabel("✅ Approve")
+                .setStyle(ButtonStyle.Success),
+              new ButtonBuilder()
+                .setCustomId(`reject_request|${requestId}|${tmdbId}|${mediaType}`)
+                .setLabel("❌ Reject")
+                .setStyle(ButtonStyle.Danger)
+            ];
+
+            components.push(new ActionRowBuilder().addComponents(...adminButtons));
+          }
+        } catch (err) {
+          logger.error("Error checking admin permissions:", err);
+          // Continue without admin buttons if check fails
+        }
+      }
 
       // Add tag selector for movies (if in search mode and not already requested)
       if (mediaType === "movie" && mode === "search") {
@@ -1472,7 +1505,7 @@ async function startBot() {
           // Apply defaults from config
           const { profileId, serverId } = parseQualityAndServerOptions({}, mediaType);
 
-          await jellyseerrApi.sendRequest({
+          const requestResponse = await jellyseerrApi.sendRequest({
             tmdbId,
             mediaType,
             seasons: seasonsToRequest,
@@ -1484,6 +1517,9 @@ async function startBot() {
             discordUserId: interaction.user.id,
             userMappings: process.env.USER_MAPPINGS || {},
           });
+
+          // Extract request ID from response
+          const requestId = requestResponse?.id || null;
 
           // Track request for notifications if enabled
           if (process.env.NOTIFY_ON_AVAILABLE === "true") {
@@ -1511,15 +1547,49 @@ async function startBot() {
           );
 
           // Build final buttons with requested seasons and tag names (for display)
-          const components = buildButtons(
+          let components = buildButtons(
             tmdbId,
             imdbId,
             true,
             mediaType,
             details,
             selectedSeasons.length > 0 ? selectedSeasons : ["all"],
-            selectedTagNames
+            selectedTagNames,
+            [],
+            [],
+            null, // We'll add admin buttons separately
+            null
           );
+
+          // Check admin permissions and add admin buttons if applicable
+          if (requestId && interaction.member) {
+            try {
+              const hasAdmin = await jellyseerrApi.hasAdminPermissions({
+                discordUserId: interaction.user.id,
+                jellyseerrUrl: JELLYSEERR_URL,
+                apiKey: JELLYSEERR_API_KEY,
+                userMappings: process.env.USER_MAPPINGS || {}
+              });
+
+              if (hasAdmin) {
+                const adminButtons = [
+                  new ButtonBuilder()
+                    .setCustomId(`approve_request|${requestId}|${tmdbId}|${mediaType}`)
+                    .setLabel("✅ Approve")
+                    .setStyle(ButtonStyle.Success),
+                  new ButtonBuilder()
+                    .setCustomId(`reject_request|${requestId}|${tmdbId}|${mediaType}`)
+                    .setLabel("❌ Reject")
+                    .setStyle(ButtonStyle.Danger)
+                ];
+
+                components.push(new ActionRowBuilder().addComponents(...adminButtons));
+              }
+            } catch (err) {
+              logger.error("Error checking admin permissions:", err);
+              // Continue without admin buttons if check fails
+            }
+          }
 
           // Success message - always edit the original message
           await interaction.editReply({ embeds: [embed], components });
@@ -1757,6 +1827,181 @@ async function startBot() {
           }
         }
       }
+
+      // ===== APPROVE REQUEST HANDLER =====
+      // customId format: approve_request|requestId|tmdbId|mediaType
+      if (
+        interaction.isButton() &&
+        interaction.customId.startsWith("approve_request|")
+      ) {
+        const parts = interaction.customId.split("|");
+        const requestId = parseInt(parts[1], 10);
+        const tmdbId = parseInt(parts[2], 10);
+        const mediaType = parts[3] || "movie";
+
+        if (!requestId) {
+          return interaction.reply({ 
+            content: "⚠️ Invalid request ID.", 
+            flags: 64 
+          });
+        }
+
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+          // Check admin permissions
+          const hasAdmin = await jellyseerrApi.hasAdminPermissions({
+            discordUserId: interaction.user.id,
+            jellyseerrUrl: JELLYSEERR_URL,
+            apiKey: JELLYSEERR_API_KEY,
+            userMappings: process.env.USER_MAPPINGS || {}
+          });
+
+          if (!hasAdmin) {
+            return interaction.editReply({
+              content: "❌ You don't have permission to approve requests."
+            });
+          }
+
+          // Approve the request
+          await jellyseerrApi.approveRequest({
+            requestId,
+            jellyseerrUrl: JELLYSEERR_URL,
+            apiKey: JELLYSEERR_API_KEY
+          });
+
+          // Update the original message to show approval
+          try {
+            const originalMessage = interaction.message;
+            const updatedComponents = originalMessage.components.map(row => {
+              const newRow = new ActionRowBuilder();
+              row.components.forEach(component => {
+                if (component.customId && component.customId.startsWith("approve_request|")) {
+                  // Replace approve button with approved status
+                  newRow.addComponents(
+                    new ButtonBuilder()
+                      .setCustomId(`approved|${requestId}`)
+                      .setLabel("✅ Approved")
+                      .setStyle(ButtonStyle.Success)
+                      .setDisabled(true)
+                  );
+                } else if (component.customId && component.customId.startsWith("reject_request|")) {
+                  // Remove reject button
+                } else {
+                  // Keep other components as is
+                  newRow.addComponents(ButtonBuilder.from(component));
+                }
+              });
+              return newRow.components.length > 0 ? newRow : null;
+            }).filter(row => row !== null);
+
+            await interaction.message.edit({ 
+              embeds: originalMessage.embeds,
+              components: updatedComponents 
+            });
+          } catch (updateErr) {
+            logger.warn("Could not update original message:", updateErr);
+          }
+
+          await interaction.editReply({
+            content: `✅ Request #${requestId} has been approved successfully!`
+          });
+
+        } catch (err) {
+          logger.error("Error approving request:", err);
+          await interaction.editReply({
+            content: "❌ Failed to approve request. Please check the logs."
+          });
+        }
+      }
+
+      // ===== REJECT REQUEST HANDLER =====
+      // customId format: reject_request|requestId|tmdbId|mediaType
+      if (
+        interaction.isButton() &&
+        interaction.customId.startsWith("reject_request|")
+      ) {
+        const parts = interaction.customId.split("|");
+        const requestId = parseInt(parts[1], 10);
+        const tmdbId = parseInt(parts[2], 10);
+        const mediaType = parts[3] || "movie";
+
+        if (!requestId) {
+          return interaction.reply({ 
+            content: "⚠️ Invalid request ID.", 
+            flags: 64 
+          });
+        }
+
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+          // Check admin permissions
+          const hasAdmin = await jellyseerrApi.hasAdminPermissions({
+            discordUserId: interaction.user.id,
+            jellyseerrUrl: JELLYSEERR_URL,
+            apiKey: JELLYSEERR_API_KEY,
+            userMappings: process.env.USER_MAPPINGS || {}
+          });
+
+          if (!hasAdmin) {
+            return interaction.editReply({
+              content: "❌ You don't have permission to reject requests."
+            });
+          }
+
+          // Reject the request
+          await jellyseerrApi.rejectRequest({
+            requestId,
+            jellyseerrUrl: JELLYSEERR_URL,
+            apiKey: JELLYSEERR_API_KEY
+          });
+
+          // Update the original message to show rejection
+          try {
+            const originalMessage = interaction.message;
+            const updatedComponents = originalMessage.components.map(row => {
+              const newRow = new ActionRowBuilder();
+              row.components.forEach(component => {
+                if (component.customId && component.customId.startsWith("reject_request|")) {
+                  // Replace reject button with rejected status
+                  newRow.addComponents(
+                    new ButtonBuilder()
+                      .setCustomId(`rejected|${requestId}`)
+                      .setLabel("❌ Rejected")
+                      .setStyle(ButtonStyle.Danger)
+                      .setDisabled(true)
+                  );
+                } else if (component.customId && component.customId.startsWith("approve_request|")) {
+                  // Remove approve button
+                } else {
+                  // Keep other components as is
+                  newRow.addComponents(ButtonBuilder.from(component));
+                }
+              });
+              return newRow.components.length > 0 ? newRow : null;
+            }).filter(row => row !== null);
+
+            await interaction.message.edit({ 
+              embeds: originalMessage.embeds,
+              components: updatedComponents 
+            });
+          } catch (updateErr) {
+            logger.warn("Could not update original message:", updateErr);
+          }
+
+          await interaction.editReply({
+            content: `❌ Request #${requestId} has been rejected and removed.`
+          });
+
+        } catch (err) {
+          logger.error("Error rejecting request:", err);
+          await interaction.editReply({
+            content: "❌ Failed to reject request. Please check the logs."
+          });
+        }
+      }
+
     } catch (outerErr) {
       logger.error("Interaction handler error:", outerErr);
     }
@@ -2254,6 +2499,215 @@ function configureWebServer() {
       }
     }
   );
+
+  // Get admin users from Jellyseerr (for admin badges in mappings)
+  app.get("/api/jellyseerr/admin-users", authenticateToken, async (req, res) => {
+    try {
+      const jellyseerrUrl = process.env.JELLYSEERR_URL;
+      const apiKey = process.env.JELLYSEERR_API_KEY;
+      
+      if (!jellyseerrUrl || !apiKey) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Jellyseerr configuration missing" 
+        });
+      }
+
+      let baseUrl = jellyseerrUrl.replace(/\/$/, "");
+      if (!baseUrl.endsWith("/api/v1")) {
+        baseUrl += "/api/v1";
+      }
+
+      // Get all users from Jellyseerr
+      const usersResponse = await axios.get(`${baseUrl}/user`, {
+        headers: { "X-Api-Key": apiKey },
+        timeout: TIMEOUTS.JELLYSEERR_API,
+      });
+
+      const users = usersResponse.data.results || [];
+      
+      const adminUsers = [];
+      for (const user of users) {
+        try {
+          // Import permissions system dynamically
+          const { canApproveRequests } = await import('./lib/permissions.js');
+          
+          // Check if user has admin or management permissions using the correct constants
+          if (canApproveRequests(user.permissions)) {
+            adminUsers.push(user);
+          }
+        } catch (error) {
+          logger.warn(`Error checking permissions for user ${user.id}:`, error);
+        }
+      }
+
+      // Get user mappings to find corresponding Discord users
+      const mappings = getUserMappings();
+      
+      // Map admin Jellyseerr users to Discord users
+      const adminUsersWithDiscord = adminUsers.map(jsUser => {
+        const mapping = mappings.find(m => 
+          String(m.jellyseerrUserId) === String(jsUser.id)
+        );
+        
+        return {
+          jellyseerrUserId: jsUser.id,
+          jellyseerrDisplayName: jsUser.displayName,
+          email: jsUser.email,
+          permissions: jsUser.permissions,
+          discordUserId: mapping?.discordUserId || null,
+          discordDisplayName: mapping?.discordDisplayName || null,
+          discordUsername: mapping?.discordUsername || null
+        };
+      }).filter(user => user.discordUserId); // Only return users with Discord mappings
+
+      res.json({ success: true, adminUsers: adminUsersWithDiscord });
+    } catch (error) {
+      logger.error("Error fetching admin users:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to fetch admin users"
+      });
+    }
+  });
+
+  // Get user permissions from Jellyseerr (for detailed badges in mappings)
+  app.get("/api/jellyseerr/user-permissions", authenticateToken, async (req, res) => {
+    try {
+      const jellyseerrUrl = process.env.JELLYSEERR_URL;
+      const apiKey = process.env.JELLYSEERR_API_KEY;
+      
+      if (!jellyseerrUrl || !apiKey) {
+        logger.warn("Jellyseerr configuration missing for user permissions check");
+        return res.status(400).json({ 
+          success: false, 
+          message: "Jellyseerr configuration missing" 
+        });
+      }
+
+      const baseUrl = jellyseerrUrl.replace(/\/+$/, "");
+
+      // Get user mappings
+      const mappings = getUserMappings();
+      logger.debug(`Found ${mappings.length} user mappings for permissions check`);
+      
+      const userPermissions = {};
+      
+      // Get permissions for each mapped Discord user
+      for (const mapping of mappings) {
+        try {
+          logger.debug(`Checking permissions for Discord user ${mapping.discordUserId} -> Jellyseerr user ${mapping.jellyseerrUserId}`);
+          const permissions = await jellyseerrApi.getUserPermissions({
+            discordUserId: mapping.discordUserId,
+            jellyseerrUrl: baseUrl,
+            apiKey,
+            userMappings: mappings
+          });
+          userPermissions[mapping.discordUserId] = permissions;
+          logger.debug(`Successfully retrieved permissions for ${mapping.discordUserId}:`, permissions);
+        } catch (error) {
+          logger.error(`Error getting permissions for user ${mapping.discordUserId}:`, error);
+          userPermissions[mapping.discordUserId] = { hasMapping: true, permissionType: 'error' };
+        }
+      }
+      
+      logger.debug(`Returning permissions for ${Object.keys(userPermissions).length} users`);
+      res.json({
+        success: true,
+        userPermissions
+      });
+    } catch (error) {
+      logger.error("Error fetching user permissions:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to fetch user permissions"
+      });
+    }
+  });
+  
+  // Debug endpoint for testing permission badges
+  app.get("/api/debug/test-permissions", authenticateToken, async (req, res) => {
+    try {
+      const jellyseerrUrl = process.env.JELLYSEERR_URL;
+      const apiKey = process.env.JELLYSEERR_API_KEY;
+      
+      if (!jellyseerrUrl || !apiKey) {
+        return res.json({
+          success: false,
+          message: "Jellyseerr not configured",
+          debug: {
+            hasUrl: !!jellyseerrUrl,
+            hasApiKey: !!apiKey
+          }
+        });
+      }
+      
+      const baseUrl = jellyseerrUrl.replace(/\/+$/, "");
+      
+      // Test with a sample user ID (first user in Jellyseerr)
+      try {
+        const usersResponse = await axios.get(`${baseUrl}/user?take=10&skip=0`, {
+          headers: { "X-Api-Key": apiKey },
+          timeout: TIMEOUTS.JELLYSEERR_API,
+        });
+        
+        const users = usersResponse.data?.results || [];
+        logger.debug(`Found ${users.length} Jellyseerr users for permission testing`);
+        
+        const testResults = [];
+        
+        for (const user of users.slice(0, 3)) { // Test first 3 users
+          try {
+            // Import permissions system
+            const { Permission, analyzePermissions } = await import('./lib/permissions.js');
+            
+            const permissions = user.permissions;
+            const analysis = analyzePermissions(permissions);
+            
+            testResults.push({
+              userId: user.id,
+              displayName: user.displayName,
+              email: user.email,
+              rawPermissions: permissions,
+              permissionsBinary: permissions.toString(2),
+              permissionType: analysis.permissionType,
+              isValid: analysis.isValid,
+              capabilities: analysis.capabilities
+            });
+          } catch (err) {
+            testResults.push({
+              userId: user.id,
+              error: err.message
+            });
+          }
+        }
+        
+        res.json({
+          success: true,
+          jellyseerrUrl: baseUrl,
+          totalUsers: users.length,
+          testResults
+        });
+        
+      } catch (apiError) {
+        logger.error("Error testing Jellyseerr API:", apiError);
+        res.json({
+          success: false,
+          message: "Failed to connect to Jellyseerr API",
+          error: apiError.message,
+          jellyseerrUrl: baseUrl
+        });
+      }
+      
+    } catch (error) {
+      logger.error("Debug permissions test error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Debug test failed",
+        error: error.message
+      });
+    }
+  });
 
   // Endpoint for Jellyfin libraries
   app.post("/api/jellyfin-libraries", authenticateToken, async (req, res) => {
