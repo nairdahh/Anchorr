@@ -2236,6 +2236,9 @@ document.addEventListener("DOMContentLoaded", async () => {
               case 'admin':
                 permissionBadge = `<span class="admin-badge" style="background: var(--red); color: var(--crust);"><i class="bi bi-shield-fill"></i> ${window.i18n?.status?.admin || 'Admin'}</span>`;
                 break;
+              case 'request-manager':
+                permissionBadge = `<span class="admin-badge" style="background: var(--mauve); color: var(--crust);"><i class="bi bi-check2-square"></i> ${window.i18n?.status?.request_manager || 'Request Manager'}</span>`;
+                break;
               case 'manager':
                 permissionBadge = `<span class="admin-badge" style="background: var(--peach); color: var(--crust);"><i class="bi bi-gear-fill"></i> ${window.i18n?.status?.manager || 'Manager'}</span>`;
                 break;

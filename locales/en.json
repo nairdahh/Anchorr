@@ -211,6 +211,7 @@
     "checking": "Checking...",
     "admin": "Admin",
     "manager": "Manager", 
+    "request_manager": "Request Manager",
     "auto_approve": "Auto-Approve",
     "user": "User",
     "error": "Error",
