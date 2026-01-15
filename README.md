@@ -19,7 +19,7 @@
 
 ## 💬 Discord Server
 
-**Before anything else, I invite you to join my Discord server for faster help, discussions, and important information such as an organizd list of known bugs that are currently being tracker or planned features scheduled for future releases!**
+**Before anything else, I invite you to join my Discord server for faster assistance, discussions, and important information such as an organized list of known bugs that are currently being tracked or planned features scheduled for future releases!**
 
 ##### This helps avoid duplicate requests and keeps everyone informed about what's coming next!
 
@@ -34,14 +34,14 @@ I also have a dedicated channel on the [r/JellyfinCommunity](https://discord.gg/
 - **🔍 Media Search**: Search for movies and TV shows with `/search` command - you can then request it later within the message embed
 - **🔥 Trending Content**: Browse weekly trending movies and TV shows with `/trending` command
 - **📤 One-Click Requests**: Directly request media to Jellyseerr with `/request` command
-- **📺 Smart TV Handling**: Choose specific seasons when searching for TV series using `/search`, or request all the seasons at once with `/request`
+- **📺 Smart TV Handling**: Choose specific seasons when searching for TV series using `/search`, or request all seasons at once with `/request`
 - **🎚️ Server and Quality**: Choose which Radarr or Sonarr instance to request to, and which quality profile
-- **🚫 Duplicate Detection**: Automatically checks if content already exists in Jellyseerr before allowing requests
+- **🚫 Duplicate Detection**: Automatically check if content already exists in Jellyseerr before allowing requests
 - **🏷️ Tag Selection**: Select Radarr/Sonarr tags when requesting media for better organization and categorization
 - **📬 Jellyfin Notifications**: Automatic Discord notifications when new media is added to your library
-- **📚 Library Filtering and Mapping**: Choose which Jellyfin libraries send Discord notifications and on what channel
+- **📚 Library Filtering and Mapping**: Choose which Jellyfin libraries send notifications and to which Discord channel
 - **👤 User Mapping**: Map Discord users to Jellyseerr accounts so requests appear from the correct user
-- **🔐 Role-Based Permissions**: Control who can use bot commands through Discord roles (allowlist/blocklist)
+- **🔐 Role-Based Permissions**: Control which users can use bot commands via Discord roles (allowlist/blocklist)
 - **🔔 Private Notifications**: Optional PM when your requested content becomes available on Jellyfin
 - **👻 Ephemeral Mode**: Make bot responses visible only to the command user
 - **🌍 Multi-Language Support**: Fully translated interface with automatic language detection
