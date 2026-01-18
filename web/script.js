@@ -1430,12 +1430,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         select.innerHTML =
           '<option value="">Use Default Channel</option>' +
           channels
-            .map(
-              (ch) =>
-                `<option value="${ch.id}" ${
-                  currentChannel === ch.id ? "selected" : ""
-                }>#${ch.name}</option>`
-            )
+            .map((ch) => {
+              let icon = "";
+              if (ch.type === "announcement") icon = " 📢";
+              else if (ch.type === "forum-thread") icon = " 🧵";
+              return `<option value="${ch.id}" ${
+                currentChannel === ch.id ? "selected" : ""
+              }>#${ch.name}${icon}</option>`;
+            })
             .join("");
 
         // Ensure the value is set (in case the selected attribute didn't work)
@@ -1454,12 +1456,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         episodesSelect.innerHTML =
           '<option value="">Use Default Channel</option>' +
           channels
-            .map(
-              (ch) =>
-                `<option value="${ch.id}" ${
-                  episodeChannel === ch.id ? "selected" : ""
-                }>#${ch.name}</option>`
-            )
+            .map((ch) => {
+              let icon = "";
+              if (ch.type === "announcement") icon = " 📢";
+              else if (ch.type === "forum-thread") icon = " 🧵";
+              return `<option value="${ch.id}" ${
+                episodeChannel === ch.id ? "selected" : ""
+              }>#${ch.name}${icon}</option>`;
+            })
             .join("");
         if (episodeChannel) {
           episodesSelect.value = episodeChannel;
@@ -1470,12 +1474,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         seasonsSelect.innerHTML =
           '<option value="">Use Default Channel</option>' +
           channels
-            .map(
-              (ch) =>
-                `<option value="${ch.id}" ${
-                  seasonChannel === ch.id ? "selected" : ""
-                }>#${ch.name}</option>`
-            )
+            .map((ch) => {
+              let icon = "";
+              if (ch.type === "announcement") icon = " 📢";
+              else if (ch.type === "forum-thread") icon = " 🧵";
+              return `<option value="${ch.id}" ${
+                seasonChannel === ch.id ? "selected" : ""
+              }>#${ch.name}${icon}</option>`;
+            })
             .join("");
         if (seasonChannel) {
           seasonsSelect.value = seasonChannel;
@@ -1610,9 +1616,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           data.channels.forEach((channel) => {
             const option = document.createElement("option");
             option.value = channel.id;
-            option.textContent = `#${channel.name}${
-              channel.type === "announcement" ? " 📢" : ""
-            }`;
+            let icon = "";
+            if (channel.type === "announcement") icon = " 📢";
+            else if (channel.type === "forum-thread") icon = " 🧵";
+            option.textContent = `#${channel.name}${icon}`;
             channelSelect.appendChild(option);
           });
 
@@ -1630,9 +1637,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           data.channels.forEach((channel) => {
             const option = document.createElement("option");
             option.value = channel.id;
-            option.textContent = `#${channel.name}${
-              channel.type === "announcement" ? " 📢" : ""
-            }`;
+            let icon = "";
+            if (channel.type === "announcement") icon = " 📢";
+            else if (channel.type === "forum-thread") icon = " 🧵";
+            option.textContent = `#${channel.name}${icon}`;
             episodeChannelSelect.appendChild(option);
           });
 
@@ -1650,9 +1658,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           data.channels.forEach((channel) => {
             const option = document.createElement("option");
             option.value = channel.id;
-            option.textContent = `#${channel.name}${
-              channel.type === "announcement" ? " 📢" : ""
-            }`;
+            let icon = "";
+            if (channel.type === "announcement") icon = " 📢";
+            else if (channel.type === "forum-thread") icon = " 🧵";
+            option.textContent = `#${channel.name}${icon}`;
             seasonChannelSelect.appendChild(option);
           });
 

@@ -1868,22 +1868,54 @@ function configureWebServer() {
           return res.json({ success: false, message: "Guild not found" });
         }
 
+        const channels = [];
+
         // Fetch text channels where bot can send messages
-        const channels = guild.channels.cache
+        guild.channels.cache
           .filter(
             (channel) =>
               channel.type === 0 && // GUILD_TEXT
               channel.permissionsFor(discordClient.user).has("SendMessages")
           )
-          .map((channel) => ({
-            id: channel.id,
-            name: channel.name,
-            type: channel.type === 2 ? "announcement" : "text",
-          }))
-          .sort((a, b) => a.name.localeCompare(b.name));
+          .forEach((channel) => {
+            channels.push({
+              id: channel.id,
+              name: channel.name,
+              type: channel.type === 5 ? "announcement" : "text",
+            });
+          });
+
+        // Fetch forum channels and their active threads
+        const forumChannels = guild.channels.cache.filter(
+          (channel) => channel.type === 15 // GUILD_FORUM
+        );
+
+        for (const [, forumChannel] of forumChannels) {
+          try {
+            // Fetch active threads in this forum
+            const activeThreads = await forumChannel.threads.fetchActive();
+            
+            // Add each thread as a selectable channel
+            activeThreads.threads.forEach((thread) => {
+              if (thread.permissionsFor(discordClient.user)?.has("SendMessages")) {
+                channels.push({
+                  id: thread.id,
+                  name: `${forumChannel.name} > ${thread.name}`,
+                  type: "forum-thread",
+                  parentId: forumChannel.id,
+                  parentName: forumChannel.name,
+                });
+              }
+            });
+          } catch (err) {
+            logger.warn(`[CHANNELS API] Failed to fetch threads for forum ${forumChannel.name}:`, err.message);
+          }
+        }
+
+        channels.sort((a, b) => a.name.localeCompare(b.name));
 
         logger.debug(
-          `[CHANNELS API] Found ${channels.length} channels in guild ${guild.name}`
+          `[CHANNELS API] Found ${channels.length} channels (including forum threads) in guild ${guild.name}`
         );
         res.json({ success: true, channels });
       } catch (err) {
