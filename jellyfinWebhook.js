@@ -9,7 +9,7 @@ import debounce from "lodash.debounce";
 import { minutesToHhMm } from "./utils/time.js";
 import logger from "./utils/logger.js";
 import { fetchOMDbData } from "./api/omdb.js";
-import { findBestBackdrop, tmdbGetTrailerLink } from "./api/tmdb.js";
+import { findBestBackdrop } from "./api/tmdb.js";
 
 function isValidUrl(string) {
   try {
@@ -195,7 +195,6 @@ async function processAndSendNotification(
   const showRating = process.env.EMBED_SHOW_RATING !== "false";
   const showButtonLetterboxd = process.env.EMBED_SHOW_BUTTON_LETTERBOXD !== "false";
   const showButtonImdb = process.env.EMBED_SHOW_BUTTON_IMDB !== "false";
-  const showButtonTrailer = process.env.EMBED_SHOW_BUTTON_TRAILER !== "false";
   const showButtonWatch = process.env.EMBED_SHOW_BUTTON_WATCH !== "false";
 
   // Check if anyone requested this content
@@ -269,15 +268,7 @@ async function processAndSendNotification(
     }
   }
 
-  // Fetch trailer link if TMDB API key is available
-  let trailerLink = null;
-  if (tmdbId && process.env.TMDB_API_KEY) {
-    try {
-      trailerLink = await tmdbGetTrailerLink(tmdbId, ItemType === "Movie" ? "movie" : "tv", process.env.TMDB_API_KEY);
-    } catch (error) {
-      logger.debug(`Could not fetch trailer for ${tmdbId}: ${error.message}`);
-    }
-  }
+
 
   // Prioritize IMDb ID from TMDB, fallback to webhook
   const imdbId = details?.external_ids?.imdb_id || imdbIdFromWebhook;
@@ -557,16 +548,6 @@ async function processAndSendNotification(
         );
       }
     }
-  }
-
-  // Add trailer button if available and enabled
-  if (showButtonTrailer && trailerLink && isValidUrl(trailerLink)) {
-    buttonComponents.push(
-      new ButtonBuilder()
-        .setStyle(ButtonStyle.Link)
-        .setLabel("Trailer")
-        .setURL(trailerLink)
-    );
   }
 
   if (showButtonWatch) {

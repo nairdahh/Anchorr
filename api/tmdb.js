@@ -5,6 +5,7 @@
 
 import axios from "axios";
 import cache from "../utils/cache.js";
+import logger from "../utils/logger.js";
 import { TIMEOUTS } from "../lib/constants.js";
 
 /**
@@ -81,7 +82,7 @@ export async function tmdbGetDetails(id, mediaType, apiKey) {
     params: {
       api_key: apiKey,
       language: "en-US",
-      append_to_response: "images,credits",
+      append_to_response: "images,credits,external_ids",
     },
     timeout: TIMEOUTS.TMDB_API,
   });
@@ -137,85 +138,175 @@ export function findBestBackdrop(details) {
   return details.backdrop_path;
 }
 
+// Cache for recently picked media to avoid duplicates
+const recentlyPickedMedia = new Set();
+const MAX_RECENT = 20; // Remember last 20 picks
+
 /**
- * Get trailer link for a movie or TV show
- * Attempts to find the best trailer
- * @param {number} id - TMDB ID
- * @param {string} mediaType - 'movie' or 'tv'
+ * Get a smart random media recommendation
+ * Uses multiple strategies to ensure variety and avoid duplicates
  * @param {string} apiKey - TMDB API key
- * @returns {Promise<string|null>} Trailer URL or null if not found
+ * @returns {Promise<Object>} Random media item with details
  */
-export async function tmdbGetTrailerLink(id, mediaType, apiKey) {
+export async function tmdbGetRandomMedia(apiKey) {
   try {
-    if (!apiKey) {
-      return null;
+    if (!apiKey) return null;
+
+    const strategies = ["trending", "upcoming", "discover-variety", "discover-niche"];
+    const strategy = strategies[Math.floor(Math.random() * strategies.length)];
+
+    let results = [];
+
+    try {
+      if (strategy === "trending") {
+        results = await getTrendingMedia(apiKey);
+      } else if (strategy === "upcoming") {
+        results = await getUpcomingMedia(apiKey);
+      } else if (strategy === "discover-variety") {
+        results = await getDiscoverVarietyMedia(apiKey);
+      } else if (strategy === "discover-niche") {
+        results = await getDiscoverNicheMedia(apiKey);
+      }
+    } catch (err) {
+      // Strategy failed, fallback below
     }
 
-    const url =
-      mediaType === "movie"
-        ? `https://api.themoviedb.org/3/movie/${id}/videos`
-        : `https://api.themoviedb.org/3/tv/${id}/videos`;
+    if (results.length === 0) {
+      results = await tmdbGetTrending(apiKey);
+    }
+
+    const validResults = results.filter(
+      (r) => r.media_type === "movie" || r.media_type === "tv"
+    );
+
+    if (validResults.length === 0) return null;
+
+    const freshResults = validResults.filter((r) => !recentlyPickedMedia.has(`${r.id}-${r.media_type}`));
+    let candidateResults = freshResults.length > 0 ? freshResults : validResults;
+    candidateResults = candidateResults.sort(() => Math.random() - 0.5);
+
+    const randomItem = candidateResults[0];
+    if (!randomItem) return null;
+
+    const mediaKey = `${randomItem.id}-${randomItem.media_type}`;
+    recentlyPickedMedia.add(mediaKey);
+    if (recentlyPickedMedia.size > MAX_RECENT) {
+      const firstKey = recentlyPickedMedia.values().next().value;
+      recentlyPickedMedia.delete(firstKey);
+    }
+
+    try {
+      const details = await tmdbGetDetails(
+        randomItem.id,
+        randomItem.media_type,
+        apiKey
+      );
+      return {
+        ...randomItem,
+        details,
+      };
+    } catch (err) {
+      return randomItem;
+    }
+  } catch (error) {
+    logger.debug(`Error getting random media: ${error.message}`);
+    return null;
+  }
+}
+
+async function getTrendingMedia(apiKey) {
+  try {
+    const trendingResults = await tmdbGetTrending(apiKey);
+    if (trendingResults.length > 10) {
+      const startIdx = Math.floor(Math.random() * Math.max(1, trendingResults.length - 10));
+      return trendingResults.slice(startIdx, startIdx + 15);
+    }
+    return trendingResults;
+  } catch (error) {
+    return [];
+  }
+}
+
+async function getUpcomingMedia(apiKey) {
+  try {
+    const mediaType = Math.random() < 0.5 ? "movie" : "tv";
+    const url = `https://api.themoviedb.org/3/${mediaType}/${mediaType === "movie" ? "upcoming" : "on_the_air"}`;
     
     const res = await axios.get(url, {
       params: {
         api_key: apiKey,
         language: "en-US",
+        page: Math.floor(Math.random() * 3) + 1,
       },
       timeout: TIMEOUTS.TMDB_API,
     });
 
-    const videos = res.data.results || [];
-    
-    if (videos.length === 0) {
-      return null;
-    }
-
-    let bestVideo = null;
-    
-    // Priority 1: Official YouTube Trailer
-    for (const video of videos) {
-      if (
-        video.site === "YouTube" &&
-        video.type === "Trailer" &&
-        video.official === true
-      ) {
-        bestVideo = video;
-        break;
-      }
-    }
-
-    // Priority 2: Any YouTube Trailer
-    if (!bestVideo) {
-      for (const video of videos) {
-        if (video.site === "YouTube" && video.type === "Trailer") {
-          bestVideo = video;
-          break;
-        }
-      }
-    }
-
-    // Priority 3: YouTube Teaser
-    if (!bestVideo) {
-      for (const video of videos) {
-        if (video.site === "YouTube" && video.type === "Teaser") {
-          bestVideo = video;
-          break;
-        }
-      }
-    }
-
-    // Priority 4: Any YouTube video
-    if (!bestVideo) {
-      bestVideo = videos.find((v) => v.site === "YouTube");
-    }
-
-    if (bestVideo && bestVideo.key) {
-      const trailerUrl = `https://www.youtube.com/watch?v=${bestVideo.key}`;
-      return trailerUrl;
-    }
-
-    return null;
+    return (res.data.results || []).map((r) => ({
+      ...r,
+      media_type: mediaType,
+    }));
   } catch (error) {
-    return null;
+    logger.debug(`Upcoming fetch failed: ${error.message}`);
+    return [];
+  }
+}
+
+async function getDiscoverVarietyMedia(apiKey) {
+  try {
+    // Get a good mix of genres and popularity ranges
+    const genres = [28, 12, 14, 18, 27, 35, 37, 53, 80, 99, 878, 10402, 9648, 10749, 10751, 10752];
+    const randomGenre = genres[Math.floor(Math.random() * genres.length)];
+    const mediaType = Math.random() < 0.5 ? "movie" : "tv";
+    
+    const url = `https://api.themoviedb.org/3/discover/${mediaType}`;
+    
+    const res = await axios.get(url, {
+      params: {
+        api_key: apiKey,
+        with_genres: randomGenre,
+        sort_by: "popularity.desc",
+        "vote_count.gte": 100, // HQ filter
+        language: "en-US",
+        page: Math.floor(Math.random() * 5) + 1,
+      },
+      timeout: TIMEOUTS.TMDB_API,
+    });
+
+    return (res.data.results || []).map((r) => ({
+      ...r,
+      media_type: mediaType,
+    }));
+  } catch (error) {
+    logger.debug(`Discover variety fetch failed: ${error.message}`);
+    return [];
+  }
+}
+
+async function getDiscoverNicheMedia(apiKey) {
+  try {
+    // Find hidden gems: less popular but well-rated
+    const mediaType = Math.random() < 0.5 ? "movie" : "tv";
+    const url = `https://api.themoviedb.org/3/discover/${mediaType}`;
+    
+    const res = await axios.get(url, {
+      params: {
+        api_key: apiKey,
+        sort_by: "vote_average.desc",
+        "vote_count.gte": 200, // Ensure quality
+        "vote_count.lte": 5000, // Avoid huge blockbusters
+        "vote_average.gte": 7.0, // Only good ratings
+        language: "en-US",
+        page: Math.floor(Math.random() * 10) + 1, // Pages 1-10 for variety
+      },
+      timeout: TIMEOUTS.TMDB_API,
+    });
+
+    return (res.data.results || []).map((r) => ({
+      ...r,
+      media_type: mediaType,
+    }));
+  } catch (error) {
+    logger.debug(`Discover niche fetch failed: ${error.message}`);
+    return [];
   }
 }

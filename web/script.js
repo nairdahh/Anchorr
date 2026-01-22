@@ -1164,6 +1164,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     testBatchEpisodesBtn.addEventListener("click", () => sendTestNotification("batch-episodes"));
   }
 
+  // Test Random Pick Button
+  const testRandomPickBtn = document.getElementById("test-random-pick-btn");
+  if (testRandomPickBtn) {
+    testRandomPickBtn.addEventListener("click", async () => {
+      testRandomPickBtn.disabled = true;
+      const originalText = testRandomPickBtn.innerHTML;
+      testRandomPickBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
+
+      try {
+        const response = await fetch("/api/test-random-pick", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          testRandomPickBtn.style.backgroundColor = "var(--green)";
+          testRandomPickBtn.innerHTML = '<i class="bi bi-check-circle"></i> Sent!';
+          setTimeout(() => {
+            testRandomPickBtn.innerHTML = originalText;
+            testRandomPickBtn.style.backgroundColor = "";
+            testRandomPickBtn.disabled = false;
+          }, 2000);
+        } else {
+          throw new Error(result.message || "Failed to send random pick");
+        }
+      } catch (error) {
+        testRandomPickBtn.style.backgroundColor = "#f38ba8";
+        testRandomPickBtn.innerHTML = `<i class="bi bi-exclamation-circle"></i> ${error.message}`;
+        setTimeout(() => {
+          testRandomPickBtn.innerHTML = originalText;
+          testRandomPickBtn.style.backgroundColor = "";
+          testRandomPickBtn.disabled = false;
+        }, 3000);
+      }
+    });
+  }
+
   // Fetch and display Jellyfin libraries for notifications
   const fetchLibrariesBtn = document.getElementById("fetch-libraries-btn");
   const fetchLibrariesStatus = document.getElementById(
@@ -1576,6 +1615,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const channelSelect = document.getElementById("JELLYFIN_CHANNEL_ID");
     const episodeChannelSelect = document.getElementById("JELLYFIN_EPISODE_CHANNEL_ID");
     const seasonChannelSelect = document.getElementById("JELLYFIN_SEASON_CHANNEL_ID");
+    const dailyRandomPickChannelSelect = document.getElementById("DAILY_RANDOM_PICK_CHANNEL_ID");
 
     if (!guildId) {
       if (channelSelect) {
@@ -1590,6 +1630,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         seasonChannelSelect.innerHTML =
           `<option value="">${t('config.use_default_channel')}</option>`;
       }
+      if (dailyRandomPickChannelSelect) {
+        dailyRandomPickChannelSelect.innerHTML =
+          '<option value="">Select a channel...</option>';
+      }
       return;
     }
 
@@ -1602,6 +1646,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     if (seasonChannelSelect) {
       seasonChannelSelect.innerHTML = '<option value="">Loading channels...</option>';
+    }
+    if (dailyRandomPickChannelSelect) {
+      dailyRandomPickChannelSelect.innerHTML = '<option value="">Loading channels...</option>';
     }
 
     try {
@@ -1671,6 +1718,27 @@ document.addEventListener("DOMContentLoaded", async () => {
             seasonChannelSelect.value = currentValue;
           }
         }
+
+        // Populate daily random pick channel select
+        if (dailyRandomPickChannelSelect) {
+          dailyRandomPickChannelSelect.innerHTML =
+            '<option value="">Select a channel...</option>';
+          data.channels.forEach((channel) => {
+            const option = document.createElement("option");
+            option.value = channel.id;
+            let icon = "";
+            if (channel.type === "announcement") icon = " 📢";
+            else if (channel.type === "forum-thread") icon = " 🧵";
+            option.textContent = `#${channel.name}${icon}`;
+            dailyRandomPickChannelSelect.appendChild(option);
+          });
+
+          // Restore saved value if exists
+          const currentValue = dailyRandomPickChannelSelect.dataset.savedValue;
+          if (currentValue) {
+            dailyRandomPickChannelSelect.value = currentValue;
+          }
+        }
       } else {
         if (channelSelect) {
           channelSelect.innerHTML =
@@ -1683,6 +1751,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (seasonChannelSelect) {
           seasonChannelSelect.innerHTML =
             `<option value="">${t('config.use_default_channel')}</option>`;
+        }
+        if (dailyRandomPickChannelSelect) {
+          dailyRandomPickChannelSelect.innerHTML =
+            '<option value="">Select a channel...</option>';
         }
       }
     } catch (error) {
@@ -1698,6 +1770,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         seasonChannelSelect.innerHTML =
           `<option value="">${t('config.use_default_channel')}</option>`;
       }
+      if (dailyRandomPickChannelSelect) {
+        dailyRandomPickChannelSelect.innerHTML =
+          '<option value="">Select a channel...</option>';
+      }
     }
   }
 
@@ -1711,6 +1787,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const channelSelect = document.getElementById("JELLYFIN_CHANNEL_ID");
         const episodeChannelSelect = document.getElementById("JELLYFIN_EPISODE_CHANNEL_ID");
         const seasonChannelSelect = document.getElementById("JELLYFIN_SEASON_CHANNEL_ID");
+        const dailyRandomPickChannelSelect = document.getElementById("DAILY_RANDOM_PICK_CHANNEL_ID");
         
         if (channelSelect) {
           channelSelect.innerHTML =
@@ -1723,6 +1800,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (seasonChannelSelect) {
           seasonChannelSelect.innerHTML =
             `<option value="">${t('config.use_default_channel')}</option>`;
+        }
+        if (dailyRandomPickChannelSelect) {
+          dailyRandomPickChannelSelect.innerHTML =
+            '<option value="">Select a channel...</option>';
         }
       }
     });
