@@ -136,3 +136,86 @@ export function findBestBackdrop(details) {
   }
   return details.backdrop_path;
 }
+
+/**
+ * Get trailer link for a movie or TV show
+ * Attempts to find the best trailer
+ * @param {number} id - TMDB ID
+ * @param {string} mediaType - 'movie' or 'tv'
+ * @param {string} apiKey - TMDB API key
+ * @returns {Promise<string|null>} Trailer URL or null if not found
+ */
+export async function tmdbGetTrailerLink(id, mediaType, apiKey) {
+  try {
+    if (!apiKey) {
+      return null;
+    }
+
+    const url =
+      mediaType === "movie"
+        ? `https://api.themoviedb.org/3/movie/${id}/videos`
+        : `https://api.themoviedb.org/3/tv/${id}/videos`;
+    
+    const res = await axios.get(url, {
+      params: {
+        api_key: apiKey,
+        language: "en-US",
+      },
+      timeout: TIMEOUTS.TMDB_API,
+    });
+
+    const videos = res.data.results || [];
+    
+    if (videos.length === 0) {
+      return null;
+    }
+
+    let bestVideo = null;
+    
+    // Priority 1: Official YouTube Trailer
+    for (const video of videos) {
+      if (
+        video.site === "YouTube" &&
+        video.type === "Trailer" &&
+        video.official === true
+      ) {
+        bestVideo = video;
+        break;
+      }
+    }
+
+    // Priority 2: Any YouTube Trailer
+    if (!bestVideo) {
+      for (const video of videos) {
+        if (video.site === "YouTube" && video.type === "Trailer") {
+          bestVideo = video;
+          break;
+        }
+      }
+    }
+
+    // Priority 3: YouTube Teaser
+    if (!bestVideo) {
+      for (const video of videos) {
+        if (video.site === "YouTube" && video.type === "Teaser") {
+          bestVideo = video;
+          break;
+        }
+      }
+    }
+
+    // Priority 4: Any YouTube video
+    if (!bestVideo) {
+      bestVideo = videos.find((v) => v.site === "YouTube");
+    }
+
+    if (bestVideo && bestVideo.key) {
+      const trailerUrl = `https://www.youtube.com/watch?v=${bestVideo.key}`;
+      return trailerUrl;
+    }
+
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
