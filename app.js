@@ -207,6 +207,170 @@ let jellyfinWebSocketClient = null;
 // Map to track user requests: key = "tmdbId-mediaType", value = Set of Discord user IDs
 const pendingRequests = new Map();
 
+// --- DAILY RANDOM PICK SCHEDULING ---
+let dailyRandomPickTimer = null;
+
+function scheduleDailyRandomPick(client) {
+  if (dailyRandomPickTimer) {
+    clearInterval(dailyRandomPickTimer);
+  }
+
+  const enabled = process.env.DAILY_RANDOM_PICK_ENABLED === "true";
+  if (!enabled) {
+    return;
+  }
+
+  const channelId = process.env.DAILY_RANDOM_PICK_CHANNEL_ID;
+  const intervalMinutes = parseInt(process.env.DAILY_RANDOM_PICK_INTERVAL || "1440");
+
+  if (!channelId) {
+    logger.warn(
+      "Daily Random Pick is enabled but no channel is configured. Skipping."
+    );
+    return;
+  }
+
+  if (intervalMinutes < 1) {
+    logger.warn("Daily Random Pick interval must be at least 1 minute. Skipping.");
+    return;
+  }
+
+  const intervalMs = intervalMinutes * 60 * 1000;
+
+  logger.info(
+    `📅 Daily Random Pick scheduled every ${intervalMinutes} minute${intervalMinutes !== 1 ? 's' : ''}`
+  );
+
+  // Send the first pick immediately
+  sendDailyRandomPick(client).catch((err) =>
+    logger.error("Error sending initial random pick:", err)
+  );
+
+  // Schedule it to repeat at the specified interval
+  dailyRandomPickTimer = setInterval(async () => {
+    await sendDailyRandomPick(client);
+  }, intervalMs);
+}
+
+async function sendDailyRandomPick(client) {
+  try {
+    const TMDB_API_KEY = process.env.TMDB_API_KEY;
+    const channelId = process.env.DAILY_RANDOM_PICK_CHANNEL_ID;
+
+    if (!TMDB_API_KEY || !channelId) {
+      return;
+    }
+
+    // Get random media
+    const randomMedia = await tmdbApi.tmdbGetRandomMedia(TMDB_API_KEY);
+    if (!randomMedia) {
+      logger.warn("Could not fetch random media for daily pick");
+      return;
+    }
+
+    const channel = await client.channels.fetch(channelId).catch(() => null);
+    if (!channel) {
+      logger.warn(`Daily Random Pick channel not found: ${channelId}`);
+      return;
+    }
+
+    // Build embed
+    const mediaType = randomMedia.media_type;
+    const isMovie = mediaType === "movie";
+    const title = isMovie ? randomMedia.title : randomMedia.name;
+    const year = isMovie
+      ? randomMedia.release_date?.slice(0, 4)
+      : randomMedia.first_air_date?.slice(0, 4);
+    const details = randomMedia.details || randomMedia;
+
+    const emoji = isMovie ? "🎬" : "📺";
+    const backdrop = randomMedia.backdrop_path
+      ? `https://image.tmdb.org/t/p/w1280${randomMedia.backdrop_path}`
+      : null;
+
+    let overview = randomMedia.overview || "No description available.";
+    if (overview.length > 300) {
+      overview = overview.substring(0, 297) + "...";
+    }
+
+    const embed = new EmbedBuilder()
+      .setAuthor({ name: `${emoji} Today's Random Pick` })
+      .setTitle(`${title}${year ? ` (${year})` : ""}`)
+      .setDescription(overview)
+      .setColor("#f5a962")
+      .addFields({
+        name: "Rating",
+        value: randomMedia.vote_average
+          ? `⭐ ${randomMedia.vote_average.toFixed(1)}/10`
+          : "N/A",
+        inline: true,
+      });
+
+    if (details.genres && Array.isArray(details.genres)) {
+      const genreNames = details.genres.map((g) => g.name).join(", ");
+      if (genreNames) {
+        embed.addFields({
+          name: "Genres",
+          value: genreNames,
+          inline: true,
+        });
+      }
+    }
+
+    if (backdrop) {
+      embed.setImage(backdrop);
+    }
+    
+    const buttonComponents = [];
+
+    // Letterboxd button
+    if (isMovie) {
+      const letterboxdUrl = `https://letterboxd.com/search/${encodeURIComponent(title)}/`;
+      buttonComponents.push(
+        new ButtonBuilder()
+          .setStyle(ButtonStyle.Link)
+          .setLabel("Letterboxd")
+          .setURL(letterboxdUrl)
+      );
+    }
+
+    // IMDb button if available
+    let imdbId = null;
+    if (details.external_ids?.imdb_id) {
+      imdbId = details.external_ids.imdb_id;
+    }
+    if (imdbId) {
+      buttonComponents.push(
+        new ButtonBuilder()
+          .setStyle(ButtonStyle.Link)
+          .setLabel("IMDb")
+          .setURL(`https://www.imdb.com/title/${imdbId}/`)
+      );
+    }
+
+    // Request button
+    buttonComponents.push(
+      new ButtonBuilder()
+        .setStyle(ButtonStyle.Primary)
+        .setLabel("Request")
+        .setCustomId(`request_random_${randomMedia.id}_${mediaType}`)
+    );
+
+    const button = new ActionRowBuilder().addComponents(buttonComponents);
+
+    await channel.send({
+      embeds: [embed],
+      components: [button],
+    });
+
+    logger.info(
+      `Sent daily random pick: ${title} (${randomMedia.id} - ${mediaType})`
+    );
+  } catch (error) {
+    logger.error(`Failed to send daily random pick: ${error.message}`);
+  }
+}
+
 async function startBot() {
   if (isBotRunning && discordClient) {
     logger.info("Bot is already running.");
@@ -1655,6 +1819,65 @@ async function startBot() {
         }
       }
 
+      // ===== DAILY RANDOM PICK REQUEST BUTTON HANDLER =====
+      // customId format: request_random_tmdbId_mediaType
+      if (
+        interaction.isButton() &&
+        interaction.customId.startsWith("request_random_")
+      ) {
+        const parts = interaction.customId.split("_");
+        const tmdbId = parseInt(parts[2], 10);
+        const mediaType = parts[3] || "movie";
+
+        if (!tmdbId) {
+          return interaction.reply({ content: "⚠️ Invalid media ID.", flags: 64 });
+        }
+
+        await interaction.deferUpdate();
+
+        try {
+          const details = await tmdbApi.tmdbGetDetails(
+            tmdbId,
+            mediaType,
+            TMDB_API_KEY
+          );
+
+          const { profileId, serverId } = parseQualityAndServerOptions({}, mediaType);
+
+          await jellyseerrApi.sendRequest({
+            tmdbId,
+            mediaType,
+            seasons: mediaType === "tv" ? ["all"] : undefined,
+            profileId,
+            serverId,
+            jellyseerrUrl: JELLYSEERR_URL,
+            apiKey: JELLYSEERR_API_KEY,
+            discordUserId: interaction.user.id,
+            userMappings: process.env.USER_MAPPINGS || {},
+          });
+
+          // Track request for notifications
+          if (process.env.NOTIFY_ON_AVAILABLE === "true") {
+            const requestKey = `${tmdbId}-${mediaType}`;
+            if (!pendingRequests.has(requestKey)) {
+              pendingRequests.set(requestKey, new Set());
+            }
+            pendingRequests.get(requestKey).add(interaction.user.id);
+          }
+
+          await interaction.followUp({
+            content: `✅ **${details.title || details.name}** has been requested!`,
+            flags: 64,
+          });
+        } catch (err) {
+          logger.error("Daily random pick request error:", err);
+          await interaction.followUp({
+            content: "⚠️ Error processing request.",
+            flags: 64,
+          });
+        }
+      }
+
       // ===== SELECT TAGS HANDLER (NEW FLOW) =====
       // customId format: select_tags|tmdbId|selectedSeasonsParam (for TV) or select_tags|tmdbId| (for movies)
       // This handler only updates the buttons with tag selection - does NOT send the request
@@ -1768,6 +1991,9 @@ async function startBot() {
       isBotRunning = true;
 
       logger.info("ℹ️ Jellyfin notifications will be received via webhooks.");
+      
+      // Setup daily random pick if enabled
+      scheduleDailyRandomPick(client);
 
       resolve({ success: true, message: `Logged in as ${client.user.tag}` });
     });
@@ -2958,6 +3184,49 @@ function configureWebServer() {
       res.status(500).json({
         success: false,
         message: error.message || "Failed to send test notification. Check logs for details.",
+      });
+    }
+  });
+
+  // Test random pick endpoint - sends a sample random pick
+  app.post("/api/test-random-pick", authenticateToken, async (req, res) => {
+    try {
+      // Check if Discord bot is running and configured
+      if (!discordClient || !discordClient.isReady()) {
+        return res.status(400).json({
+          success: false,
+          message: "Discord bot is not running. Please start the bot first.",
+        });
+      }
+
+      const channelId = process.env.DAILY_RANDOM_PICK_CHANNEL_ID;
+      if (!channelId) {
+        return res.status(400).json({
+          success: false,
+          message: "Daily Random Pick channel must be configured first.",
+        });
+      }
+
+      const TMDB_API_KEY = process.env.TMDB_API_KEY;
+      if (!TMDB_API_KEY) {
+        return res.status(400).json({
+          success: false,
+          message: "TMDB API key is required. Configure it in Step 3.",
+        });
+      }
+
+      // Get random media and send it
+      await sendDailyRandomPick(discordClient);
+
+      res.json({
+        success: true,
+        message: "Random pick sent successfully! Check your Discord channel.",
+      });
+    } catch (error) {
+      logger.error("Failed to send test random pick:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to send random pick. Check logs for details.",
       });
     }
   });

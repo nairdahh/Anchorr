@@ -892,6 +892,44 @@
                         </div>
                       </div>
 
+                      <!-- Daily Random Pick Section -->
+                      <div class="form-group" style="margin-top: 2rem; padding: 1rem; background-color: var(--surface0); border-radius: 8px; border-left: 4px solid var(--peach);">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 1rem;">
+                          <input type="checkbox" id="DAILY_RANDOM_PICK_ENABLED" name="DAILY_RANDOM_PICK_ENABLED" />
+                          Enable Daily Random Pick
+                        </label>
+                        <div class="form-text" style="margin-bottom: 1rem;">
+                          Send a daily recommendation of random media to a Discord channel. Great for discovering hidden gems!
+                        </div>
+
+                        <div class="form-group" style="margin-top: 1rem;">
+                          <label for="DAILY_RANDOM_PICK_CHANNEL_ID" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Channel</label>
+                          <select
+                            id="DAILY_RANDOM_PICK_CHANNEL_ID"
+                            name="DAILY_RANDOM_PICK_CHANNEL_ID"
+                            style="width: 100%; background-color: var(--background); border: 1px solid var(--surface1); color: var(--text); padding: 0.75rem; border-radius: 8px; font-size: 1rem;">
+                            <option value="" style="color: var(--subtext0);">Select a channel...</option>
+                          </select>
+                          <div class="form-text" style="margin-top: 0.5rem;">
+                            Discord channel where daily picks will be sent
+                          </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 1rem;">
+                          <label for="DAILY_RANDOM_PICK_INTERVAL" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Interval (minutes)</label>
+                          <input type="number" id="DAILY_RANDOM_PICK_INTERVAL" name="DAILY_RANDOM_PICK_INTERVAL" placeholder="1440" min="1" max="525600" style="width: 100%; max-width: 150px; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--surface1); background-color: var(--surface1); color: var(--text); font-size: 1rem;" />
+                          <div class="form-text" style="margin-top: 0.5rem;">
+                            How often to send a random pick in minutes (default: 1440 = 24 hours)
+                          </div>
+                        </div>
+
+                        <div style="margin-top: 1rem;">
+                          <button type="button" id="test-random-pick-btn" class="btn btn-secondary" style="padding: 0.75rem 1rem; margin: 0; display: inline-flex; align-items: center; gap: 0.5rem;">
+                            <i class="bi bi-shuffle"></i> Test Random Pick
+                          </button>
+                        </div>
+                      </div>
+
                       <!-- Discord Embed Colors Section -->
                       <div class="form-group" style="margin-top: 2rem;">
                         <label style="font-size: 1.2rem; font-weight: 700; color: var(--mauve);">
