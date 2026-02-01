@@ -985,7 +985,7 @@ async function startBot() {
           jellyseerrUrl: JELLYSEERR_URL,
           apiKey: JELLYSEERR_API_KEY,
           discordUserId: interaction.user.id,
-          userMappings: process.env.USER_MAPPINGS || {},
+          userMappings: getUserMappings(),
         });
 
         // Track request for notifications if enabled
@@ -1694,7 +1694,7 @@ async function startBot() {
             jellyseerrUrl: JELLYSEERR_URL,
             apiKey: JELLYSEERR_API_KEY,
             discordUserId: interaction.user.id,
-            userMappings: process.env.USER_MAPPINGS || {},
+            userMappings: getUserMappings(),
           });
 
           // Track request for notifications if enabled
@@ -1901,7 +1901,7 @@ async function startBot() {
             jellyseerrUrl: JELLYSEERR_URL,
             apiKey: JELLYSEERR_API_KEY,
             discordUserId: interaction.user.id,
-            userMappings: process.env.USER_MAPPINGS || {},
+            userMappings: getUserMappings(),
           });
 
           // Track request for notifications
@@ -2522,6 +2522,9 @@ function configureWebServer() {
 
         // Use centralized saveUserMapping helper
         saveUserMapping(mapping);
+        
+        // Reload config into process.env to ensure mapping is immediately active
+        loadConfig();
 
         res.json({ success: true, message: "Mapping saved successfully." });
       } catch (error) {
@@ -2549,6 +2552,9 @@ function configureWebServer() {
             .status(404)
             .json({ success: false, message: "Mapping not found." });
         }
+
+        // Reload config into process.env to ensure mapping is immediately removed
+        loadConfig();
 
         res.json({ success: true, message: "Mapping deleted successfully." });
       } catch (error) {

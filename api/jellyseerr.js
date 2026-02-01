@@ -437,13 +437,17 @@ export async function sendRequest({
           ? JSON.parse(userMappings)
           : userMappings;
 
+      logger.debug(`[JELLYSEERR] Checking mapping for Discord user ${discordUserId}`);
+      logger.debug(`[JELLYSEERR] Available mappings: ${JSON.stringify(mappings)}`);
+
       let jellyseerrUserId = null;
 
       // Handle array format (current standard)
       if (Array.isArray(mappings)) {
-        const mapping = mappings.find((m) => m.discordUserId === discordUserId);
+        const mapping = mappings.find((m) => String(m.discordUserId) === String(discordUserId));
         if (mapping) {
           jellyseerrUserId = mapping.jellyseerrUserId;
+          logger.debug(`[JELLYSEERR] Found array mapping: Discord ${discordUserId} -> Jellyseerr ${jellyseerrUserId}`);
         }
       }
       // Handle object format (legacy/fallback)
@@ -453,20 +457,22 @@ export async function sendRequest({
         mappings[discordUserId]
       ) {
         jellyseerrUserId = mappings[discordUserId];
+        logger.debug(`[JELLYSEERR] Found object mapping: Discord ${discordUserId} -> Jellyseerr ${jellyseerrUserId}`);
       }
 
       if (jellyseerrUserId !== null && jellyseerrUserId !== undefined) {
         payload.userId = parseInt(jellyseerrUserId, 10);
-        logger.debug(
-          `Using Jellyseerr user ID ${payload.userId} for Discord user ${discordUserId}`
+        logger.info(
+          `[JELLYSEERR] ✅ MAPPING FOUND: Discord ${discordUserId} -> Jellyseerr User ID ${payload.userId}`
         );
+        logger.debug(`[JELLYSEERR] Payload for Jellyseerr: ${JSON.stringify(payload)}`);
       } else {
-        logger.debug(
-          `No Jellyseerr user mapping found for Discord user ${discordUserId}. Request will be made as the API key owner.`
+        logger.warn(
+          `[JELLYSEERR] ⚠️ NO MAPPING: Discord user ${discordUserId} not found in mappings. Request will be made as the API key owner.`
         );
       }
     } catch (e) {
-      logger.warn("Failed to parse USER_MAPPINGS:", e);
+      logger.error("[JELLYSEERR] Failed to parse USER_MAPPINGS:", e);
     }
   }
 
