@@ -439,14 +439,20 @@ async function startBot() {
   });
   discordClient = client; // Store client instance globally
 
+  // ----------------- CONFIG HELPERS (DYNAMIC) -----------------
+  const getJellyseerrUrl = () => {
+    let url = (process.env.JELLYSEERR_URL || "").replace(/\/$/, "");
+    if (url && !url.endsWith("/api/v1")) url += "/api/v1";
+    return url;
+  };
+  const getJellyseerrApiKey = () => process.env.JELLYSEERR_API_KEY;
+  const getTmdbApiKey = () => process.env.TMDB_API_KEY;
+
   const BOT_ID = process.env.BOT_ID;
   const GUILD_ID = process.env.GUILD_ID;
-  let JELLYSEERR_URL = process.env.JELLYSEERR_URL?.replace(/\/$/, "");
-  if (JELLYSEERR_URL && !JELLYSEERR_URL.endsWith("/api/v1")) {
-    JELLYSEERR_URL += "/api/v1";
-  }
-  const JELLYSEERR_API_KEY = process.env.JELLYSEERR_API_KEY;
-  const TMDB_API_KEY = process.env.TMDB_API_KEY;
+  const JELLYSEERR_URL = getJellyseerrUrl();
+  const JELLYSEERR_API_KEY = getJellyseerrApiKey();
+  const TMDB_API_KEY = getTmdbApiKey();
 
   // ----------------- HELPERS -----------------
 
@@ -589,11 +595,12 @@ async function startBot() {
         : "📺 TV show found:";
 
     // Generate Jellyseerr URL for the author link
-    // Remove /api/v1 from JELLYSEERR_URL to get the base domain
+    // Remove /api/v1 from getJellyseerrUrl() to get the base domain
     // Add ?manage=1 only for success status
     let jellyseerrMediaUrl;
-    if (tmdbId && JELLYSEERR_URL) {
-      const jellyseerrDomain = JELLYSEERR_URL.replace(/\/api\/v1\/?$/, "").replace(/\/+$/, "");
+    const currentJellyseerrUrl = getJellyseerrUrl();
+    if (tmdbId && currentJellyseerrUrl) {
+      const jellyseerrDomain = currentJellyseerrUrl.replace(/\/api\/v1\/?$/, "").replace(/\/+$/, "");
       const baseUrl = `${jellyseerrDomain}/${mediaType}/${tmdbId}`;
       jellyseerrMediaUrl =
         status === "success" ? `${baseUrl}?manage=1` : baseUrl;
@@ -874,7 +881,7 @@ async function startBot() {
       [tmdbId, mediaType] = rawInput.split("|");
     } else {
       // Fallback search if raw text was passed
-      const results = await tmdbApi.tmdbSearch(rawInput, TMDB_API_KEY);
+      const results = await tmdbApi.tmdbSearch(rawInput, getTmdbApiKey());
       const found = results.filter(
         (r) => r.media_type === "movie" || r.media_type === "tv"
       );
@@ -902,7 +909,7 @@ async function startBot() {
       const details = await tmdbApi.tmdbGetDetails(
         tmdbId,
         mediaType,
-        TMDB_API_KEY
+        getTmdbApiKey()
       );
 
       if (mode === "request") {
@@ -911,8 +918,8 @@ async function startBot() {
           tmdbId,
           mediaType,
           ["all"],
-          JELLYSEERR_URL,
-          JELLYSEERR_API_KEY
+          getJellyseerrUrl(),
+          getJellyseerrApiKey()
         );
 
         if (status.exists && status.available) {
@@ -944,8 +951,8 @@ async function startBot() {
         if (tags && tags.length > 0) {
           try {
             const allTags = await jellyseerrApi.fetchTags(
-              JELLYSEERR_URL,
-              JELLYSEERR_API_KEY
+              getJellyseerrUrl(),
+              getJellyseerrApiKey()
             );
             // Filter to appropriate type (Sonarr for TV, Radarr for movies)
             const relevantTags = allTags.filter((tag) =>
@@ -982,8 +989,8 @@ async function startBot() {
           tags: tagIds,
           profileId,
           serverId,
-          jellyseerrUrl: JELLYSEERR_URL,
-          apiKey: JELLYSEERR_API_KEY,
+          jellyseerrUrl: getJellyseerrUrl(),
+          apiKey: getJellyseerrApiKey(),
           discordUserId: interaction.user.id,
           userMappings: getUserMappings(),
         });
@@ -1001,7 +1008,7 @@ async function startBot() {
       const imdbId = await tmdbApi.tmdbGetExternalImdb(
         tmdbId,
         mediaType,
-        TMDB_API_KEY
+        getTmdbApiKey()
       );
 
       const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
@@ -1027,8 +1034,8 @@ async function startBot() {
       if (mediaType === "movie" && mode === "search") {
         try {
           const allTags = await jellyseerrApi.fetchTags(
-            JELLYSEERR_URL,
-            JELLYSEERR_API_KEY
+            getJellyseerrUrl(),
+            getJellyseerrApiKey()
           );
 
           // Filter to only Radarr tags for movies
@@ -1200,8 +1207,8 @@ async function startBot() {
         if (focusedOption.name === "tag") {
           try {
             const allTags = await jellyseerrApi.fetchTags(
-              JELLYSEERR_URL,
-              JELLYSEERR_API_KEY
+              getJellyseerrUrl(),
+              getJellyseerrApiKey()
             );
 
             // Filter tags based on user input
@@ -1261,8 +1268,8 @@ async function startBot() {
             }
 
             const allProfiles = await jellyseerrApi.fetchQualityProfiles(
-              JELLYSEERR_URL,
-              JELLYSEERR_API_KEY
+              getJellyseerrUrl(),
+              getJellyseerrApiKey()
             );
 
             // Filter profiles based on user input, media type, AND selected server
@@ -1324,8 +1331,8 @@ async function startBot() {
             }
 
             const allServers = await jellyseerrApi.fetchServers(
-              JELLYSEERR_URL,
-              JELLYSEERR_API_KEY
+              getJellyseerrUrl(),
+              getJellyseerrApiKey()
             );
 
             // Filter servers based on input AND media type
@@ -1366,7 +1373,7 @@ async function startBot() {
         // For trending command, show trending content instead of search results
         if (interaction.commandName === "trending") {
           try {
-            const trendingResults = await tmdbApi.tmdbGetTrending(TMDB_API_KEY);
+            const trendingResults = await tmdbApi.tmdbGetTrending(getTmdbApiKey());
             const filtered = trendingResults
               .filter((r) => r.media_type === "movie" || r.media_type === "tv")
               .filter((r) => {
@@ -1381,7 +1388,7 @@ async function startBot() {
                   const details = await tmdbApi.tmdbGetDetails(
                     item.id,
                     item.media_type,
-                    TMDB_API_KEY
+                    getTmdbApiKey()
                   );
 
                   const emoji = item.media_type === "movie" ? "🎬" : "📺";
@@ -1462,7 +1469,7 @@ async function startBot() {
         if (!focusedValue) return interaction.respond([]);
 
         try {
-          const results = await tmdbApi.tmdbSearch(focusedValue, TMDB_API_KEY);
+          const results = await tmdbApi.tmdbSearch(focusedValue, getTmdbApiKey());
           const filtered = results
             .filter((r) => r.media_type === "movie" || r.media_type === "tv")
             .slice(0, 25);
@@ -1472,10 +1479,10 @@ async function startBot() {
             filtered.map(async (item) => {
               try {
                 const details = await tmdbApi.tmdbGetDetails(
-                  item.id,
-                  item.media_type,
-                  TMDB_API_KEY
-                );
+                    item.id,
+                    item.media_type,
+                    getTmdbApiKey()
+                  );
 
                 const emoji = item.media_type === "movie" ? "🎬" : "📺";
                 const date = item.release_date || item.first_air_date || "";
@@ -1563,7 +1570,7 @@ async function startBot() {
       // Commands
       if (interaction.isCommand()) {
         // Check if the required configs for commands are present
-        if (!JELLYSEERR_URL || !JELLYSEERR_API_KEY || !TMDB_API_KEY) {
+        if (!getJellyseerrUrl() || !getJellyseerrApiKey() || !getTmdbApiKey()) {
           return interaction.reply({
             content:
               "⚠️ This command is disabled because Jellyseerr or TMDB configuration is missing.",
@@ -1613,7 +1620,7 @@ async function startBot() {
           const details = await tmdbApi.tmdbGetDetails(
             tmdbId,
             mediaType,
-            TMDB_API_KEY
+            getTmdbApiKey()
           );
 
           // Parse seasons and tags from customId
@@ -1623,8 +1630,8 @@ async function startBot() {
           if (selectedTagNames.length > 0) {
             try {
               const allTags = await jellyseerrApi.fetchTags(
-                JELLYSEERR_URL,
-                JELLYSEERR_API_KEY
+                getJellyseerrUrl(),
+                getJellyseerrApiKey()
               );
 
               // Filter by type: Radarr for movies, Sonarr for TV
@@ -1659,8 +1666,8 @@ async function startBot() {
             tmdbId,
             mediaType,
             checkSeasons,
-            JELLYSEERR_URL,
-            JELLYSEERR_API_KEY
+            getJellyseerrUrl(),
+            getJellyseerrApiKey()
           );
 
           if (status.exists && status.available) {
@@ -1691,8 +1698,8 @@ async function startBot() {
             tags: selectedTagIds.length > 0 ? selectedTagIds : undefined,
             profileId,
             serverId,
-            jellyseerrUrl: JELLYSEERR_URL,
-            apiKey: JELLYSEERR_API_KEY,
+            jellyseerrUrl: getJellyseerrUrl(),
+            apiKey: getJellyseerrApiKey(),
             discordUserId: interaction.user.id,
             userMappings: getUserMappings(),
           });
@@ -1709,7 +1716,7 @@ async function startBot() {
           const imdbId = await tmdbApi.tmdbGetExternalImdb(
             tmdbId,
             mediaType,
-            TMDB_API_KEY
+            getTmdbApiKey()
           );
           const omdb = imdbId ? await fetchOMDbData(imdbId) : null;
 
@@ -1778,8 +1785,8 @@ async function startBot() {
           let tags = [];
           if (selectedTags.length === 0) {
             tags = await jellyseerrApi.fetchTags(
-              JELLYSEERR_URL,
-              JELLYSEERR_API_KEY
+              getJellyseerrUrl(),
+              getJellyseerrApiKey()
             );
           }
 
@@ -1787,12 +1794,12 @@ async function startBot() {
           const details = await tmdbApi.tmdbGetDetails(
             tmdbId,
             "tv",
-            TMDB_API_KEY
+            getTmdbApiKey()
           );
           const imdbId = await tmdbApi.tmdbGetExternalImdb(
             tmdbId,
             "tv",
-            TMDB_API_KEY
+            getTmdbApiKey()
           );
 
           // Build updated components with selected seasons
@@ -1887,7 +1894,7 @@ async function startBot() {
           const details = await tmdbApi.tmdbGetDetails(
             tmdbId,
             mediaType,
-            TMDB_API_KEY
+            getTmdbApiKey()
           );
 
           const { profileId, serverId } = parseQualityAndServerOptions({}, mediaType);
@@ -1898,8 +1905,8 @@ async function startBot() {
             seasons: mediaType === "tv" ? ["all"] : undefined,
             profileId,
             serverId,
-            jellyseerrUrl: JELLYSEERR_URL,
-            apiKey: JELLYSEERR_API_KEY,
+            jellyseerrUrl: getJellyseerrUrl(),
+            apiKey: getJellyseerrApiKey(),
             discordUserId: interaction.user.id,
             userMappings: getUserMappings(),
           });
@@ -1958,12 +1965,12 @@ async function startBot() {
           const details = await tmdbApi.tmdbGetDetails(
             tmdbId,
             mediaType,
-            TMDB_API_KEY
+            getTmdbApiKey()
           );
           const imdbId = await tmdbApi.tmdbGetExternalImdb(
             tmdbId,
             mediaType,
-            TMDB_API_KEY
+            getTmdbApiKey()
           );
 
           // Fetch all tags to map IDs to names
@@ -1971,8 +1978,8 @@ async function startBot() {
           if (selectedTagIds.length > 0) {
             try {
               const allTags = await jellyseerrApi.fetchTags(
-                JELLYSEERR_URL,
-                JELLYSEERR_API_KEY
+                getJellyseerrUrl(),
+                getJellyseerrApiKey()
               );
 
               // Filter by type: Radarr for movies, Sonarr for TV

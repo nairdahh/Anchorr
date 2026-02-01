@@ -18,6 +18,20 @@ let serversCache = null;
 let serversCacheTime = 0;
 
 /**
+ * Ensures the URL has the correct API v1 suffix
+ * @param {string} url - The base URL
+ * @returns {string} The normalized API URL
+ */
+function normalizeApiUrl(url) {
+  if (!url) return url;
+  let normalized = url.replace(/\/$/, "");
+  if (!normalized.endsWith("/api/v1")) {
+    normalized += "/api/v1";
+  }
+  return normalized;
+}
+
+/**
  * Fetch data from Radarr/Sonarr servers
  * @param {string} jellyseerrUrl - Jellyseerr API URL
  * @param {string} apiKey - Jellyseerr API key
@@ -27,11 +41,12 @@ let serversCacheTime = 0;
  */
 async function fetchFromServers(jellyseerrUrl, apiKey, fetchDetails, extractData) {
   const results = [];
+  const apiUrl = normalizeApiUrl(jellyseerrUrl);
 
   // Fetch from Radarr servers
   try {
     const radarrListResponse = await axios.get(
-      `${jellyseerrUrl}/service/radarr`,
+      `${apiUrl}/service/radarr`,
       {
         headers: { "X-Api-Key": apiKey },
         timeout: TIMEOUTS.JELLYSEERR_API,
@@ -42,7 +57,7 @@ async function fetchFromServers(jellyseerrUrl, apiKey, fetchDetails, extractData
       try {
         if (fetchDetails) {
           const detailsResponse = await axios.get(
-            `${jellyseerrUrl}/service/radarr/${server.id}`,
+            `${apiUrl}/service/radarr/${server.id}`,
             {
               headers: { "X-Api-Key": apiKey },
               timeout: TIMEOUTS.JELLYSEERR_API,
@@ -68,7 +83,7 @@ async function fetchFromServers(jellyseerrUrl, apiKey, fetchDetails, extractData
   // Fetch from Sonarr servers
   try {
     const sonarrListResponse = await axios.get(
-      `${jellyseerrUrl}/service/sonarr`,
+      `${apiUrl}/service/sonarr`,
       {
         headers: { "X-Api-Key": apiKey },
         timeout: TIMEOUTS.JELLYSEERR_API,
@@ -79,7 +94,7 @@ async function fetchFromServers(jellyseerrUrl, apiKey, fetchDetails, extractData
       try {
         if (fetchDetails) {
           const detailsResponse = await axios.get(
-            `${jellyseerrUrl}/service/sonarr/${server.id}`,
+            `${apiUrl}/service/sonarr/${server.id}`,
             {
               headers: { "X-Api-Key": apiKey },
               timeout: TIMEOUTS.JELLYSEERR_API,
@@ -121,11 +136,12 @@ export async function checkMediaStatus(
   jellyseerrUrl,
   apiKey
 ) {
+  const apiUrl = normalizeApiUrl(jellyseerrUrl);
   try {
     const url =
       mediaType === "movie"
-        ? `${jellyseerrUrl}/movie/${tmdbId}`
-        : `${jellyseerrUrl}/tv/${tmdbId}`;
+        ? `${apiUrl}/movie/${tmdbId}`
+        : `${apiUrl}/tv/${tmdbId}`;
 
     const response = await axios.get(url, {
       headers: { "X-Api-Key": apiKey },
@@ -437,8 +453,9 @@ export async function sendRequest({
           ? JSON.parse(userMappings)
           : userMappings;
 
-      logger.debug(`[JELLYSEERR] Checking mapping for Discord user ${discordUserId}`);
-      logger.debug(`[JELLYSEERR] Available mappings: ${JSON.stringify(mappings)}`);
+      logger.info(`[JELLYSEERR] Checking mapping for Discord user ${discordUserId}`);
+      logger.debug(`[JELLYSEERR] User mappings type: ${Array.isArray(mappings) ? 'array' : typeof mappings}`);
+      logger.debug(`[JELLYSEERR] User mappings content: ${JSON.stringify(mappings)}`);
 
       let jellyseerrUserId = null;
 
@@ -477,16 +494,23 @@ export async function sendRequest({
   }
 
   try {
-    logger.debug("Trying Jellyseerr request with payload:", payload);
-    const response = await axios.post(`${jellyseerrUrl}/request`, payload, {
-      headers: { "X-Api-Key": apiKey },
+    const apiUrl = normalizeApiUrl(jellyseerrUrl);
+    logger.info(`[JELLYSEERR] Sending request to: ${apiUrl}/request`);
+    logger.debug(`[JELLYSEERR] Using API Key: ${apiKey ? apiKey.substring(0, 5) + "..." : "MISSING"}`);
+    logger.debug("[JELLYSEERR] Payload:", JSON.stringify(payload, null, 2));
+
+    const response = await axios.post(`${apiUrl}/request`, payload, {
+      headers: { 
+        "X-Api-Key": apiKey,
+        "Content-Type": "application/json"
+      },
       timeout: TIMEOUTS.JELLYSEERR_POST,
     });
-    logger.info("Jellyseerr request successful!");
+    logger.info("[JELLYSEERR] Request successful!");
     return response.data;
   } catch (err) {
     logger.error(
-      "Jellyseerr request failed:",
+      "[JELLYSEERR] Request failed:",
       err?.response?.data || err?.message || err
     );
     throw err;
