@@ -399,50 +399,66 @@ export async function sendRequest({
   serverId = null,
   profileId = null,
   tags = null,
+  isAutoApproved = null,
   jellyseerrUrl,
   apiKey,
   userMappings = {},
 }) {
   // Prepare seasons for TV shows
-  let seasonsFormatted;
+  let seasonsFormatted = null;
   if (mediaType === "tv" && seasons && seasons.length > 0) {
-    // If seasons is ["all"] or contains "all", send "all" as string
+    // If seasons is ["all"] or contains "all", we can just omit the seasons field
+    // or send all season numbers. Overseerr docs say omitting it requests all.
     if (seasons.includes("all") || seasons[0] === "all") {
-      seasonsFormatted = "all";
+      seasonsFormatted = null; // Omit to request all
+      logger.debug("[JELLYSEERR] Requesting all seasons (omitting seasons field)");
     } else {
       // Convert to array of numbers
       seasonsFormatted = seasons.map((s) => parseInt(s, 10));
+      logger.debug(`[JELLYSEERR] Requesting specific seasons: ${seasonsFormatted.join(", ")}`);
     }
   }
 
   const payload = {
     mediaType,
     mediaId: parseInt(tmdbId, 10),
-    ...(mediaType === "tv" &&
-      seasonsFormatted && { seasons: seasonsFormatted }),
   };
+
+  if (mediaType === "tv" && seasonsFormatted !== null) {
+    payload.seasons = seasonsFormatted;
+  }
 
   // Add tags if provided
   if (tags && Array.isArray(tags) && tags.length > 0) {
     payload.tags = tags.map((t) => parseInt(t, 10));
-    logger.debug(`Using tags: ${tags.join(", ")}`);
+    logger.debug(`[JELLYSEERR] Using tags: ${payload.tags.join(", ")}`);
   }
 
-  // Add root folder and server ID if provided
-  if (rootFolder) {
-    payload.rootFolder = rootFolder;
-    logger.debug(`Using root folder: ${rootFolder}`);
-  }
-
-  if (serverId !== null && serverId !== undefined) {
-    payload.serverId = parseInt(serverId, 10);
-    logger.debug(`Using server ID: ${serverId}`);
-  }
-
-  // Add quality profile ID if provided
-  if (profileId !== null && profileId !== undefined) {
-    payload.profileId = parseInt(profileId, 10);
-    logger.debug(`Using quality profile ID: ${profileId}`);
+  // Logic to handle auto-approval vs pending status
+  if (isAutoApproved === true) {
+    payload.isAutoApproved = true;
+    logger.info("[JELLYSEERR] 🚀 Explicitly setting isAutoApproved: true");
+    
+    // Add server details only if we are auto-approving
+    if (rootFolder) {
+      payload.rootFolder = rootFolder;
+    }
+    if (serverId !== null && serverId !== undefined) {
+      payload.serverId = parseInt(serverId, 10);
+    }
+    if (profileId !== null && profileId !== undefined) {
+      payload.profileId = parseInt(profileId, 10);
+    }
+  } else if (isAutoApproved === false) {
+    payload.isAutoApproved = false;
+    logger.info("[JELLYSEERR] ✋ Auto-Approve is OFF. Withholding server/folder details to force PENDING status.");
+    // We intentionally do NOT add rootFolder, serverId, or profileId here
+    // This forces Jellyseerr to wait for an admin to select these options manually
+  } else {
+    // Fallback if isAutoApproved is null - use provided details but don't force isAutoApproved flag
+    if (rootFolder) payload.rootFolder = rootFolder;
+    if (serverId !== null && serverId !== undefined) payload.serverId = parseInt(serverId, 10);
+    if (profileId !== null && profileId !== undefined) payload.profileId = parseInt(profileId, 10);
   }
 
   // Check if we have a user mapping for this Discord user
@@ -453,10 +469,8 @@ export async function sendRequest({
           ? JSON.parse(userMappings)
           : userMappings;
 
-      logger.info(`[JELLYSEERR] Checking mapping for Discord user ${discordUserId}`);
-      logger.debug(`[JELLYSEERR] User mappings type: ${Array.isArray(mappings) ? 'array' : typeof mappings}`);
-      logger.debug(`[JELLYSEERR] User mappings content: ${JSON.stringify(mappings)}`);
-
+      logger.info(`[JELLYSEERR] 🔍 Mapping check for Discord User: ${discordUserId}`);
+      
       let jellyseerrUserId = null;
 
       // Handle array format (current standard)
@@ -464,55 +478,53 @@ export async function sendRequest({
         const mapping = mappings.find((m) => String(m.discordUserId) === String(discordUserId));
         if (mapping) {
           jellyseerrUserId = mapping.jellyseerrUserId;
-          logger.debug(`[JELLYSEERR] Found array mapping: Discord ${discordUserId} -> Jellyseerr ${jellyseerrUserId}`);
+          logger.info(`[JELLYSEERR] ✅ Match found in config: Discord ${discordUserId} -> Jellyseerr User ${jellyseerrUserId} (${mapping.jellyseerrDisplayName || 'no name'})`);
         }
       }
       // Handle object format (legacy/fallback)
-      else if (
-        mappings &&
-        typeof mappings === "object" &&
-        mappings[discordUserId]
-      ) {
+      else if (mappings && typeof mappings === "object" && mappings[discordUserId]) {
         jellyseerrUserId = mappings[discordUserId];
-        logger.debug(`[JELLYSEERR] Found object mapping: Discord ${discordUserId} -> Jellyseerr ${jellyseerrUserId}`);
+        logger.info(`[JELLYSEERR] ✅ Match found in legacy config: Discord ${discordUserId} -> Jellyseerr User ${jellyseerrUserId}`);
       }
 
       if (jellyseerrUserId !== null && jellyseerrUserId !== undefined) {
         payload.userId = parseInt(jellyseerrUserId, 10);
-        logger.info(
-          `[JELLYSEERR] ✅ MAPPING FOUND: Discord ${discordUserId} -> Jellyseerr User ID ${payload.userId}`
-        );
-        logger.debug(`[JELLYSEERR] Payload for Jellyseerr: ${JSON.stringify(payload)}`);
+        logger.info(`[JELLYSEERR] 👤 Requesting as Jellyseerr User ID: ${payload.userId}`);
       } else {
-        logger.warn(
-          `[JELLYSEERR] ⚠️ NO MAPPING: Discord user ${discordUserId} not found in mappings. Request will be made as the API key owner.`
-        );
+        logger.warn(`[JELLYSEERR] ❌ No mapping found for Discord user ${discordUserId}. Requesting as API Key Owner (ADMIN).`);
       }
     } catch (e) {
-      logger.error("[JELLYSEERR] Failed to parse USER_MAPPINGS:", e);
+      logger.error("[JELLYSEERR] ❌ Failed to parse USER_MAPPINGS:", e);
     }
   }
 
   try {
     const apiUrl = normalizeApiUrl(jellyseerrUrl);
-    logger.info(`[JELLYSEERR] Sending request to: ${apiUrl}/request`);
-    logger.debug(`[JELLYSEERR] Using API Key: ${apiKey ? apiKey.substring(0, 5) + "..." : "MISSING"}`);
-    logger.debug("[JELLYSEERR] Payload:", JSON.stringify(payload, null, 2));
+    const finalUrl = `${apiUrl}/request`;
+    
+    logger.info(`[JELLYSEERR] 🚀 Sending POST to: ${finalUrl}`);
+    logger.info(`[JELLYSEERR] 📦 Payload: ${JSON.stringify(payload)}`);
+    logger.debug(`[JELLYSEERR] 🔑 Using API Key: ${apiKey ? apiKey.substring(0, 5) + "..." : "MISSING"}`);
 
-    const response = await axios.post(`${apiUrl}/request`, payload, {
+    const response = await axios.post(finalUrl, payload, {
       headers: { 
         "X-Api-Key": apiKey,
         "Content-Type": "application/json"
       },
       timeout: TIMEOUTS.JELLYSEERR_POST,
     });
-    logger.info("[JELLYSEERR] Request successful!");
+    
+    logger.info("[JELLYSEERR] ✨ Request successful!");
+    logger.debug(`[JELLYSEERR] Response: ${JSON.stringify(response.data)}`);
     return response.data;
   } catch (err) {
-    logger.error(
-      "[JELLYSEERR] Request failed:",
-      err?.response?.data || err?.message || err
-    );
+    const errorData = err?.response?.data;
+    logger.error("[JELLYSEERR] ❌ Request failed!");
+    if (errorData) {
+      logger.error(`[JELLYSEERR] Error Details: ${JSON.stringify(errorData)}`);
+    } else {
+      logger.error(`[JELLYSEERR] Error Message: ${err.message}`);
+    }
     throw err;
   }
 }

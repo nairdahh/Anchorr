@@ -37,6 +37,7 @@ export const configSchema = Joi.object({
   AUTO_START_BOT: Joi.string().valid("true", "false").optional(),
   NOTIFY_ON_AVAILABLE: Joi.string().valid("true", "false").optional(),
   PRIVATE_MESSAGE_MODE: Joi.string().valid("true", "false").optional(),
+  JELLYSEERR_AUTO_APPROVE: Joi.string().valid("true", "false").optional(),
   DEBUG: Joi.string().valid("true", "false").optional(),
   USER_MAPPINGS: Joi.object().pattern(Joi.string(), Joi.string()).optional(),
   USER_MAPPING_METADATA: Joi.object().optional(),

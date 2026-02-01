@@ -447,6 +447,12 @@ async function startBot() {
   };
   const getJellyseerrApiKey = () => process.env.JELLYSEERR_API_KEY;
   const getTmdbApiKey = () => process.env.TMDB_API_KEY;
+  const getJellyseerrAutoApprove = () => {
+    const val = process.env.JELLYSEERR_AUTO_APPROVE;
+    const isAuto = val === "true";
+    logger.info(`[CONFIG CHECK] JELLYSEERR_AUTO_APPROVE is currently: ${val} (Evaluated to: ${isAuto})`);
+    return isAuto;
+  };
 
   const BOT_ID = process.env.BOT_ID;
   const GUILD_ID = process.env.GUILD_ID;
@@ -993,7 +999,9 @@ async function startBot() {
           apiKey: getJellyseerrApiKey(),
           discordUserId: interaction.user.id,
           userMappings: getUserMappings(),
+          isAutoApproved: getJellyseerrAutoApprove(),
         });
+        logger.info(`[REQUEST] Discord User ${interaction.user.id} requested ${mediaType} ${tmdbId}. Auto-Approve: ${getJellyseerrAutoApprove()}`);
 
         // Track request for notifications if enabled
         if (process.env.NOTIFY_ON_AVAILABLE === "true") {
@@ -1702,7 +1710,10 @@ async function startBot() {
             apiKey: getJellyseerrApiKey(),
             discordUserId: interaction.user.id,
             userMappings: getUserMappings(),
+            isAutoApproved: getJellyseerrAutoApprove(),
           });
+          logger.info(`[REQUEST] Discord User ${interaction.user.id} requested ${mediaType} ${tmdbId}. Auto-Approve: ${getJellyseerrAutoApprove()}`);
+          logger.info(`[REQUEST] Discord User ${interaction.user.id} requested ${mediaType} ${tmdbId}. Auto-Approve: ${getJellyseerrAutoApprove()}`);
 
           // Track request for notifications if enabled
           if (process.env.NOTIFY_ON_AVAILABLE === "true") {
@@ -1909,6 +1920,7 @@ async function startBot() {
             apiKey: getJellyseerrApiKey(),
             discordUserId: interaction.user.id,
             userMappings: getUserMappings(),
+            isAutoApproved: getJellyseerrAutoApprove(),
           });
 
           // Track request for notifications
