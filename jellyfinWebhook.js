@@ -103,8 +103,12 @@ function getItemLevel(itemType) {
 // Build a Jellyfin URL that preserves a potential subpath (e.g., /jellyfin)
 // and appends the provided path and optional hash fragment safely.
 function buildJellyfinUrl(baseUrl, appendPath, hash) {
+  // Use the ServerUrl from webhook if it's a valid absolute URL, 
+  // otherwise fallback to the JELLYFIN_BASE_URL from config.
+  const effectiveBaseUrl = (baseUrl && isValidUrl(baseUrl)) ? baseUrl : process.env.JELLYFIN_BASE_URL;
+
   try {
-    const u = new URL(baseUrl);
+    const u = new URL(effectiveBaseUrl);
     let p = u.pathname || "/";
     if (!p.endsWith("/")) p += "/";
     const pathClean = String(appendPath || "").replace(/^\/+/, "");
@@ -115,7 +119,7 @@ function buildJellyfinUrl(baseUrl, appendPath, hash) {
     }
     return u.toString();
   } catch (_e) {
-    const baseNoSlash = String(baseUrl || "").replace(/\/+$/, "");
+    const baseNoSlash = String(effectiveBaseUrl || "").replace(/\/+$/, "");
     const pathNoLead = String(appendPath || "").replace(/^\/+/, "");
     const h = hash
       ? String(hash).startsWith("#")
@@ -518,7 +522,7 @@ async function processAndSendNotification(
     ? `https://image.tmdb.org/t/p/w1280${backdropPath}`
     : buildJellyfinUrl(ServerUrl, `Items/${ItemId}/Images/Backdrop`);
   
-  if (showBackdrop) {
+  if (showBackdrop && isValidUrl(backdrop)) {
     embed.setImage(backdrop);
   }
 
@@ -720,7 +724,9 @@ async function processAndSendNotification(
 
         if (backdropPath) {
           const backdropUrl = `https://image.tmdb.org/t/p/w1280${backdropPath}`;
-          dmEmbed.setImage(backdropUrl);
+          if (isValidUrl(backdropUrl)) {
+            dmEmbed.setImage(backdropUrl);
+          }
         }
 
         const dmButtons = isValidUrl(dmJellyfinUrl) ? new ActionRowBuilder().addComponents(

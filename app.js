@@ -57,6 +57,17 @@ import {
   deleteUserMapping,
 } from "./utils/configFile.js";
 
+// --- Helper Functions ---
+function isValidUrl(string) {
+  if (!string || typeof string !== "string") return false;
+  try {
+    new URL(string);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 // --- CONFIGURATION ---
 const ENV_PATH = path.join(process.cwd(), ".env");
 
@@ -317,7 +328,7 @@ async function sendDailyRandomPick(client) {
       }
     }
 
-    if (backdrop) {
+    if (backdrop && isValidUrl(backdrop)) {
       embed.setImage(backdrop);
     }
     
@@ -326,12 +337,14 @@ async function sendDailyRandomPick(client) {
     // Letterboxd button
     if (isMovie) {
       const letterboxdUrl = `https://letterboxd.com/search/${encodeURIComponent(title)}/`;
-      buttonComponents.push(
-        new ButtonBuilder()
-          .setStyle(ButtonStyle.Link)
-          .setLabel("Letterboxd")
-          .setURL(letterboxdUrl)
-      );
+      if (isValidUrl(letterboxdUrl)) {
+        buttonComponents.push(
+          new ButtonBuilder()
+            .setStyle(ButtonStyle.Link)
+            .setLabel("Letterboxd")
+            .setURL(letterboxdUrl)
+        );
+      }
     }
 
     // IMDb button if available
@@ -340,12 +353,15 @@ async function sendDailyRandomPick(client) {
       imdbId = details.external_ids.imdb_id;
     }
     if (imdbId) {
-      buttonComponents.push(
-        new ButtonBuilder()
-          .setStyle(ButtonStyle.Link)
-          .setLabel("IMDb")
-          .setURL(`https://www.imdb.com/title/${imdbId}/`)
-      );
+      const imdbUrl = `https://www.imdb.com/title/${imdbId}/`;
+      if (isValidUrl(imdbUrl)) {
+        buttonComponents.push(
+          new ButtonBuilder()
+            .setStyle(ButtonStyle.Link)
+            .setLabel("IMDb")
+            .setURL(imdbUrl)
+        );
+      }
     }
 
     // Request button
@@ -577,7 +593,7 @@ async function startBot() {
     // Add ?manage=1 only for success status
     let jellyseerrMediaUrl;
     if (tmdbId && JELLYSEERR_URL) {
-      const jellyseerrDomain = JELLYSEERR_URL.replace(/\/api\/v1\/?$/, "");
+      const jellyseerrDomain = JELLYSEERR_URL.replace(/\/api\/v1\/?$/, "").replace(/\/+$/, "");
       const baseUrl = `${jellyseerrDomain}/${mediaType}/${tmdbId}`;
       jellyseerrMediaUrl =
         status === "success" ? `${baseUrl}?manage=1` : baseUrl;
@@ -628,7 +644,7 @@ async function startBot() {
     const embed = new EmbedBuilder()
       .setAuthor({
         name: authorName,
-        url: jellyseerrMediaUrl,
+        url: isValidUrl(jellyseerrMediaUrl) ? jellyseerrMediaUrl : undefined,
       })
       .setTitle(titleWithYear)
       .setURL(imdbId ? `https://www.imdb.com/title/${imdbId}/` : undefined)
@@ -647,8 +663,12 @@ async function startBot() {
     const poster = details.poster_path
       ? `https://image.tmdb.org/t/p/w342${details.poster_path}`
       : null;
-    if (backdrop) embed.setImage(backdrop);
-    else if (poster) embed.setThumbnail(poster);
+    
+    if (backdrop && isValidUrl(backdrop)) {
+      embed.setImage(backdrop);
+    } else if (poster && isValidUrl(poster)) {
+      embed.setThumbnail(poster);
+    }
 
     embed.addFields(
       {
@@ -680,16 +700,26 @@ async function startBot() {
 
     // Always add IMDB and Letterboxd buttons if available
     if (imdbId) {
-      buttons.push(
-        new ButtonBuilder()
-          .setStyle(ButtonStyle.Link)
-          .setLabel("Letterboxd")
-          .setURL(`https://letterboxd.com/imdb/${imdbId}`),
-        new ButtonBuilder()
-          .setStyle(ButtonStyle.Link)
-          .setLabel("IMDb")
-          .setURL(`https://www.imdb.com/title/${imdbId}/`)
-      );
+      const letterboxdUrl = `https://letterboxd.com/imdb/${imdbId}`;
+      const imdbUrl = `https://www.imdb.com/title/${imdbId}/`;
+      
+      if (isValidUrl(letterboxdUrl)) {
+        buttons.push(
+          new ButtonBuilder()
+            .setStyle(ButtonStyle.Link)
+            .setLabel("Letterboxd")
+            .setURL(letterboxdUrl)
+        );
+      }
+      
+      if (isValidUrl(imdbUrl)) {
+        buttons.push(
+          new ButtonBuilder()
+            .setStyle(ButtonStyle.Link)
+            .setLabel("IMDb")
+            .setURL(imdbUrl)
+        );
+      }
     }
 
     // Add Request button (dynamic label based on selections)
@@ -807,7 +837,7 @@ async function startBot() {
         .setCustomId(`select_seasons|${tmdbId}|${tagsParam}`)
         .setPlaceholder("Select seasons to request...")
         .setMinValues(1)
-        .setMaxValues(seasonOptions.length)
+        .setMaxValues(Math.min(25, seasonOptions.length))
         .addOptions(seasonOptions.slice(0, 25));
 
       rows.push(new ActionRowBuilder().addComponents(selectMenu));
@@ -1044,19 +1074,37 @@ async function startBot() {
       await interaction.editReply({ embeds: [embed], components });
     } catch (err) {
       logger.error("Error in handleSearchOrRequest:", err);
+      
+      // Extract a user-friendly error message if possible
+      let errorMessage = "⚠️ An error occurred.";
+      if (err.response && err.response.data && err.response.data.message) {
+        errorMessage = `⚠️ Jellyseerr error: ${err.response.data.message}`;
+      } else if (err.message) {
+        // Special handling for quota errors or other common ones
+        if (err.message.includes("403")) {
+          errorMessage = "⚠️ Request failed: You might have exceeded your quota or don't have permission.";
+        } else {
+          errorMessage = `⚠️ Error: ${err.message}`;
+        }
+      }
+
       // Error messages should always be ephemeral
       if (isPrivateMode) {
         // Already ephemeral, just edit
         await interaction.editReply({
-          content: "⚠️ An error occurred.",
+          content: errorMessage,
           components: [],
           embeds: [],
         });
       } else {
         // Was public, delete and send ephemeral error
-        await interaction.deleteReply();
+        try {
+          await interaction.deleteReply();
+        } catch (e) {
+          // Ignore delete errors if it was already deleted
+        }
         await interaction.followUp({
-          content: "⚠️ An error occurred.",
+          content: errorMessage,
           flags: 64,
         });
       }

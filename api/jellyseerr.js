@@ -455,10 +455,14 @@ export async function sendRequest({
         jellyseerrUserId = mappings[discordUserId];
       }
 
-      if (jellyseerrUserId) {
+      if (jellyseerrUserId !== null && jellyseerrUserId !== undefined) {
         payload.userId = parseInt(jellyseerrUserId, 10);
         logger.debug(
           `Using Jellyseerr user ID ${payload.userId} for Discord user ${discordUserId}`
+        );
+      } else {
+        logger.debug(
+          `No Jellyseerr user mapping found for Discord user ${discordUserId}. Request will be made as the API key owner.`
         );
       }
     } catch (e) {
