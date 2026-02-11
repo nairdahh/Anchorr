@@ -407,11 +407,11 @@ export async function sendRequest({
   // Prepare seasons for TV shows
   let seasonsFormatted = null;
   if (mediaType === "tv" && seasons && seasons.length > 0) {
-    // If seasons is ["all"] or contains "all", we can just omit the seasons field
-    // or send all season numbers. Overseerr docs say omitting it requests all.
+    // If seasons is ["all"] or contains "all", send empty array to request all seasons
+    // Jellyseerr expects an empty array [], not a missing field
     if (seasons.includes("all") || seasons[0] === "all") {
-      seasonsFormatted = null; // Omit to request all
-      logger.debug("[JELLYSEERR] Requesting all seasons (omitting seasons field)");
+      seasonsFormatted = []; // Empty array requests all seasons
+      logger.debug("[JELLYSEERR] Requesting all seasons (sending empty array)");
     } else {
       // Convert to array of numbers
       seasonsFormatted = seasons.map((s) => parseInt(s, 10));
@@ -424,6 +424,7 @@ export async function sendRequest({
     mediaId: parseInt(tmdbId, 10),
   };
 
+  // Always include seasons field for TV shows (empty array = all seasons)
   if (mediaType === "tv" && seasonsFormatted !== null) {
     payload.seasons = seasonsFormatted;
   }
@@ -434,12 +435,16 @@ export async function sendRequest({
     logger.debug(`[JELLYSEERR] Using tags: ${payload.tags.join(", ")}`);
   }
 
-  // Logic to handle auto-approval vs pending status
+  // CRITICAL: Logic to handle auto-approval vs pending status
+  // Jellyseerr will auto-approve requests if serverId/profileId are provided,
+  // regardless of the isAutoApproved flag. Therefore, we MUST NOT send these
+  // fields unless we explicitly want auto-approval.
+
   if (isAutoApproved === true) {
+    // User wants auto-approval - send all details
     payload.isAutoApproved = true;
-    logger.info("[JELLYSEERR] 🚀 Explicitly setting isAutoApproved: true");
-    
-    // Add server details only if we are auto-approving
+    logger.info("[JELLYSEERR] 🚀 Auto-Approve is ON - including server details");
+
     if (rootFolder) {
       payload.rootFolder = rootFolder;
     }
@@ -449,19 +454,22 @@ export async function sendRequest({
     if (profileId !== null && profileId !== undefined) {
       payload.profileId = parseInt(profileId, 10);
     }
-  } else if (isAutoApproved === false) {
-    payload.isAutoApproved = false;
-    logger.info("[JELLYSEERR] ✋ Auto-Approve is OFF. Withholding server/folder details to force PENDING status.");
-    // We intentionally do NOT add rootFolder, serverId, or profileId here
-    // This forces Jellyseerr to wait for an admin to select these options manually
+
+    // Note: userId will be added later after user mapping check
   } else {
-    // Fallback if isAutoApproved is null - use provided details but don't force isAutoApproved flag
-    if (rootFolder) payload.rootFolder = rootFolder;
-    if (serverId !== null && serverId !== undefined) payload.serverId = parseInt(serverId, 10);
-    if (profileId !== null && profileId !== undefined) payload.profileId = parseInt(profileId, 10);
+    // isAutoApproved is false OR null - create as PENDING request
+    // DO NOT send serverId, profileId, or rootFolder
+    // This forces Jellyseerr to create a pending request that requires manual approval
+    payload.isAutoApproved = false;
+    logger.info("[JELLYSEERR] ✋ Auto-Approve is OFF - request will be PENDING (admin must approve manually)");
+
+    // Explicitly log that we're NOT sending server details
+    logger.debug("[JELLYSEERR] Withholding serverId, profileId, and rootFolder to force PENDING status");
   }
 
   // Check if we have a user mapping for this Discord user
+  let jellyseerrUserId = null;
+
   if (discordUserId) {
     try {
       const mappings =
@@ -470,8 +478,6 @@ export async function sendRequest({
           : userMappings;
 
       logger.info(`[JELLYSEERR] 🔍 Mapping check for Discord User: ${discordUserId}`);
-      
-      let jellyseerrUserId = null;
 
       // Handle array format (current standard)
       if (Array.isArray(mappings)) {
@@ -488,8 +494,14 @@ export async function sendRequest({
       }
 
       if (jellyseerrUserId !== null && jellyseerrUserId !== undefined) {
-        payload.userId = parseInt(jellyseerrUserId, 10);
-        logger.info(`[JELLYSEERR] 👤 Requesting as Jellyseerr User ID: ${payload.userId}`);
+        logger.info(`[JELLYSEERR] 👤 Requesting as Jellyseerr User ID: ${jellyseerrUserId}`);
+
+        // If auto-approve is ON, add userId to payload for tracking
+        // This helps identify who made the request in Jellyseerr's history
+        if (isAutoApproved === true) {
+          payload.userId = parseInt(jellyseerrUserId, 10);
+          logger.info(`[JELLYSEERR] 📝 Adding userId to payload for tracking: ${payload.userId}`);
+        }
       } else {
         logger.warn(`[JELLYSEERR] ❌ No mapping found for Discord user ${discordUserId}. Requesting as API Key Owner (ADMIN).`);
       }
@@ -501,30 +513,67 @@ export async function sendRequest({
   try {
     const apiUrl = normalizeApiUrl(jellyseerrUrl);
     const finalUrl = `${apiUrl}/request`;
-    
+
     logger.info(`[JELLYSEERR] 🚀 Sending POST to: ${finalUrl}`);
     logger.info(`[JELLYSEERR] 📦 Payload: ${JSON.stringify(payload)}`);
     logger.debug(`[JELLYSEERR] 🔑 Using API Key: ${apiKey ? apiKey.substring(0, 5) + "..." : "MISSING"}`);
 
+    // Build headers
+    const headers = {
+      "X-Api-Key": apiKey,
+      "Content-Type": "application/json"
+    };
+
+    // CRITICAL: x-api-user header logic based on auto-approve setting
+    // 
+    // When isAutoApproved === true:
+    //   - DO NOT set x-api-user header
+    //   - Request will use API key owner's permissions (admin with auto-approve)
+    //   - Result: Request is auto-approved immediately
+    //
+    // When isAutoApproved === false:
+    //   - SET x-api-user header to mapped user ID
+    //   - Request will use mapped user's permissions (no auto-approve)
+    //   - Result: Request is created as PENDING, requires manual approval
+
+    if (isAutoApproved === false && jellyseerrUserId !== null && jellyseerrUserId !== undefined) {
+      headers["x-api-user"] = String(jellyseerrUserId);
+      logger.info(`[JELLYSEERR] 🎭 Setting x-api-user header: ${jellyseerrUserId} (request will use this user's permissions - no auto-approve)`);
+    } else if (isAutoApproved === true) {
+      logger.info(`[JELLYSEERR] 🔓 NOT setting x-api-user header (request will use API key owner's permissions - auto-approve enabled)`);
+    }
+
     const response = await axios.post(finalUrl, payload, {
-      headers: { 
-        "X-Api-Key": apiKey,
-        "Content-Type": "application/json"
-      },
+      headers,
       timeout: TIMEOUTS.JELLYSEERR_POST,
     });
-    
+
     logger.info("[JELLYSEERR] ✨ Request successful!");
     logger.debug(`[JELLYSEERR] Response: ${JSON.stringify(response.data)}`);
     return response.data;
   } catch (err) {
     const errorData = err?.response?.data;
+    const statusCode = err?.response?.status;
+
     logger.error("[JELLYSEERR] ❌ Request failed!");
+
+    // Log status code if available
+    if (statusCode) {
+      logger.error(`[JELLYSEERR] HTTP Status Code: ${statusCode}`);
+    }
+
+    // Log detailed error information
     if (errorData) {
       logger.error(`[JELLYSEERR] Error Details: ${JSON.stringify(errorData)}`);
-    } else {
+    } else if (err.message) {
       logger.error(`[JELLYSEERR] Error Message: ${err.message}`);
     }
+
+    // Log the full error for debugging
+    if (err.code) {
+      logger.error(`[JELLYSEERR] Error Code: ${err.code}`);
+    }
+
     throw err;
   }
 }

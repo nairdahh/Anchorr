@@ -331,7 +331,7 @@ async function sendDailyRandomPick(client) {
     if (backdrop && isValidUrl(backdrop)) {
       embed.setImage(backdrop);
     }
-    
+
     const buttonComponents = [];
 
     // Letterboxd button
@@ -475,7 +475,7 @@ async function startBot() {
       try {
         const v = interaction.options.getString(n);
         if (typeof v === "string" && v.length > 0) return v;
-      } catch (e) {}
+      } catch (e) { }
     }
     try {
       const data = (interaction.options && interaction.options.data) || [];
@@ -485,7 +485,7 @@ async function startBot() {
             return String(opt.value);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
     return null;
   }
 
@@ -597,8 +597,8 @@ async function startBot() {
       status === "success"
         ? "✅ Successfully requested!"
         : mediaType === "movie"
-        ? "🎬 Movie found:"
-        : "📺 TV show found:";
+          ? "🎬 Movie found:"
+          : "📺 TV show found:";
 
     // Generate Jellyseerr URL for the author link
     // Remove /api/v1 from getJellyseerrUrl() to get the base domain
@@ -632,8 +632,8 @@ async function startBot() {
     const rating = omdb?.imdbRating
       ? `${omdb.imdbRating}/10`
       : typeof details.vote_average === "number" && details.vote_average > 0
-      ? `${details.vote_average.toFixed(1)}/10`
-      : "N/A";
+        ? `${details.vote_average.toFixed(1)}/10`
+        : "N/A";
 
     let overview =
       (details.overview && details.overview.trim() !== ""
@@ -665,8 +665,8 @@ async function startBot() {
         status === "success"
           ? COLORS.SUCCESS
           : status === "search"
-          ? COLORS.SEARCH
-          : COLORS.DEFAULT
+            ? COLORS.SEARCH
+            : COLORS.DEFAULT
       );
 
     const backdropPath = tmdbApi.findBestBackdrop(details);
@@ -676,7 +676,7 @@ async function startBot() {
     const poster = details.poster_path
       ? `https://image.tmdb.org/t/p/w342${details.poster_path}`
       : null;
-    
+
     if (backdrop && isValidUrl(backdrop)) {
       embed.setImage(backdrop);
     } else if (poster && isValidUrl(poster)) {
@@ -715,7 +715,7 @@ async function startBot() {
     if (imdbId) {
       const letterboxdUrl = `https://letterboxd.com/imdb/${imdbId}`;
       const imdbUrl = `https://www.imdb.com/title/${imdbId}/`;
-      
+
       if (isValidUrl(letterboxdUrl)) {
         buttons.push(
           new ButtonBuilder()
@@ -724,7 +724,7 @@ async function startBot() {
             .setURL(letterboxdUrl)
         );
       }
-      
+
       if (isValidUrl(imdbUrl)) {
         buttons.push(
           new ButtonBuilder()
@@ -760,9 +760,8 @@ async function startBot() {
           requestedTags.length === 1
             ? requestedTags[0]
             : requestedTags.join(", ");
-        successLabel += ` with ${tagLabel} tag${
-          requestedTags.length > 1 ? "s" : ""
-        }`;
+        successLabel += ` with ${tagLabel} tag${requestedTags.length > 1 ? "s" : ""
+          }`;
       }
 
       // Always add "stay tuned!" for all requests
@@ -797,9 +796,8 @@ async function startBot() {
         // selectedTags contains tag names (not IDs) when coming from select_tags handler
         const tagLabel =
           selectedTags.length === 1 ? selectedTags[0] : selectedTags.join(", ");
-        requestLabel += ` with ${tagLabel} tag${
-          selectedTags.length > 1 ? "s" : ""
-        }`;
+        requestLabel += ` with ${tagLabel} tag${selectedTags.length > 1 ? "s" : ""
+          }`;
       }
 
       const seasonsParam =
@@ -837,23 +835,87 @@ async function startBot() {
         return true;
       });
 
-      const seasonOptions = [
-        { label: "All Seasons", value: "all" },
-        ...uniqueSeasons.map((s) => ({
-          label: `Season ${s.season_number} (${s.episode_count} episodes)`,
-          value: String(s.season_number),
-        })),
-      ];
-
       const tagsParam = selectedTags.length > 0 ? selectedTags.join(",") : "";
-      const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId(`select_seasons|${tmdbId}|${tagsParam}`)
-        .setPlaceholder("Select seasons to request...")
-        .setMinValues(1)
-        .setMaxValues(Math.min(25, seasonOptions.length))
-        .addOptions(seasonOptions.slice(0, 25));
 
-      rows.push(new ActionRowBuilder().addComponents(selectMenu));
+      // If we have 24 or fewer seasons, use single dropdown with "All Seasons"
+      if (uniqueSeasons.length <= 24) {
+        const seasonOptions = [
+          { label: "All Seasons", value: "all" },
+          ...uniqueSeasons.map((s) => ({
+            label: `Season ${s.season_number} (${s.episode_count} episodes)`,
+            value: String(s.season_number),
+          })),
+        ];
+
+        const selectMenu = new StringSelectMenuBuilder()
+          .setCustomId(`select_seasons|${tmdbId}|${tagsParam}`)
+          .setPlaceholder("Select seasons to request...")
+          .setMinValues(1)
+          .setMaxValues(Math.min(25, seasonOptions.length))
+          .addOptions(seasonOptions);
+
+        rows.push(new ActionRowBuilder().addComponents(selectMenu));
+      } else {
+        // For shows with more than 24 seasons, split into multiple dropdowns
+        // We can use up to 4 rows for seasons (leaving 1 for buttons)
+        const SEASONS_PER_MENU = 24;
+        const MAX_SEASON_MENUS = 4; // Maximum number of season selector rows
+
+        // Add "All Seasons" option to first menu
+        const firstBatchSeasons = uniqueSeasons.slice(0, SEASONS_PER_MENU);
+        const firstMenuOptions = [
+          { label: "All Seasons", value: "all" },
+          ...firstBatchSeasons.map((s) => ({
+            label: `Season ${s.season_number} (${s.episode_count} episodes)`,
+            value: String(s.season_number),
+          })),
+        ];
+
+        const firstMenu = new StringSelectMenuBuilder()
+          .setCustomId(`select_seasons|${tmdbId}|${tagsParam}|0`)
+          .setPlaceholder(`Seasons 1-${firstBatchSeasons[firstBatchSeasons.length - 1].season_number}`)
+          .setMinValues(0)
+          .setMaxValues(firstMenuOptions.length)
+          .addOptions(firstMenuOptions);
+
+        rows.push(new ActionRowBuilder().addComponents(firstMenu));
+
+        // Add additional menus for remaining seasons
+        let menuIndex = 1;
+        let offset = SEASONS_PER_MENU;
+
+        while (offset < uniqueSeasons.length && menuIndex < MAX_SEASON_MENUS) {
+          const batchSeasons = uniqueSeasons.slice(offset, offset + SEASONS_PER_MENU);
+
+          if (batchSeasons.length > 0) {
+            const batchOptions = batchSeasons.map((s) => ({
+              label: `Season ${s.season_number} (${s.episode_count} episodes)`,
+              value: String(s.season_number),
+            }));
+
+            const batchMenu = new StringSelectMenuBuilder()
+              .setCustomId(`select_seasons|${tmdbId}|${tagsParam}|${menuIndex}`)
+              .setPlaceholder(
+                `Seasons ${batchSeasons[0].season_number}-${batchSeasons[batchSeasons.length - 1].season_number}`
+              )
+              .setMinValues(0)
+              .setMaxValues(batchOptions.length)
+              .addOptions(batchOptions);
+
+            rows.push(new ActionRowBuilder().addComponents(batchMenu));
+          }
+
+          offset += SEASONS_PER_MENU;
+          menuIndex++;
+        }
+
+        // Log if we had to truncate seasons
+        if (offset < uniqueSeasons.length) {
+          logger.warn(
+            `[SEASON SELECTOR] Show has ${uniqueSeasons.length} seasons, but Discord limit allows only ${offset} to be shown in ${MAX_SEASON_MENUS} menus`
+          );
+        }
+      }
     }
 
     // Add tag selector for movies (if not requested and has available tags)
@@ -961,9 +1023,12 @@ async function startBot() {
               getJellyseerrApiKey()
             );
             // Filter to appropriate type (Sonarr for TV, Radarr for movies)
-            const relevantTags = allTags.filter((tag) =>
-              mediaType === "tv" ? tag.type === "sonarr" : tag.type === "radarr"
-            );
+            // Add defensive check to ensure allTags is an array
+            const relevantTags = Array.isArray(allTags)
+              ? allTags.filter((tag) =>
+                mediaType === "tv" ? tag.type === "sonarr" : tag.type === "radarr"
+              )
+              : [];
 
             // Map tag labels to IDs
             tagIds = tags
@@ -1047,7 +1112,10 @@ async function startBot() {
           );
 
           // Filter to only Radarr tags for movies
-          const radarrTags = allTags.filter((tag) => tag.type === "radarr");
+          // Add defensive check to ensure allTags is an array
+          const radarrTags = Array.isArray(allTags)
+            ? allTags.filter((tag) => tag.type === "radarr")
+            : [];
 
           if (radarrTags && radarrTags.length > 0) {
             // Deduplicate tags by ID
@@ -1089,7 +1157,7 @@ async function startBot() {
       await interaction.editReply({ embeds: [embed], components });
     } catch (err) {
       logger.error("Error in handleSearchOrRequest:", err);
-      
+
       // Extract a user-friendly error message if possible
       let errorMessage = "⚠️ An error occurred.";
       if (err.response && err.response.data && err.response.data.message) {
@@ -1136,18 +1204,16 @@ async function startBot() {
       .DISCORD_TOKEN}`
   );
   logger.debug(
-    `[REGISTER COMMANDS] DISCORD_TOKEN value: ${
-      process.env.DISCORD_TOKEN
-        ? process.env.DISCORD_TOKEN.slice(0, 10) + "..."
-        : "UNDEFINED"
+    `[REGISTER COMMANDS] DISCORD_TOKEN value: ${process.env.DISCORD_TOKEN
+      ? process.env.DISCORD_TOKEN.slice(0, 10) + "..."
+      : "UNDEFINED"
     }`
   );
 
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
   logger.debug(`[REGISTER COMMANDS] REST token set: ${!!rest.token}`);
   logger.debug(
-    `[REGISTER COMMANDS] REST token value: ${
-      rest.token ? rest.token.slice(0, 10) + "..." : "UNDEFINED"
+    `[REGISTER COMMANDS] REST token value: ${rest.token ? rest.token.slice(0, 10) + "..." : "UNDEFINED"
     }`
   );
 
@@ -1220,10 +1286,13 @@ async function startBot() {
             );
 
             // Filter tags based on user input
-            const filteredTags = allTags.filter((tag) => {
-              const label = tag.label || tag.name || "";
-              return label.toLowerCase().includes(focusedValue.toLowerCase());
-            });
+            // Add defensive check to ensure allTags is an array
+            const filteredTags = Array.isArray(allTags)
+              ? allTags.filter((tag) => {
+                const label = tag.label || tag.name || "";
+                return label.toLowerCase().includes(focusedValue.toLowerCase());
+              })
+              : [];
 
             // Deduplicate by label/name
             const uniqueTags = [];
@@ -1254,7 +1323,7 @@ async function startBot() {
             // Determine media type from title
             const titleOption = interaction.options.getString("title");
             let mediaType = null;
-            
+
             if (titleOption && titleOption.includes("|")) {
               const parts = titleOption.split("|");
               mediaType = parts[1]; // "movie" or "tv"
@@ -1284,21 +1353,21 @@ async function startBot() {
             const filteredProfiles = allProfiles.filter((profile) => {
               const name = profile.name || "";
               const matchesSearch = name.toLowerCase().includes(focusedValue.toLowerCase());
-              
+
               // Filter by media type if title is selected
               let matchesType = true;
               if (mediaType) {
-                matchesType = 
+                matchesType =
                   (mediaType === "movie" && profile.type === "radarr") ||
                   (mediaType === "tv" && profile.type === "sonarr");
               }
-              
+
               // Filter by server if server is selected
               let matchesServer = true;
               if (selectedServerId !== null) {
                 matchesServer = profile.serverId === selectedServerId;
               }
-              
+
               return matchesSearch && matchesType && matchesServer;
             });
 
@@ -1332,7 +1401,7 @@ async function startBot() {
             // Determine media type from title
             const titleOption = interaction.options.getString("title");
             let mediaType = null;
-            
+
             if (titleOption && titleOption.includes("|")) {
               const parts = titleOption.split("|");
               mediaType = parts[1]; // "movie" or "tv"
@@ -1347,15 +1416,15 @@ async function startBot() {
             const filteredServers = allServers.filter((server) => {
               const name = server.name || "";
               const matchesSearch = name.toLowerCase().includes(focusedValue.toLowerCase());
-              
+
               // If media type known, filter
               if (mediaType) {
-                const matchesType = 
+                const matchesType =
                   (mediaType === "movie" && server.type === "radarr") ||
                   (mediaType === "tv" && server.type === "sonarr");
                 return matchesSearch && matchesType;
               }
-              
+
               return matchesSearch;
             });
 
@@ -1437,9 +1506,8 @@ async function startBot() {
                     }
                   }
 
-                  let fullName = `${emoji} ${
-                    item.title || item.name
-                  }${year}${extraInfo}`;
+                  let fullName = `${emoji} ${item.title || item.name
+                    }${year}${extraInfo}`;
 
                   if (fullName.length > 98) {
                     fullName = fullName.substring(0, 95) + "...";
@@ -1487,10 +1555,10 @@ async function startBot() {
             filtered.map(async (item) => {
               try {
                 const details = await tmdbApi.tmdbGetDetails(
-                    item.id,
-                    item.media_type,
-                    getTmdbApiKey()
-                  );
+                  item.id,
+                  item.media_type,
+                  getTmdbApiKey()
+                );
 
                 const emoji = item.media_type === "movie" ? "🎬" : "📺";
                 const date = item.release_date || item.first_air_date || "";
@@ -1534,9 +1602,8 @@ async function startBot() {
                   }
                 }
 
-                let fullName = `${emoji} ${
-                  item.title || item.name
-                }${year}${extraInfo}`;
+                let fullName = `${emoji} ${item.title || item.name
+                  }${year}${extraInfo}`;
 
                 // Truncate if too long (Discord limit is 100 chars)
                 if (fullName.length > 98) {
@@ -1643,10 +1710,12 @@ async function startBot() {
               );
 
               // Filter by type: Radarr for movies, Sonarr for TV
-              const filteredTags =
-                mediaType === "movie"
+              // Add defensive check to ensure allTags is an array
+              const filteredTags = Array.isArray(allTags)
+                ? (mediaType === "movie"
                   ? allTags.filter((tag) => tag.type === "radarr")
-                  : allTags.filter((tag) => tag.type === "sonarr");
+                  : allTags.filter((tag) => tag.type === "sonarr"))
+                : [];
 
               selectedTagIds = selectedTagNames
                 .map((tagName) => {
@@ -1668,8 +1737,8 @@ async function startBot() {
             mediaType === "movie"
               ? ["all"]
               : selectedSeasons.length > 0
-              ? selectedSeasons
-              : ["all"];
+                ? selectedSeasons
+                : ["all"];
           const status = await jellyseerrApi.checkMediaStatus(
             tmdbId,
             mediaType,
@@ -1693,8 +1762,8 @@ async function startBot() {
             mediaType === "movie"
               ? undefined
               : selectedSeasons.length > 0
-              ? selectedSeasons
-              : ["all"];
+                ? selectedSeasons
+                : ["all"];
 
           // Apply defaults from config
           const { profileId, serverId } = parseQualityAndServerOptions({}, mediaType);
@@ -1766,8 +1835,8 @@ async function startBot() {
         }
       }
 
-      // ===== SELECT SEASONS HANDLER (NEW FLOW) =====
-      // customId format: select_seasons|tmdbId|selectedTagsParam
+      // ===== SELECT SEASONS HANDLER (UPDATED FOR MULTIPLE DROPDOWNS) =====
+      // customId format: select_seasons|tmdbId|selectedTagsParam|menuIndex
       if (
         interaction.isStringSelectMenu() &&
         interaction.customId.startsWith("select_seasons|")
@@ -1775,9 +1844,10 @@ async function startBot() {
         const parts = interaction.customId.split("|");
         const tmdbId = parseInt(parts[1], 10);
         const selectedTagsParam = parts[2] || "";
-        const selectedSeasons = interaction.values;
+        const menuIndex = parts[3] ? parseInt(parts[3], 10) : undefined;
+        const currentSelections = interaction.values;
 
-        if (!tmdbId || !selectedSeasons.length) {
+        if (!tmdbId) {
           return interaction.reply({
             content: "⚠️ Invalid selection.",
             flags: 64,
@@ -1792,16 +1862,7 @@ async function startBot() {
             ? selectedTagsParam.split(",")
             : [];
 
-          // Fetch available tags for tag selector (only if not already selected)
-          let tags = [];
-          if (selectedTags.length === 0) {
-            tags = await jellyseerrApi.fetchTags(
-              getJellyseerrUrl(),
-              getJellyseerrApiKey()
-            );
-          }
-
-          // Get TMDB details and IMDb ID for building updated components
+          // Get TMDB details for rebuilding components
           const details = await tmdbApi.tmdbGetDetails(
             tmdbId,
             "tv",
@@ -1813,7 +1874,43 @@ async function startBot() {
             getTmdbApiKey()
           );
 
-          // Build updated components with selected seasons
+          // Extract all previously selected seasons from existing message components
+          let allSelectedSeasons = [];
+
+          // Check if "all" was selected in current interaction
+          if (currentSelections.includes("all")) {
+            allSelectedSeasons = ["all"];
+          } else {
+            // Accumulate selections from all season dropdowns in the message
+            const existingComponents = interaction.message.components || [];
+
+            for (const row of existingComponents) {
+              for (const component of row.components) {
+                // Check if this is a season selector
+                if (component.customId && component.customId.startsWith("select_seasons|")) {
+                  const componentParts = component.customId.split("|");
+                  const componentMenuIndex = componentParts[3] ? parseInt(componentParts[3], 10) : undefined;
+
+                  // If this is the current menu being interacted with, use current selections
+                  if (componentMenuIndex === menuIndex || (componentMenuIndex === undefined && menuIndex === undefined)) {
+                    allSelectedSeasons.push(...currentSelections.filter(v => v !== "all"));
+                  } else {
+                    // Otherwise, preserve existing selections from this menu
+                    const existingSelections = component.options
+                      ?.filter(opt => opt.default)
+                      .map(opt => opt.value)
+                      .filter(v => v !== "all") || [];
+                    allSelectedSeasons.push(...existingSelections);
+                  }
+                }
+              }
+            }
+
+            // Remove duplicates
+            allSelectedSeasons = [...new Set(allSelectedSeasons)];
+          }
+
+          // Build updated components with accumulated season selections
           const components = buildButtons(
             tmdbId,
             imdbId,
@@ -1822,37 +1919,130 @@ async function startBot() {
             details,
             [],
             [],
-            selectedSeasons,
+            allSelectedSeasons,
             selectedTags
           );
 
-          // If tags are available and not yet selected, add tag selector
-          if (tags && tags.length > 0 && selectedTags.length === 0) {
-            // Deduplicate tags by ID
-            const uniqueTags = [];
-            const seenIds = new Set();
+          // Rebuild season selectors with updated selections
+          const seenSeasons = new Set();
+          const uniqueSeasons = details.seasons.filter((s) => {
+            if (s.season_number <= 0) return false;
+            if (seenSeasons.has(s.season_number)) return false;
+            seenSeasons.add(s.season_number);
+            return true;
+          });
 
-            for (const tag of tags) {
-              if (!seenIds.has(tag.id)) {
-                seenIds.add(tag.id);
-                uniqueTags.push(tag);
-              }
-            }
+          const tagsParam = selectedTags.length > 0 ? selectedTags.join(",") : "";
+          const hasAllSeasons = allSelectedSeasons.includes("all");
 
-            const tagOptions = uniqueTags.slice(0, 25).map((tag) => ({
-              label: tag.label || tag.name || `Tag ${tag.id}`,
-              value: tag.id.toString(),
-            }));
+          // Recreate season dropdowns with current selections
+          if (uniqueSeasons.length <= 24) {
+            // Single dropdown
+            const seasonOptions = [
+              { label: "All Seasons", value: "all" },
+              ...uniqueSeasons.map((s) => ({
+                label: `Season ${s.season_number} (${s.episode_count} episodes)`,
+                value: String(s.season_number),
+              })),
+            ];
 
-            const tagMenu = new StringSelectMenuBuilder()
-              .setCustomId(`select_tags|${tmdbId}|${selectedSeasons.join(",")}`)
-              .setPlaceholder("Select tags (optional)")
-              .addOptions(tagOptions)
+            const selectMenu = new StringSelectMenuBuilder()
+              .setCustomId(`select_seasons|${tmdbId}|${tagsParam}`)
+              .setPlaceholder("Select seasons to request...")
+              .setMinValues(1)
+              .setMaxValues(Math.min(25, seasonOptions.length))
+              .addOptions(seasonOptions);
+
+            components.push(new ActionRowBuilder().addComponents(selectMenu));
+          } else {
+            // Multiple dropdowns
+            const SEASONS_PER_MENU = 24;
+            const MAX_SEASON_MENUS = 4;
+
+            const firstBatchSeasons = uniqueSeasons.slice(0, SEASONS_PER_MENU);
+            const firstMenuOptions = [
+              { label: "All Seasons", value: "all" },
+              ...firstBatchSeasons.map((s) => ({
+                label: `Season ${s.season_number} (${s.episode_count} episodes)`,
+                value: String(s.season_number),
+              })),
+            ];
+
+            const firstMenu = new StringSelectMenuBuilder()
+              .setCustomId(`select_seasons|${tmdbId}|${tagsParam}|0`)
+              .setPlaceholder(`Seasons 1-${firstBatchSeasons[firstBatchSeasons.length - 1].season_number}`)
               .setMinValues(0)
-              .setMaxValues(Math.min(5, tagOptions.length));
+              .setMaxValues(firstMenuOptions.length)
+              .addOptions(firstMenuOptions);
 
-            const tagRow = new ActionRowBuilder().addComponents(tagMenu);
-            components.push(tagRow);
+            components.push(new ActionRowBuilder().addComponents(firstMenu));
+
+            let menuIdx = 1;
+            let offset = SEASONS_PER_MENU;
+
+            while (offset < uniqueSeasons.length && menuIdx < MAX_SEASON_MENUS) {
+              const batchSeasons = uniqueSeasons.slice(offset, offset + SEASONS_PER_MENU);
+
+              if (batchSeasons.length > 0) {
+                const batchOptions = batchSeasons.map((s) => ({
+                  label: `Season ${s.season_number} (${s.episode_count} episodes)`,
+                  value: String(s.season_number),
+                }));
+
+                const batchMenu = new StringSelectMenuBuilder()
+                  .setCustomId(`select_seasons|${tmdbId}|${tagsParam}|${menuIdx}`)
+                  .setPlaceholder(
+                    `Seasons ${batchSeasons[0].season_number}-${batchSeasons[batchSeasons.length - 1].season_number}`
+                  )
+                  .setMinValues(0)
+                  .setMaxValues(batchOptions.length)
+                  .addOptions(batchOptions);
+
+                components.push(new ActionRowBuilder().addComponents(batchMenu));
+              }
+
+              offset += SEASONS_PER_MENU;
+              menuIdx++;
+            }
+          }
+
+          // Fetch available tags for tag selector (only if not already selected and not all seasons)
+          if (selectedTags.length === 0 && !hasAllSeasons) {
+            try {
+              const tags = await jellyseerrApi.fetchTags(
+                getJellyseerrUrl(),
+                getJellyseerrApiKey()
+              );
+
+              if (tags && tags.length > 0) {
+                const uniqueTags = [];
+                const seenIds = new Set();
+
+                for (const tag of tags) {
+                  if (!seenIds.has(tag.id)) {
+                    seenIds.add(tag.id);
+                    uniqueTags.push(tag);
+                  }
+                }
+
+                const tagOptions = uniqueTags.slice(0, 25).map((tag) => ({
+                  label: tag.label || tag.name || `Tag ${tag.id}`,
+                  value: tag.id.toString(),
+                }));
+
+                const tagMenu = new StringSelectMenuBuilder()
+                  .setCustomId(`select_tags|${tmdbId}|${allSelectedSeasons.join(",")}`)
+                  .setPlaceholder("Select tags (optional)")
+                  .addOptions(tagOptions)
+                  .setMinValues(0)
+                  .setMaxValues(Math.min(5, tagOptions.length));
+
+                const tagRow = new ActionRowBuilder().addComponents(tagMenu);
+                components.push(tagRow);
+              }
+            } catch (err) {
+              logger.debug("Failed to fetch tags for season selector:", err?.message);
+            }
           }
 
           await interaction.editReply({
@@ -1995,10 +2185,12 @@ async function startBot() {
               );
 
               // Filter by type: Radarr for movies, Sonarr for TV
-              const filteredTags =
-                mediaType === "movie"
+              // Add defensive check to ensure allTags is an array
+              const filteredTags = Array.isArray(allTags)
+                ? (mediaType === "movie"
                   ? allTags.filter((tag) => tag.type === "radarr")
-                  : allTags.filter((tag) => tag.type === "sonarr");
+                  : allTags.filter((tag) => tag.type === "sonarr"))
+                : [];
 
               selectedTagNames = selectedTagIds
                 .map((tagId) => {
@@ -2058,7 +2250,7 @@ async function startBot() {
       isBotRunning = true;
 
       logger.info("ℹ️ Jellyfin notifications will be received via webhooks.");
-      
+
       // Setup daily random pick if enabled
       scheduleDailyRandomPick(client);
 
@@ -2187,7 +2379,7 @@ function configureWebServer() {
           try {
             // Fetch active threads in this forum
             const activeThreads = await forumChannel.threads.fetchActive();
-            
+
             // Add each thread as a selectable channel
             activeThreads.threads.forEach((thread) => {
               if (thread.permissionsFor(discordClient.user)?.has("SendMessages")) {
@@ -2205,10 +2397,43 @@ function configureWebServer() {
           }
         }
 
+        // Fetch regular threads (public, private, announcement) from text channels
+        try {
+          // Fetch all active threads in the guild
+          const activeThreads = await guild.channels.fetchActiveThreads();
+
+          activeThreads.threads.forEach((thread) => {
+            // Filter for thread types: PUBLIC_THREAD (10), PRIVATE_THREAD (11), ANNOUNCEMENT_THREAD (12)
+            if ([10, 11, 12].includes(thread.type)) {
+              if (thread.permissionsFor(discordClient.user)?.has("SendMessages")) {
+                const parentChannel = guild.channels.cache.get(thread.parentId);
+                const threadTypeLabel =
+                  thread.type === 10 ? "Thread" :
+                    thread.type === 11 ? "Private Thread" :
+                      "Announcement Thread";
+
+                channels.push({
+                  id: thread.id,
+                  name: parentChannel
+                    ? `${parentChannel.name} > ${thread.name} (${threadTypeLabel})`
+                    : `${thread.name} (${threadTypeLabel})`,
+                  type: thread.type === 10 ? "public-thread" :
+                    thread.type === 11 ? "private-thread" :
+                      "announcement-thread",
+                  parentId: thread.parentId,
+                  parentName: parentChannel?.name,
+                });
+              }
+            }
+          });
+        } catch (err) {
+          logger.warn(`[CHANNELS API] Failed to fetch regular threads:`, err.message);
+        }
+
         channels.sort((a, b) => a.name.localeCompare(b.name));
 
         logger.debug(
-          `[CHANNELS API] Found ${channels.length} channels (including forum threads) in guild ${guild.name}`
+          `[CHANNELS API] Found ${channels.length} channels (including threads) in guild ${guild.name}`
         );
         res.json({ success: true, channels });
       } catch (err) {
@@ -2541,7 +2766,7 @@ function configureWebServer() {
 
         // Use centralized saveUserMapping helper
         saveUserMapping(mapping);
-        
+
         // Reload config into process.env to ensure mapping is immediately active
         loadConfig();
 
@@ -2692,15 +2917,15 @@ function configureWebServer() {
     try {
       const localesDir = path.join(process.cwd(), "locales");
       const files = fs.readdirSync(localesDir);
-      
+
       const languages = [];
-      
+
       for (const file of files) {
         if (file.endsWith('.json') && file !== 'template.json') {
           try {
             const langPath = path.join(localesDir, file);
             const langData = JSON.parse(fs.readFileSync(langPath, 'utf8'));
-            
+
             if (langData._meta && langData._meta.language_code && langData._meta.language_name) {
               languages.push({
                 code: langData._meta.language_code,
@@ -2712,10 +2937,10 @@ function configureWebServer() {
           }
         }
       }
-      
+
       // Sort by language name
       languages.sort((a, b) => a.name.localeCompare(b.name));
-      
+
       res.json(languages);
     } catch (error) {
       logger.error(`Failed to load available languages: ${error.message}`);
@@ -2793,7 +3018,7 @@ function configureWebServer() {
       // Check if Discord credentials are complete and changed
       const hasDiscordCreds = process.env.DISCORD_TOKEN && process.env.BOT_ID;
       const discordCredsChanged = oldToken !== process.env.DISCORD_TOKEN;
-      
+
       // If bot is running and critical settings changed, restart the bot logic
       const jellyfinApiKeyChanged =
         oldJellyfinApiKey !== process.env.JELLYFIN_API_KEY;
@@ -2823,14 +3048,14 @@ function configureWebServer() {
       } else if (!isBotRunning && hasDiscordCreds && discordCredsChanged) {
         // Check if user wants to auto-start the bot (default: true for backward compatibility)
         const shouldStartBot = configData.startBot !== false; // Default to true if not specified
-        
+
         if (shouldStartBot) {
           // Auto-start bot when Discord credentials are first entered or changed
           logger.info("Discord credentials configured. Starting bot automatically...");
           try {
             await startBot();
-            res.status(200).json({ 
-              message: "Configuration saved. Bot started successfully!" 
+            res.status(200).json({
+              message: "Configuration saved. Bot started successfully!"
             });
           } catch (error) {
             logger.error("Auto-start failed:", error.message);
@@ -2840,8 +3065,8 @@ function configureWebServer() {
           }
         } else {
           // User chose not to start the bot
-          res.status(200).json({ 
-            message: "Configuration saved successfully! You can start the bot manually when ready." 
+          res.status(200).json({
+            message: "Configuration saved successfully! You can start the bot manually when ready."
           });
         }
       } else {
@@ -2854,12 +3079,12 @@ function configureWebServer() {
   app.post("/api/check-autostart", authenticateToken, async (req, res) => {
     const configData = req.body;
     const oldToken = process.env.DISCORD_TOKEN;
-    
+
     // Check if Discord credentials are complete and changed
     const hasDiscordCreds = configData.DISCORD_TOKEN && configData.BOT_ID;
     const discordCredsChanged = oldToken !== configData.DISCORD_TOKEN;
     const wouldAutoStart = !isBotRunning && hasDiscordCreds && discordCredsChanged;
-    
+
     res.json({
       wouldAutoStart,
       hasDiscordCreds,
@@ -3056,7 +3281,7 @@ function configureWebServer() {
       // Fetch real data from TMDB/OMDB for realistic test notifications
       const { tmdbGetDetails, tmdbGetExternalImdb } = await import("./api/tmdb.js");
       const { fetchOMDbData } = await import("./api/omdb.js");
-      
+
       const TMDB_API_KEY = process.env.TMDB_API_KEY;
       if (!TMDB_API_KEY) {
         return res.status(400).json({
@@ -3072,7 +3297,7 @@ function configureWebServer() {
         // Interstellar TMDB ID: 157336
         const movieDetails = await tmdbGetDetails(157336, "movie", TMDB_API_KEY);
         const imdbId = await tmdbGetExternalImdb(157336, "movie", TMDB_API_KEY);
-        
+
         notificationData = {
           ItemType: "Movie",
           Name: movieDetails.title,
@@ -3088,7 +3313,7 @@ function configureWebServer() {
         // Breaking Bad TMDB ID: 1396
         const seriesDetails = await tmdbGetDetails(1396, "tv", TMDB_API_KEY);
         const imdbId = await tmdbGetExternalImdb(1396, "tv", TMDB_API_KEY);
-        
+
         notificationData = {
           ItemType: "Series",
           Name: seriesDetails.name,
@@ -3104,7 +3329,7 @@ function configureWebServer() {
         // Breaking Bad Season 1
         const seriesDetails = await tmdbGetDetails(1396, "tv", TMDB_API_KEY);
         const imdbId = await tmdbGetExternalImdb(1396, "tv", TMDB_API_KEY);
-        
+
         notificationData = {
           ItemType: "Season",
           SeriesName: seriesDetails.name,
@@ -3123,7 +3348,7 @@ function configureWebServer() {
         // Breaking Bad first episodes
         const seriesDetails = await tmdbGetDetails(1396, "tv", TMDB_API_KEY);
         const imdbId = await tmdbGetExternalImdb(1396, "tv", TMDB_API_KEY);
-        
+
         notificationData = {
           ItemType: "Episode",
           SeriesName: seriesDetails.name,
@@ -3143,10 +3368,10 @@ function configureWebServer() {
         // The Mandalorian - Send 2 separate season notifications to test batching (TMDB ID: 82856)
         const seriesDetails = await tmdbGetDetails(82856, "tv", TMDB_API_KEY);
         const imdbId = await tmdbGetExternalImdb(82856, "tv", TMDB_API_KEY);
-        
+
         const { handleJellyfinWebhook } = await import("./jellyfinWebhook.js");
         const baseSeriesId = "batch-test-series-" + Date.now();
-        
+
         // Send Season 1
         const season1Data = {
           ItemType: "Season",
@@ -3162,7 +3387,7 @@ function configureWebServer() {
           ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
           ItemId: "batch-season-1-" + Date.now(),
         };
-        
+
         // Send Season 2
         const season2Data = {
           ItemType: "Season",
@@ -3178,14 +3403,14 @@ function configureWebServer() {
           ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
           ItemId: "batch-season-2-" + Date.now(),
         };
-        
+
         // Send both seasons (they should be batched together by debouncing logic)
         const fakeReq1 = { body: season1Data };
         const fakeReq2 = { body: season2Data };
-        
+
         await handleJellyfinWebhook(fakeReq1, null, discordClient, pendingRequests);
         await handleJellyfinWebhook(fakeReq2, null, discordClient, pendingRequests);
-        
+
         return res.json({
           success: true,
           message: `Test batch-seasons notification sent! 2 seasons should be batched together. Check your Discord channel.`,
@@ -3194,10 +3419,10 @@ function configureWebServer() {
         // Stranger Things - Send 6 separate episode notifications to test batching (TMDB ID: 66732)
         const seriesDetails = await tmdbGetDetails(66732, "tv", TMDB_API_KEY);
         const imdbId = await tmdbGetExternalImdb(66732, "tv", TMDB_API_KEY);
-        
+
         const { handleJellyfinWebhook } = await import("./jellyfinWebhook.js");
         const baseSeriesId = "batch-test-series-" + Date.now();
-        
+
         const episodes = [
           { num: "01", name: "Chapter One: The Hellfire Club", overview: "Spring break turns into a nightmare when a new evil emerges in Hawkins." },
           { num: "02", name: "Chapter Two: Vecna's Curse", overview: "A plane brings Mike to California, and to his girlfriend, and to new, high school, problems." },
@@ -3206,7 +3431,7 @@ function configureWebServer() {
           { num: "05", name: "Chapter Five: The Nina Project", overview: "Owens takes El to Nevada, where she's forced to confront her past, while the Hawkins kids comb a crumbling house for answers." },
           { num: "06", name: "Chapter Six: The Dive", overview: "Behind the Iron Curtain, a risky rescue mission gets underway. The California crew seeks help from a hacker. Steve takes one for the team." },
         ];
-        
+
         // Send all 6 episodes (they should be batched together by debouncing logic)
         for (const ep of episodes) {
           const episodeData = {
@@ -3224,13 +3449,13 @@ function configureWebServer() {
             ServerId: process.env.JELLYFIN_SERVER_ID || "test-server-id",
             ItemId: "batch-episode-" + ep.num + "-" + Date.now(),
           };
-          
+
           const fakeReq = { body: episodeData };
           await handleJellyfinWebhook(fakeReq, null, discordClient, pendingRequests);
           // Small delay between episodes to simulate realistic webhook timing
           await new Promise(resolve => setTimeout(resolve, 50));
         }
-        
+
         return res.json({
           success: true,
           message: `Test batch-episodes notification sent! 6 episodes should be batched together. Check your Discord channel.`,
@@ -3328,9 +3553,9 @@ function configureWebServer() {
         hitRate:
           cacheStats.hits + cacheStats.misses > 0
             ? (
-                (cacheStats.hits / (cacheStats.hits + cacheStats.misses)) *
-                100
-              ).toFixed(2) + "%"
+              (cacheStats.hits / (cacheStats.hits + cacheStats.misses)) *
+              100
+            ).toFixed(2) + "%"
             : "0%",
       },
       memory: {
