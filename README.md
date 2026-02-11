@@ -317,6 +317,13 @@ A huge thank you to all the amazing people who have contributed to making Anchor
         <sub><b>whoopsi-daisy</b></sub>
       </a>
     </td>
+    <td align="center">
+      <a href="https://github.com/nyakuoff">
+        <img src="https://images.weserv.nl/?url=avatars.githubusercontent.com/nyakuoff?v=4&h=80&w=80&fit=cover&mask=circle&maxage=7d" border="0" style="border:none;" />
+        <br/>
+        <sub><b>nyakuoff</b></sub>
+      </a>
+    </td>
   </tr>
 </table>
 

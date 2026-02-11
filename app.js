@@ -1053,10 +1053,23 @@ async function startBot() {
         // Parse quality and server
         const { profileId, serverId } = parseQualityAndServerOptions(options, mediaType);
 
+        // Resolve "all" seasons to explicit list of season numbers (workaround for empty array issue)
+        let seasonsToRequest = ["all"];
+        if (mediaType === "tv" && details.seasons) {
+          const seasonNumbers = details.seasons
+            .filter((s) => s.season_number > 0)
+            .map((s) => s.season_number);
+
+          if (seasonNumbers.length > 0) {
+            seasonsToRequest = seasonNumbers;
+            logger.info(`[REQUEST] Resolved 'all' seasons to explicit list: ${seasonsToRequest.join(", ")}`);
+          }
+        }
+
         await jellyseerrApi.sendRequest({
           tmdbId,
           mediaType,
-          seasons: ["all"],
+          seasons: seasonsToRequest,
           tags: tagIds,
           profileId,
           serverId,
@@ -1758,12 +1771,25 @@ async function startBot() {
 
           // Send the request with selected seasons and tags
           // For movies: don't send seasons, for TV: send selected or default to "all"
-          const seasonsToRequest =
+          let seasonsToRequest =
             mediaType === "movie"
               ? undefined
               : selectedSeasons.length > 0
                 ? selectedSeasons
                 : ["all"];
+
+          // Resolve "all" to explicit season numbers if needed
+          if (mediaType === "tv" && (seasonsToRequest.includes("all") || (Array.isArray(seasonsToRequest) && seasonsToRequest[0] === "all"))) {
+            if (details.seasons) {
+              const seasonNumbers = details.seasons
+                .filter((s) => s.season_number > 0)
+                .map((s) => s.season_number);
+              if (seasonNumbers.length > 0) {
+                seasonsToRequest = seasonNumbers;
+                logger.info(`[REQUEST BTN] Resolved 'all' seasons to explicit list: ${seasonsToRequest.join(", ")}`);
+              }
+            }
+          }
 
           // Apply defaults from config
           const { profileId, serverId } = parseQualityAndServerOptions({}, mediaType);

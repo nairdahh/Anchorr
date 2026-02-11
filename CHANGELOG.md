@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - 2026-02-11
+
+### ✨ Added
+
+- **Multi-Season Selection UI**: Enhanced season selection for TV shows with more than 25 seasons by implementing multiple cascading select menus, overcoming Discord's 25-option limit per select menu. Users can now seamlessly select seasons from shows with extensive episode lists (e.g., One Piece, Pokémon)
+- **Discord Threads Support**: Added support for mapping Discord threads as notification channels. You can now send Jellyfin notifications to specific threads in addition to regular text channels, providing better organization for different content types or libraries
+- **Auto-Approve Requests**: Implemented auto-approve functionality for media requests. When enabled, requests made through the bot are automatically approved in Jellyseerr without requiring manual approval, streamlining the content acquisition workflow
+- **Daily Pick Recommendations**: New daily recommendation feature that sends a curated movie or TV show suggestion to your Discord channel. Users receive fresh content recommendations each day to discover new media to watch
+- **Quality Profile Selection**: Added quality profile selection in the `/request` command with intelligent autocomplete support. Users can now specify their preferred quality profile (e.g., "1080p", "4K", "Anime") directly when requesting content
+- **Server Selection for Requests**: Implemented server selection functionality allowing users to choose specific Radarr or Sonarr servers when making media requests, providing better control over where content is downloaded
+- **Default Quality Profiles Configuration**: New UI section in Jellyseerr settings for configuring default quality profiles and servers separately for movies (Radarr) and TV shows (Sonarr). These defaults are used when users don't specify a profile in their request
+- **Load Profiles & Servers Button**: Added convenient "Load Profiles & Servers" button in Jellyseerr settings that fetches and populates all available quality profiles and servers from your configured Radarr/Sonarr instances
+
+### 🔄 Changed
+
+- **Request Flow Enhancement**: Improved the request workflow to support optional quality profile and server selection, making the bot more flexible for advanced users while remaining simple for basic use cases
+- **Autocomplete Intelligence**: Enhanced autocomplete system to handle quality profiles alongside existing media search autocomplete
+
+### 🏗️ Code Quality
+
+- **Jellyseerr API Module Expansion**: Extended `api/jellyseerr.js` with new functions for fetching quality profiles and servers from Jellyseerr API
+- **Request Parameter Handling**: Improved request parameter validation and handling to support new optional fields (profileId, serverId) in media requests
+
+---
+
 ## [1.3.5] - 2025-12-26
 
 ### ✨ Added

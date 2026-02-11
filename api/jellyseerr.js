@@ -458,13 +458,24 @@ export async function sendRequest({
     // Note: userId will be added later after user mapping check
   } else {
     // isAutoApproved is false OR null - create as PENDING request
-    // DO NOT send serverId, profileId, or rootFolder
-    // This forces Jellyseerr to create a pending request that requires manual approval
+    // IMPORTANT: We still need to send serverId and profileId for TV shows
+    // to work properly, but we set isAutoApproved to false to force manual approval
     payload.isAutoApproved = false;
     logger.info("[JELLYSEERR] ✋ Auto-Approve is OFF - request will be PENDING (admin must approve manually)");
 
-    // Explicitly log that we're NOT sending server details
-    logger.debug("[JELLYSEERR] Withholding serverId, profileId, and rootFolder to force PENDING status");
+    // Include serverId and profileId if provided (needed for TV show requests to work)
+    if (serverId !== null && serverId !== undefined) {
+      payload.serverId = parseInt(serverId, 10);
+      logger.debug(`[JELLYSEERR] Including serverId ${serverId} in PENDING request (required for TV shows)`);
+    }
+    if (profileId !== null && profileId !== undefined) {
+      payload.profileId = parseInt(profileId, 10);
+      logger.debug(`[JELLYSEERR] Including profileId ${profileId} in PENDING request (required for TV shows)`);
+    }
+    if (rootFolder) {
+      payload.rootFolder = rootFolder;
+      logger.debug(`[JELLYSEERR] Including rootFolder in PENDING request`);
+    }
   }
 
   // Check if we have a user mapping for this Discord user
