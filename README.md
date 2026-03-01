@@ -260,14 +260,11 @@ Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelin
 
 ### 🌍 Adding Translations
 
-Help make Anchorr accessible to more users by contributing translations! The system now automatically detects and loads new languages.
+Help make Anchorr accessible to more users by contributing translations! The system automatically detects and loads new languages — no code changes needed.
 
-**Quick start:**
-```bash
-npm run create-translation es "Español" "Your Name"
-```
+**Quick start:** Copy `locales/template.json` to `locales/<language_code>.json`, fill in the `_meta` section, translate the values, and open a PR.
 
-See [TRANSLATION_GUIDE.md](./TRANSLATION_GUIDE.md) for detailed instructions.
+See [CONTRIBUTING.md](./CONTRIBUTING.md#-add-translations) for detailed instructions.
 
 ## 👥 Contributors
 
