@@ -49,7 +49,7 @@ Anchorr supports multiple languages! Help make it accessible to more users by co
 
 #### How to Add a New Language
 
-1. Copy `locales/en.json` to `locales/<language_code>.json` (e.g., `locales/fr.json` for French)
+1. Copy `locales/template.json` to `locales/<language_code>.json` (e.g., `locales/fr.json` for French)
 2. Update the `_meta` section with your language information:
 ```json
 {
@@ -64,12 +64,7 @@ Anchorr supports multiple languages! Help make it accessible to more users by co
 }
 ```
 3. Translate all text values (keep the keys unchanged)
-4. **Important:** Add your language code to `utils/validation.js` in the `configSchema` LANGUAGE validation:
-   ```javascript
-   LANGUAGE: Joi.string().valid("en", "de", "se", "fr").optional(),
-   ```
-   This ensures the language is accepted by the web configuration interface.
-5. Your translation will automatically appear in the language dropdown!
+4. Your translation will automatically appear in the language dropdown — no code changes needed!
 
 #### Translation Guidelines
 
@@ -81,7 +76,7 @@ Anchorr supports multiple languages! Help make it accessible to more users by co
 - **Test frequently** - Start the server and check your translation in the UI
 
 **Language Codes (ISO 639-1):**
-- `en` - English, `de` - German, `sv` - Swedish, `fr` - French
+- `en` - English, `de` - German, `sv` - Swedish, `fr` - French, `es` - Spanish
 - `es` - Spanish, `pt` - Portuguese, `pt-br` - Portuguese (Brazil)
 - `zh` - Chinese, `ja` - Japanese, `ko` - Korean, `ru` - Russian, `ar` - Arabic
 
@@ -117,7 +112,21 @@ Anchorr supports multiple languages! Help make it accessible to more users by co
 4. Select it and verify the translations appear correctly
 5. Check all pages and sections
 
+#### Submitting Your Translation
+
+1. Fork the repository on GitHub
+2. Create a branch: `git checkout -b feat/add-<language_code>-translation`
+3. Add your locale file and commit:
+
+   ```bash
+   git add locales/<language_code>.json
+   git commit -m "feat: add <Language Name> translation"
+   ```
+
+4. Push and [open a Pull Request](https://github.com/nairdahh/anchorr/compare) against the `main` branch
+
 #### Common Placeholders
+
 - `{{count}}` - Number of items
 - `{{query}}` - Search query text
 - `{{title}}` - Movie/show title
