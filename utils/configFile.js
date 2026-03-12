@@ -169,9 +169,9 @@ export function readConfig() {
  * @returns {boolean} True if save succeeded
  */
 export function writeConfig(config) {
+  const configDir = path.dirname(CONFIG_PATH);
   try {
     // Ensure /config directory exists
-    const configDir = path.dirname(CONFIG_PATH);
     if (!fs.existsSync(configDir)) {
       logger.info(`Creating config directory: ${configDir}`);
       fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
