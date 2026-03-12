@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **URL Injection Prevention**: `buildJellyfinUrl` now always uses the configured `JELLYFIN_BASE_URL` instead of the webhook-provided `ServerUrl`, preventing URL injection via poisoned Jellyfin metadata.
 - **Removed Credential Debug Logs**: Debug statements that logged a prefix of the Discord token to disk have been removed.
 - **Config Validation on Startup**: Config is now validated against the Joi schema on startup, logging warnings for any malformed fields.
+- **Base64-Encoded Secrets at Rest**: Sensitive fields (`DISCORD_TOKEN`, `JWT_SECRET`, `WEBHOOK_SECRET`, `JELLYSEERR_API_KEY`, `JELLYFIN_API_KEY`, `TMDB_API_KEY`, `OMDB_API_KEY`) are now stored base64-encoded in `config.json`. Values are decoded transparently on read and re-encoded on every save. Existing plain-text configs are migrated automatically on next save.
 
 ### 📚 Documentation
 
