@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 import express from "express";
 import cookieParser from "cookie-parser";
@@ -2919,7 +2920,13 @@ function configureWebServer() {
   // in the Jellyfin webhook plugin: X-Webhook-Secret: <your-secret>
   function verifyWebhookSecret(req, res, next) {
     const provided = req.headers["x-webhook-secret"];
-    if (!provided || provided !== WEBHOOK_SECRET) {
+    const expected = WEBHOOK_SECRET;
+    const providedBuf = Buffer.from(provided || "", "utf8");
+    const expectedBuf = Buffer.from(expected, "utf8");
+    const valid =
+      providedBuf.length === expectedBuf.length &&
+      crypto.timingSafeEqual(providedBuf, expectedBuf);
+    if (!valid) {
       logger.warn(`⚠️ Webhook rejected: invalid or missing X-Webhook-Secret (from ${req.ip})`);
       return res.status(401).json({ success: false, error: "Unauthorized" });
     }

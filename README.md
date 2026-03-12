@@ -54,6 +54,21 @@ I also have a dedicated channel on the [r/JellyfinCommunity](https://discord.gg/
 - **🔗 Autocomplete Support**: Intelligent autocomplete for search queries with rich metadata
 - **⚙️ Web Dashboard**: User-friendly web interface for configuration with auto-detection
 
+## ⚠️ Security Notice
+
+Anchorr is designed to run **locally on your home network** alongside your Jellyfin server. It is **not hardened for public internet exposure**.
+
+If you choose to expose Anchorr to the internet (e.g. via port forwarding or a reverse proxy), be aware of the following risks:
+
+- The **web dashboard** (including configuration and secrets) would be publicly reachable
+- **Authentication** is a simple username/password with no 2FA or brute-force protection
+- **Secrets** (Discord token, API keys, webhook secret) are stored in plain text in `config.json`
+- There is **no HTTPS** built in — use a reverse proxy (e.g. Nginx + Let's Encrypt) if you expose it
+
+**Recommendation:** Keep Anchorr on your local network. If remote access is needed, use a VPN instead of direct port forwarding.
+
+---
+
 ## 📋 Prerequisites
 
 Before getting started, ensure you have:
