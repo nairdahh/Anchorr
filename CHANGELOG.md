@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.1] - 2026-03-12
+
+### 🔒 Security
+
+- **Webhook Secret Authentication**: The `/jellyfin-webhook` endpoint now requires a shared secret sent as the `X-Webhook-Secret` HTTP header. Requests without a valid secret are rejected with `401 Unauthorized`. The secret is auto-generated on first start and displayed in the dashboard with a copy button and setup instructions.
+- **Webhook Rate Limiting**: Added rate limiter (60 requests/minute per IP) to the webhook endpoint to prevent notification flooding and DoS.
+- **Timing-Safe Secret Comparison**: Webhook secret verification uses `crypto.timingSafeEqual` to prevent timing-based secret extraction attacks.
+
+### 📚 Documentation
+
+- **Public Hosting Warning**: Added `⚠️ Security Notice` section to README warning against exposing Anchorr to the public internet and recommending VPN use for remote access.
+- **Webhook Setup Guide**: Updated Jellyfin plugin setup instructions in both the dashboard and README to include the `X-Webhook-Secret` header configuration step.
+
+### 🏗️ Migration
+
+Existing installations will have a secret **auto-generated on next startup** — no manual action required. Copy the secret from the dashboard and add it as a custom HTTP header (`X-Webhook-Secret`) in your Jellyfin webhook plugin settings.
+
+---
+
 ## [1.4.0] - 2026-02-11
 
 ### ✨ Added
