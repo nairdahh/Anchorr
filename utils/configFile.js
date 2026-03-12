@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import logger from "./logger.js";
+import { configSchema } from "./validation.js";
 
 /**
  * CONFIG_PATH determines where config.json is saved and read:
@@ -209,6 +210,17 @@ export function loadConfigToEnv() {
   if (!config) {
     logger.warn("No config found to load into process.env");
     return false;
+  }
+
+  // --- SCHEMA VALIDATION (warn-only, non-fatal) ---
+  const { error: validationError } = configSchema.validate(config, {
+    abortEarly: false,
+    allowUnknown: true,
+  });
+  if (validationError) {
+    validationError.details.forEach((d) =>
+      logger.warn(`⚠️ Config validation: ${d.message}`)
+    );
   }
 
   // --- AUTO-MIGRATIONS ---

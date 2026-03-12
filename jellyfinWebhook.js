@@ -102,10 +102,10 @@ function getItemLevel(itemType) {
 
 // Build a Jellyfin URL that preserves a potential subpath (e.g., /jellyfin)
 // and appends the provided path and optional hash fragment safely.
-function buildJellyfinUrl(baseUrl, appendPath, hash) {
-  // Use the ServerUrl from webhook if it's a valid absolute URL, 
-  // otherwise fallback to the JELLYFIN_BASE_URL from config.
-  const effectiveBaseUrl = (baseUrl && isValidUrl(baseUrl)) ? baseUrl : process.env.JELLYFIN_BASE_URL;
+// Always uses the configured JELLYFIN_BASE_URL — the webhook-provided ServerUrl
+// is not trusted as it could be poisoned via Jellyfin metadata.
+function buildJellyfinUrl(_baseUrl, appendPath, hash) {
+  const effectiveBaseUrl = process.env.JELLYFIN_BASE_URL;
 
   try {
     const u = new URL(effectiveBaseUrl);

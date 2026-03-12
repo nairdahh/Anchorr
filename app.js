@@ -395,16 +395,6 @@ async function startBot() {
     return { success: true, message: "Bot is already running." };
   }
 
-  // DEBUG: Log Discord credentials (partial)
-  logger.debug("[DEBUG] BOT_ID:", process.env.BOT_ID);
-  logger.debug("[DEBUG] GUILD_ID:", process.env.GUILD_ID);
-  logger.debug(
-    "[DEBUG] DISCORD_TOKEN:",
-    process.env.DISCORD_TOKEN
-      ? process.env.DISCORD_TOKEN.slice(0, 6) + "..."
-      : undefined
-  );
-
   // Load the latest config from file
   const configLoaded = loadConfig();
   port = process.env.WEBHOOK_PORT || 8282; // Recalculate port in case it changed
@@ -413,16 +403,6 @@ async function startBot() {
       "Configuration file (config.json) not found or is invalid."
     );
   }
-
-  // DEBUG: Log Discord credentials after loadConfig
-  logger.debug("[DEBUG AFTER LOAD] BOT_ID:", process.env.BOT_ID);
-  logger.debug("[DEBUG AFTER LOAD] GUILD_ID:", process.env.GUILD_ID);
-  logger.debug(
-    "[DEBUG AFTER LOAD] DISCORD_TOKEN:",
-    process.env.DISCORD_TOKEN
-      ? process.env.DISCORD_TOKEN.slice(0, 6) + "..."
-      : "UNDEFINED AFTER LOAD"
-  );
 
   // ----------------- VALIDATE ENV -----------------
   const REQUIRED_DISCORD = ["DISCORD_TOKEN", "BOT_ID"];

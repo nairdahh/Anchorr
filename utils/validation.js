@@ -40,7 +40,7 @@ export const configSchema = Joi.object({
   PRIVATE_MESSAGE_MODE: Joi.string().valid("true", "false").optional(),
   JELLYSEERR_AUTO_APPROVE: Joi.string().valid("true", "false").optional(),
   DEBUG: Joi.string().valid("true", "false").optional(),
-  USER_MAPPINGS: Joi.object().pattern(Joi.string(), Joi.string()).optional(),
+  USER_MAPPINGS: Joi.array().items(Joi.object()).optional(),
   USER_MAPPING_METADATA: Joi.object().optional(),
   ROLE_ALLOWLIST: Joi.array().items(Joi.string()).optional(),
   ROLE_BLOCKLIST: Joi.array().items(Joi.string()).optional(),
