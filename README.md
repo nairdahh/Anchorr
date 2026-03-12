@@ -62,7 +62,7 @@ If you choose to expose Anchorr to the internet (e.g. via port forwarding or a r
 
 - The **web dashboard** (including configuration and secrets) would be publicly reachable
 - **Authentication** is a simple username/password with no 2FA or brute-force protection
-- **Secrets** (Discord token, API keys, webhook secret) are stored in plain text in `config.json`
+- **Secrets** (Discord token, API keys, webhook secret) are base64-encoded in `config.json` — note that base64 is not encryption and can be trivially decoded
 - There is **no HTTPS** built in — use a reverse proxy (e.g. Nginx + Let's Encrypt) if you expose it
 
 **Recommendation:** Keep Anchorr on your local network. If remote access is needed, use a VPN instead of direct port forwarding.
