@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Webhook Secret Authentication**: The `/jellyfin-webhook` endpoint now requires a shared secret sent as the `X-Webhook-Secret` HTTP header. Requests without a valid secret are rejected with `401 Unauthorized`. The secret is auto-generated on first start and displayed in the dashboard with a copy button and setup instructions.
 - **Webhook Rate Limiting**: Added rate limiter (60 requests/minute per IP) to the webhook endpoint to prevent notification flooding and DoS.
 - **Timing-Safe Secret Comparison**: Webhook secret verification uses `crypto.timingSafeEqual` to prevent timing-based secret extraction attacks.
+- **URL Injection Prevention**: `buildJellyfinUrl` now always uses the configured `JELLYFIN_BASE_URL` instead of the webhook-provided `ServerUrl`, preventing URL injection via poisoned Jellyfin metadata.
+- **Removed Credential Debug Logs**: Debug statements that logged a prefix of the Discord token to disk have been removed.
+- **Config Validation on Startup**: Config is now validated against the Joi schema on startup, logging warnings for any malformed fields.
 
 ### 📚 Documentation
 
