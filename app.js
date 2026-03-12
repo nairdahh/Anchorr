@@ -42,6 +42,7 @@ import {
   logout,
   checkAuth,
   authenticateToken,
+  WEBHOOK_SECRET,
 } from "./utils/auth.js";
 import { jellyfinPoller } from "./jellyfinPoller.js";
 import JellyfinWebSocketClient from "./jellyfinWebSocket.js";
@@ -2904,8 +2905,29 @@ function configureWebServer() {
     res.sendFile(path.join(__dirname, "web", "index.html"));
   });
 
-  // --- JELLYFIN WEBHOOK ENDPOINT (no rate limiting for webhooks) ---
-  app.post("/jellyfin-webhook", express.json(), async (req, res) => {
+  // Rate limiter for the webhook endpoint - prevents notification flooding / DoS
+  const webhookLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 60, // max 60 webhook calls per minute per IP
+    message: { success: false, error: "Too many webhook requests." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // Verify the shared secret sent by Jellyfin in the X-Webhook-Secret header.
+  // Configure WEBHOOK_SECRET in the dashboard, then add a matching custom header
+  // in the Jellyfin webhook plugin: X-Webhook-Secret: <your-secret>
+  function verifyWebhookSecret(req, res, next) {
+    const provided = req.headers["x-webhook-secret"];
+    if (!provided || provided !== WEBHOOK_SECRET) {
+      logger.warn(`⚠️ Webhook rejected: invalid or missing X-Webhook-Secret (from ${req.ip})`);
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+    next();
+  }
+
+  // --- JELLYFIN WEBHOOK ENDPOINT ---
+  app.post("/jellyfin-webhook", webhookLimiter, verifyWebhookSecret, express.json(), async (req, res) => {
     try {
       logger.info("📥 Received Jellyfin webhook");
       logger.debug("Webhook payload:", JSON.stringify(req.body, null, 2));
@@ -3009,10 +3031,11 @@ function configureWebServer() {
         const finalConfig = {
           ...existingConfig,
           ...configData,
-          // Ensure USER_MAPPINGS, USERS, and JWT_SECRET are preserved
+          // Ensure USER_MAPPINGS, USERS, JWT_SECRET, and WEBHOOK_SECRET are preserved
           USER_MAPPINGS: existingConfig.USER_MAPPINGS || [],
           USERS: existingConfig.USERS || [],
           JWT_SECRET: existingConfig.JWT_SECRET || process.env.JWT_SECRET,
+          WEBHOOK_SECRET: existingConfig.WEBHOOK_SECRET || process.env.WEBHOOK_SECRET,
           // Safety check for library mappings - prefer new config, fallback to existing if missing in request
           JELLYFIN_NOTIFICATION_LIBRARIES:
             configData.JELLYFIN_NOTIFICATION_LIBRARIES ||

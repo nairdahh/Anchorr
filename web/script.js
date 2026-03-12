@@ -850,6 +850,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Initialize webhook URL on page load with actual server port
   updateWebhookUrl();
 
+  // Copy webhook secret
+  document.getElementById("copy-webhook-secret-btn").addEventListener("click", () => {
+    const textToCopy = document.getElementById("WEBHOOK_SECRET").value;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(textToCopy)
+        .then(() => showToast("Webhook secret copied to clipboard!"))
+        .catch(() => fallbackCopyTextToClipboard(textToCopy));
+    } else {
+      fallbackCopyTextToClipboard(textToCopy);
+    }
+  });
+
   // Copy webhook URL
   copyWebhookBtn.addEventListener("click", () => {
     const textToCopy = webhookUrlElement.textContent;

@@ -638,6 +638,23 @@
                           <p style="margin-top: 0.75rem; font-size: 0.9rem; opacity: 0.8;">
                             <strong data-i18n="jellyfin_webhook.note">Note:</strong> If you're running Anchorr in Docker, you may need to replace <code>localhost</code> with your server's IP address.
                           </p>
+                          <p style="margin-top: 1.25rem;">
+                            Your webhook secret is used to secure incoming requests. Copy it below — you'll need to add it as a custom HTTP header in the Jellyfin webhook plugin:
+                          </p>
+                          <div class="webhook-url-container">
+                            <input
+                              type="text"
+                              id="WEBHOOK_SECRET"
+                              readonly
+                              class="code-block"
+                              style="background: none; border: none; outline: none; width: 100%; font-family: monospace;"
+                            />
+                            <button
+                              type="button"
+                              id="copy-webhook-secret-btn"
+                              class="btn btn-secondary"
+                            >Copy Secret</button>
+                          </div>
                           <p style="margin-top: 1.5rem;" data-i18n="jellyfin_webhook.plugin_install">If you don't have the plugin installed, access the <strong class="emphasis-mauve">Plugins page</strong> in your <strong class="emphasis-mauve">Jellyfin Dashboard</strong>, search for <strong class="emphasis-mauve">Webhook</strong>, install it and restart the server.</p>
                           <p data-i18n="jellyfin_webhook.plugin_setup">After the reset, access your <strong class="emphasis-mauve">Webhook plugin settings</strong> and <strong class="emphasis-mauve">Add Discord Destination</strong>.</p>
                           <ol style="padding-left: 1.5rem; opacity: 0.9;">
@@ -647,6 +664,7 @@
                             <li data-i18n="jellyfin_webhook.step_notification_type">For <strong class="emphasis-mauve">Notification Type</strong> enable <strong class="emphasis-mauve">Item Added</strong>.</li>
                             <li data-i18n="jellyfin_webhook.step_item_type">For <strong class="emphasis-mauve">Item Type</strong> select your desired content you want to receive notifications for.</li>
                             <li data-i18n="jellyfin_webhook.step_properties">Enable <strong class="emphasis-mauve">Send All Properties</strong>.</li>
+                            <li>Scroll down to the <strong class="emphasis-mauve">Headers</strong> section and click <strong class="emphasis-mauve">Add Header</strong>. Set the name to <code>X-Webhook-Secret</code> and paste your copied secret as the value.</li>
                             <li data-i18n="jellyfin_webhook.step_save"><strong class="emphasis-mauve">Save</strong>.</li>
                           </ol>
                         </div>

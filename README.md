@@ -107,7 +107,16 @@ In Jellyfin Dashboard → Webhooks:
 1. Click **+** to add new Discord webhook
 2. Enter URL: `http://<bot-host>:<port>/jellyfin-webhook`
 3. Example: `http://192.168.1.100:8282/jellyfin-webhook`
-4. Save and you're done! 🎉
+4. Add a custom HTTP header for authentication (see below)
+5. Save and you're done! 🎉
+
+> **Security:** Anchorr auto-generates a webhook secret on first start. Open the Anchorr dashboard, find the **Webhook Secret** field in the Jellyfin section, and click **Copy Secret**. Then add it as a custom HTTP header in the Jellyfin webhook plugin:
+>
+> | Header name | Value |
+> |---|---|
+> | `X-Webhook-Secret` | *(paste from dashboard)* |
+>
+> Requests without a valid secret are rejected with `401 Unauthorized`.
 
 ## ⚙️ Configuration
 
