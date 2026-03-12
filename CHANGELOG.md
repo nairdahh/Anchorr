@@ -23,9 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Public Hosting Warning**: Added `⚠️ Security Notice` section to README warning against exposing Anchorr to the public internet and recommending VPN use for remote access.
 - **Webhook Setup Guide**: Updated Jellyfin plugin setup instructions in both the dashboard and README to include the `X-Webhook-Secret` header configuration step.
 
+### ⚠️ Breaking Change
+
+The `/jellyfin-webhook` endpoint now **requires** the `X-Webhook-Secret` header on every request. Existing Jellyfin webhook configurations that do not include this header will receive `401 Unauthorized` and stop delivering notifications until the header is added.
+
 ### 🏗️ Migration
 
-Existing installations will have a secret **auto-generated on next startup** — no manual action required. Copy the secret from the dashboard and add it as a custom HTTP header (`X-Webhook-Secret`) in your Jellyfin webhook plugin settings.
+1. Start Anchorr — a secret is auto-generated and saved on first startup.
+2. Open the dashboard → Jellyfin Notifications section → copy the **Webhook Secret**.
+3. In your Jellyfin webhook plugin, open the Discord destination, scroll to **Headers**, click **Add Header**, set the name to `X-Webhook-Secret` and paste the secret as the value.
+4. Save. Notifications will resume immediately.
 
 ---
 
