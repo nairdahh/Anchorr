@@ -119,11 +119,13 @@
     "jellyfin_server_id": "Jellyfin Server ID",
     "jellyfin_server_id_help": "Used for redirecting to the correct path of your Jellyfin server media page when using the \"Watch Now\" button. You can find this in your Jellyfin URL when viewing the page of any movie or show from your library.",
     "notification_testing_title": "Notification Testing",
-    "notification_testing_help": "Send test notifications to preview how your notification templates look. These will send sample notifications with random movies/series data without requiring actual Jellyfin webhook triggers.",
+    "notification_testing_help": "Test your notification templates by sending sample notifications to your Discord channel. This helps you preview how different types of notifications will appear.",
     "test_movie_notification": "Test Movie",
     "test_series_notification": "Test Series",
     "test_season_notification": "Test Season",
+    "test_batch_seasons_notification": "Test Seasons Batch",
     "test_episodes_notification": "Test Episodes",
+    "test_batch_episodes_notification": "Test Episodes Batch",
     "save_button": "Save Settings"
   },
   "ui": {

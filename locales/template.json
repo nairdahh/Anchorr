@@ -97,6 +97,14 @@
     "test_endpoint_help": "",
     "jellyfin_server_id": "",
     "jellyfin_server_id_help": "",
+    "notification_testing_title": "",
+    "notification_testing_help": "",
+    "test_movie_notification": "",
+    "test_series_notification": "",
+    "test_season_notification": "",
+    "test_batch_seasons_notification": "",
+    "test_episodes_notification": "",
+    "test_batch_episodes_notification": "",
     "save_button": ""
   },
   "ui": {

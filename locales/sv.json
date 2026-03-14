@@ -102,6 +102,14 @@
     "test_endpoint_help": "Kontrollera Jellyfin-endpoint",
     "jellyfin_server_id": "Jellyfin server-ID",
     "jellyfin_server_id_help": "Ange server-ID för Jellyfin",
+    "notification_testing_title": "Notifieringstest",
+    "notification_testing_help": "Testa dina notifieringsmallar genom att skicka exempelnotifieringar till din Discord-kanal. Detta hjälper dig att förhandsgranska hur olika typer av notifieringar kommer att visas.",
+    "test_movie_notification": "Testa film",
+    "test_series_notification": "Testa serie",
+    "test_season_notification": "Testa säsong",
+    "test_batch_seasons_notification": "Testa säsonger (batch)",
+    "test_episodes_notification": "Testa episoder",
+    "test_batch_episodes_notification": "Testa episoder (batch)",
     "save_button": "Spara inställningar"
   },
   "ui": {
