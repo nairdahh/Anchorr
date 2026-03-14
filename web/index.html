@@ -659,6 +659,10 @@
                           </div>
                           <p style="margin-top: 1.5rem;" data-i18n="jellyfin_webhook.plugin_install">If you don't have the plugin installed, access the <strong class="emphasis-mauve">Plugins page</strong> in your <strong class="emphasis-mauve">Jellyfin Dashboard</strong>, search for <strong class="emphasis-mauve">Webhook</strong>, install it and restart the server.</p>
                           <p data-i18n="jellyfin_webhook.plugin_setup">After the restart, access your <strong class="emphasis-mauve">Webhook plugin settings</strong> and <strong class="emphasis-mauve">Add Generic Destination</strong>.</p>
+                          <div class="form-text" style="margin-bottom: 1rem; padding: 0.6rem 0.9rem; background-color: var(--surface0); border-left: 3px solid var(--yellow); border-radius: 4px;" data-i18n="jellyfin_webhook.generic_destination_notice">
+                            <i class="bi bi-exclamation-triangle" style="color: var(--yellow);"></i>
+                            Jellyfin does not support custom headers for the <strong>Discord Destination</strong> type. If you previously used a Discord Destination, you need to <strong>delete it and recreate it as a Generic Destination</strong> — otherwise the <code>X-Webhook-Secret</code> header cannot be added and Anchorr will reject all incoming requests.
+                          </div>
                           <ol style="padding-left: 1.5rem; opacity: 0.9;">
                             <li data-i18n="jellyfin_webhook.step_server_url">Complete the <strong class="emphasis-mauve">Server Url</strong> with your Jellyfin server's base URL.</li>
                             <li data-i18n="jellyfin_webhook.step_webhook_url">Insert the previously specified URL in the <strong class="emphasis-mauve">Webhook Url</strong> field.</li>

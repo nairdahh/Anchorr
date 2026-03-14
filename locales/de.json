@@ -314,6 +314,7 @@
     "step_properties": "Aktiviere Alle Eigenschaften senden.",
     "step_headers": "Scrolle nach unten zum Bereich Headers und klicke auf Header hinzufügen. Setze den Namen auf X-Webhook-Secret und füge dein kopiertes Secret als Wert ein.",
     "step_save": "Speichern.",
+    "generic_destination_notice": "Jellyfin unterstützt keine benutzerdefinierten Header für den Typ Discord Destination. Wenn du bisher eine Discord Destination verwendet hast, musst du diese löschen und als Generic Destination neu erstellen — andernfalls kann der X-Webhook-Secret-Header nicht hinzugefügt werden und Anchorr wird alle eingehenden Anfragen ablehnen.",
     "copy_url": "URL kopieren",
     "copy_secret": "Secret kopieren",
     "webhook_secret_desc": "Dein Webhook-Secret wird verwendet, um eingehende Anfragen abzusichern. Kopiere es unten — du musst es als benutzerdefinierten HTTP-Header im Jellyfin-Webhook-Plugin eintragen:",

@@ -221,6 +221,7 @@
     "step_properties": "",
     "step_headers": "",
     "step_save": "",
+    "generic_destination_notice": "",
     "copy_url": "",
     "copy_secret": "",
     "webhook_secret_desc": "",
