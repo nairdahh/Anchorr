@@ -165,6 +165,20 @@ async function initializeI18n() {
 document.addEventListener("DOMContentLoaded", async () => {
   // Initialize i18n first
   await initializeI18n();
+
+  // Fetch and display app version
+  fetch("/api/health")
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.version) {
+        const v = `v${data.version}`;
+        const footerEl = document.getElementById("footer-version");
+        const aboutEl = document.getElementById("about-version");
+        if (footerEl) footerEl.textContent = v;
+        if (aboutEl) aboutEl.textContent = v;
+      }
+    })
+    .catch(() => {});
   const form = document.getElementById("config-form");
   const botControlBtn = document.getElementById("bot-control-btn");
   const botControlText = document.getElementById("bot-control-text");

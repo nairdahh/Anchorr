@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
 import express from "express";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
@@ -12,6 +13,8 @@ import axios from "axios";
 // ESM __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const require = createRequire(import.meta.url);
+const { version: APP_VERSION } = require("./package.json");
 
 import {
   Client,
@@ -3572,6 +3575,7 @@ function configureWebServer() {
 
     res.json({
       status: "healthy",
+      version: APP_VERSION,
       uptime: Math.floor(uptime),
       uptimeFormatted: `${Math.floor(uptime / 3600)}h ${Math.floor(
         (uptime % 3600) / 60

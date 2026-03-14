@@ -305,19 +305,19 @@
   "jellyfin_webhook": {
     "note": "Hinweis: Wenn du Anchorr in Docker ausführst, musst du möglicherweise localhost durch die IP-Adresse deines Servers ersetzen.",
     "plugin_install": "Falls du das Plugin nicht installiert hast, gehe zur Plugins-Seite in deinem Jellyfin Dashboard, suche nach Webhook, installiere es und starte den Server neu.",
-    "plugin_setup": "Nach dem Neustart gehe zu deinen Webhook-Plugin-Einstellungen und füge ein Generic-Ziel hinzu.",
-    "step_server_url": "Vervollständige die Server-URL mit der Basis-URL deines Jellyfin-Servers.",
-    "step_webhook_url": "Füge die zuvor angegebene URL in das Webhook-URL-Feld ein.",
-    "step_status": "Status muss Aktiviert sein.",
-    "step_notification_type": "Für Benachrichtigungstyp aktiviere Element hinzugefügt.",
-    "step_item_type": "Für Elementtyp wähle deinen gewünschten Inhalt aus, für den du Benachrichtigungen erhalten möchtest.",
-    "step_properties": "Aktiviere Alle Eigenschaften senden.",
-    "step_headers": "Scrolle nach unten zum Bereich Headers und klicke auf Header hinzufügen. Setze den Namen auf X-Webhook-Secret und füge dein kopiertes Secret als Wert ein.",
+    "plugin_setup": "Nach dem Neustart öffne die Einstellungen des Webhook-Plugins und füge eine Generic Destination hinzu.",
+    "step_server_url": "Trage die Basis-URL deines Jellyfin-Servers in das Feld Server Url ein.",
+    "step_webhook_url": "Füge die oben angezeigte URL in das Feld Webhook Url ein.",
+    "step_status": "Setze den Status auf Enabled.",
+    "step_notification_type": "Aktiviere unter Notification Type die Option Item Added.",
+    "step_item_type": "Wähle unter Item Type die Inhalte aus, für die du Benachrichtigungen erhalten möchtest.",
+    "step_properties": "Aktiviere Send All Properties.",
+    "step_headers": "Scrolle nach unten zum Abschnitt Headers und klicke auf Add Header. Trage als Name X-Webhook-Secret ein und füge dein kopiertes Secret als Wert ein.",
     "step_save": "Speichern.",
-    "generic_destination_notice": "Jellyfin unterstützt keine benutzerdefinierten Header für den Typ Discord Destination. Wenn du bisher eine Discord Destination verwendet hast, musst du diese löschen und als Generic Destination neu erstellen — andernfalls kann der X-Webhook-Secret-Header nicht hinzugefügt werden und Anchorr wird alle eingehenden Anfragen ablehnen.",
+    "generic_destination_notice": "Jellyfin unterstützt keine eigenen HTTP-Header beim Typ Discord Destination. Falls du bisher eine Discord Destination genutzt hast, lösche sie und lege stattdessen eine Generic Destination an — sonst lässt sich der X-Webhook-Secret-Header nicht setzen und Anchorr lehnt alle eingehenden Anfragen ab.",
     "copy_url": "URL kopieren",
     "copy_secret": "Secret kopieren",
-    "webhook_secret_desc": "Dein Webhook-Secret wird verwendet, um eingehende Anfragen abzusichern. Kopiere es unten — du musst es als benutzerdefinierten HTTP-Header im Jellyfin-Webhook-Plugin eintragen:",
-    "notification_testing_info": "Diese Tests umgehen den Webhook-Endpunkt und laufen intern — sie funktionieren ohne den X-Webhook-Secret-Header. Stelle sicher, dass du das Secret trotzdem kopiert und in deinem Jellyfin-Webhook-Plugin eingetragen hast, damit echte Benachrichtigungen von Jellyfin akzeptiert werden."
+    "webhook_secret_desc": "Dieses Secret sichert deinen Webhook-Endpunkt ab. Kopiere es und trage es als HTTP-Header X-Webhook-Secret in deinem Jellyfin-Webhook-Plugin ein:",
+    "notification_testing_info": "Diese Tests laufen intern und umgehen den Webhook-Endpunkt — sie funktionieren auch ohne den X-Webhook-Secret-Header. Denk trotzdem daran, das Secret in deinem Jellyfin-Webhook-Plugin einzutragen, damit echte Benachrichtigungen von Jellyfin ankommen."
   }
 }
