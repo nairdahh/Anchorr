@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.1] - 2026-03-12
+
+### ℹ️ Important
+
+- **Breaking Change**: The `/jellyfin-webhook` endpoint now requires an `X-Webhook-Secret` header on every request. Existing Jellyfin webhook configurations without this header will receive `401 Unauthorized` and stop delivering notifications. See the migration guide below.
+
+### 🔒 Security
+
+- **Webhook Secret Authentication**: The `/jellyfin-webhook` endpoint now requires a shared secret sent as the `X-Webhook-Secret` HTTP header. Requests without a valid secret are rejected with `401 Unauthorized`. The secret is auto-generated on first start and displayed in the dashboard with a copy button and setup instructions
+- **Webhook Rate Limiting**: Added rate limiter (60 requests/minute per IP) to the webhook endpoint to prevent notification flooding and DoS
+- **Timing-Safe Secret Comparison**: Webhook secret verification uses `crypto.timingSafeEqual` to prevent timing-based secret extraction attacks
+- **URL Injection Prevention**: `buildJellyfinUrl` now always uses the configured `JELLYFIN_BASE_URL` instead of the webhook-provided `ServerUrl`, preventing URL injection via poisoned Jellyfin metadata
+- **Removed Credential Debug Logs**: Debug statements that logged a prefix of the Discord token to disk have been removed
+- **Base64-Encoded Secrets at Rest**: Sensitive fields (`DISCORD_TOKEN`, `JWT_SECRET`, `WEBHOOK_SECRET`, `JELLYSEERR_API_KEY`, `JELLYFIN_API_KEY`, `TMDB_API_KEY`, `OMDB_API_KEY`) are now stored base64-encoded in `config.json`. Values are decoded transparently on read and re-encoded on every save. Existing plain-text configs are migrated automatically on next save
+
+### 🏗️ Code Quality
+
+- **Config Validation on Startup**: Config is now validated against the Joi schema on startup, logging warnings for any malformed fields
+
+### 📚 Documentation
+
+- **Public Hosting Warning**: Added `⚠️ Security Notice` section to README warning against exposing Anchorr to the public internet and recommending VPN use for remote access
+- **Webhook Setup Guide**: Updated Jellyfin plugin setup instructions in both the dashboard and README to include the `X-Webhook-Secret` header configuration step
+
+### 🚀 Migration Guide for Users
+
+If upgrading from v1.4.0:
+
+1. Start Anchorr — a `WEBHOOK_SECRET` is auto-generated and saved on first startup
+2. Open the dashboard → **Jellyfin Notifications** section → copy the **Webhook Secret**
+3. In your Jellyfin webhook plugin, open the Discord destination, scroll to **Headers**, click **Add Header**, set the name to `X-Webhook-Secret` and paste the secret as the value
+4. Save. Notifications will resume immediately
+
+---
+
 ## [1.4.0] - 2026-02-11
 
 ### ✨ Added

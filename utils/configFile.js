@@ -1,6 +1,40 @@
 import fs from "fs";
 import path from "path";
 import logger from "./logger.js";
+import { configSchema } from "./validation.js";
+
+// Fields that contain sensitive credentials and should be base64-encoded at rest
+const SENSITIVE_FIELDS = new Set([
+  "DISCORD_TOKEN",
+  "JELLYSEERR_API_KEY",
+  "JELLYFIN_API_KEY",
+  "WEBHOOK_SECRET",
+  "JWT_SECRET",
+  "TMDB_API_KEY",
+  "OMDB_API_KEY",
+]);
+
+const B64_PREFIX = "b64:";
+
+function encodeConfig(config) {
+  const out = { ...config };
+  for (const field of SENSITIVE_FIELDS) {
+    if (out[field] && typeof out[field] === "string" && out[field] !== "" && !out[field].startsWith(B64_PREFIX)) {
+      out[field] = B64_PREFIX + Buffer.from(out[field], "utf8").toString("base64");
+    }
+  }
+  return out;
+}
+
+function decodeConfig(config) {
+  const out = { ...config };
+  for (const field of SENSITIVE_FIELDS) {
+    if (out[field] && typeof out[field] === "string" && out[field].startsWith(B64_PREFIX)) {
+      out[field] = Buffer.from(out[field].slice(B64_PREFIX.length), "base64").toString("utf8");
+    }
+  }
+  return out;
+}
 
 /**
  * CONFIG_PATH determines where config.json is saved and read:
@@ -120,7 +154,7 @@ export function readConfig() {
 
   try {
     const rawData = fs.readFileSync(configPath, "utf-8");
-    const config = JSON.parse(rawData);
+    const config = decodeConfig(JSON.parse(rawData));
     logger.debug(`Config loaded successfully from ${configPath}`);
     return config;
   } catch (error) {
@@ -135,16 +169,16 @@ export function readConfig() {
  * @returns {boolean} True if save succeeded
  */
 export function writeConfig(config) {
+  const configDir = path.dirname(CONFIG_PATH);
   try {
     // Ensure /config directory exists
-    const configDir = path.dirname(CONFIG_PATH);
     if (!fs.existsSync(configDir)) {
       logger.info(`Creating config directory: ${configDir}`);
       fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
     }
 
-    // Write with explicit permissions
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), {
+    // Write with explicit permissions (sensitive fields are base64-encoded)
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(encodeConfig(config), null, 2), {
       mode: 0o666,
       encoding: "utf-8",
     });
@@ -209,6 +243,17 @@ export function loadConfigToEnv() {
   if (!config) {
     logger.warn("No config found to load into process.env");
     return false;
+  }
+
+  // --- SCHEMA VALIDATION (warn-only, non-fatal) ---
+  const { error: validationError } = configSchema.validate(config, {
+    abortEarly: false,
+    allowUnknown: true,
+  });
+  if (validationError) {
+    validationError.details.forEach((d) =>
+      logger.warn(`⚠️ Config validation: ${d.message}`)
+    );
   }
 
   // --- AUTO-MIGRATIONS ---

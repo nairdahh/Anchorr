@@ -54,6 +54,21 @@ I also have a dedicated channel on the [r/JellyfinCommunity](https://discord.gg/
 - **🔗 Autocomplete Support**: Intelligent autocomplete for search queries with rich metadata
 - **⚙️ Web Dashboard**: User-friendly web interface for configuration with auto-detection
 
+## ⚠️ Security Notice
+
+Anchorr is designed to run **locally on your home network** alongside your Jellyfin server. It is **not hardened for public internet exposure**.
+
+If you choose to expose Anchorr to the internet (e.g. via port forwarding or a reverse proxy), be aware of the following risks:
+
+- The **web dashboard** (including configuration and secrets) would be publicly reachable
+- **Authentication** is a simple username/password with no 2FA or brute-force protection
+- **Secrets** (Discord token, API keys, webhook secret) are base64-encoded in `config.json` — note that base64 is not encryption and can be trivially decoded
+- There is **no HTTPS** built in — use a reverse proxy (e.g. Nginx + Let's Encrypt) if you expose it
+
+**Recommendation:** Keep Anchorr on your local network. If remote access is needed, use a VPN instead of direct port forwarding.
+
+---
+
 ## 📋 Prerequisites
 
 Before getting started, ensure you have:
@@ -107,7 +122,16 @@ In Jellyfin Dashboard → Webhooks:
 1. Click **+** to add new Discord webhook
 2. Enter URL: `http://<bot-host>:<port>/jellyfin-webhook`
 3. Example: `http://192.168.1.100:8282/jellyfin-webhook`
-4. Save and you're done! 🎉
+4. Add a custom HTTP header for authentication (see below)
+5. Save and you're done! 🎉
+
+> **Security:** Anchorr auto-generates a webhook secret on first start. Open the Anchorr dashboard, find the **Webhook Secret** field in the Jellyfin section, and click **Copy Secret**. Then add it as a custom HTTP header in the Jellyfin webhook plugin:
+>
+> | Header name | Value |
+> |---|---|
+> | `X-Webhook-Secret` | *(paste from dashboard)* |
+>
+> Requests without a valid secret are rejected with `401 Unauthorized`.
 
 ## ⚙️ Configuration
 

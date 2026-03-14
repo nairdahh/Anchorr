@@ -310,6 +310,11 @@
     "step_notification_type": "Für Benachrichtigungstyp aktiviere Element hinzugefügt.",
     "step_item_type": "Für Elementtyp wähle deinen gewünschten Inhalt aus, für den du Benachrichtigungen erhalten möchtest.",
     "step_properties": "Aktiviere Alle Eigenschaften senden.",
-    "step_save": "Speichern."
+    "step_headers": "Scrolle nach unten zum Bereich Headers und klicke auf Header hinzufügen. Setze den Namen auf X-Webhook-Secret und füge dein kopiertes Secret als Wert ein.",
+    "step_save": "Speichern.",
+    "copy_url": "URL kopieren",
+    "copy_secret": "Secret kopieren",
+    "webhook_secret_desc": "Dein Webhook-Secret wird verwendet, um eingehende Anfragen abzusichern. Kopiere es unten — du musst es als benutzerdefinierten HTTP-Header im Jellyfin-Webhook-Plugin eintragen:",
+    "notification_testing_info": "Diese Tests umgehen den Webhook-Endpunkt und laufen intern — sie funktionieren ohne den X-Webhook-Secret-Header. Stelle sicher, dass du das Secret trotzdem kopiert und in deinem Jellyfin-Webhook-Plugin eingetragen hast, damit echte Benachrichtigungen von Jellyfin akzeptiert werden."
   }
 }
