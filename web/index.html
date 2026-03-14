@@ -633,12 +633,13 @@
                               type="button"
                               id="copy-webhook-btn"
                               class="btn btn-secondary"
+                              data-i18n="jellyfin_webhook.copy_url"
                             >Copy URL</button>
                           </div>
                           <p style="margin-top: 0.75rem; font-size: 0.9rem; opacity: 0.8;">
                             <strong data-i18n="jellyfin_webhook.note">Note:</strong> If you're running Anchorr in Docker, you may need to replace <code>localhost</code> with your server's IP address.
                           </p>
-                          <p style="margin-top: 1.25rem;">
+                          <p style="margin-top: 1.25rem;" data-i18n="jellyfin_webhook.webhook_secret_desc">
                             Your webhook secret is used to secure incoming requests. Copy it below — you'll need to add it as a custom HTTP header in the Jellyfin webhook plugin:
                           </p>
                           <div class="webhook-url-container">
@@ -653,6 +654,7 @@
                               type="button"
                               id="copy-webhook-secret-btn"
                               class="btn btn-secondary"
+                              data-i18n="jellyfin_webhook.copy_secret"
                             >Copy Secret</button>
                           </div>
                           <p style="margin-top: 1.5rem;" data-i18n="jellyfin_webhook.plugin_install">If you don't have the plugin installed, access the <strong class="emphasis-mauve">Plugins page</strong> in your <strong class="emphasis-mauve">Jellyfin Dashboard</strong>, search for <strong class="emphasis-mauve">Webhook</strong>, install it and restart the server.</p>
@@ -664,7 +666,7 @@
                             <li data-i18n="jellyfin_webhook.step_notification_type">For <strong class="emphasis-mauve">Notification Type</strong> enable <strong class="emphasis-mauve">Item Added</strong>.</li>
                             <li data-i18n="jellyfin_webhook.step_item_type">For <strong class="emphasis-mauve">Item Type</strong> select your desired content you want to receive notifications for.</li>
                             <li data-i18n="jellyfin_webhook.step_properties">Enable <strong class="emphasis-mauve">Send All Properties</strong>.</li>
-                            <li>Scroll down to the <strong class="emphasis-mauve">Headers</strong> section and click <strong class="emphasis-mauve">Add Header</strong>. Set the name to <code>X-Webhook-Secret</code> and paste your copied secret as the value.</li>
+                            <li data-i18n="jellyfin_webhook.step_headers">Scroll down to the <strong class="emphasis-mauve">Headers</strong> section and click <strong class="emphasis-mauve">Add Header</strong>. Set the name to <code>X-Webhook-Secret</code> and paste your copied secret as the value.</li>
                             <li data-i18n="jellyfin_webhook.step_save"><strong class="emphasis-mauve">Save</strong>.</li>
                           </ol>
                         </div>
@@ -754,7 +756,7 @@
                         <div class="form-text" style="margin-bottom: 1rem;">
                           Test your notification templates by sending sample notifications to your Discord channel. This helps you preview how different types of notifications will appear.
                         </div>
-                        <div class="form-text" style="margin-bottom: 1rem; padding: 0.6rem 0.9rem; background-color: var(--surface0); border-left: 3px solid var(--mauve); border-radius: 4px;">
+                        <div class="form-text" style="margin-bottom: 1rem; padding: 0.6rem 0.9rem; background-color: var(--surface0); border-left: 3px solid var(--mauve); border-radius: 4px;" data-i18n="jellyfin_webhook.notification_testing_info">
                           <i class="bi bi-info-circle" style="color: var(--mauve);"></i>
                           These tests bypass the webhook endpoint and run internally — they work without the <code>X-Webhook-Secret</code> header. Make sure you've still copied the secret and added it to your Jellyfin webhook plugin so that real notifications from Jellyfin are accepted.
                         </div>
