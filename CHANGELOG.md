@@ -11,9 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ℹ️ Important
 
-- **Breaking Change**: The `/jellyfin-webhook` endpoint now requires an `X-Webhook-Secret` header on every request. Existing Jellyfin webhook configurations without this header will receive `401 Unauthorized` and stop delivering notifications. See the migration guide below.
+- **Breaking Change — Webhook secret required**: The `/jellyfin-webhook` endpoint now requires an `X-Webhook-Secret` header on every request. Existing Jellyfin webhook configurations without this header will receive `401 Unauthorized` and stop delivering notifications. See the migration guide below.
+- **Breaking Change — Discord Destination removed**: Jellyfin's webhook plugin has removed the dedicated Discord destination type. Existing Discord Destinations will no longer deliver webhooks correctly. You need to delete your existing Discord Destination and recreate it as a **Generic Destination**.
 
 ### 🔒 Security
+
+This release addresses a critical security vulnerability reported by [@whoopsi-daisy](https://github.com/whoopsi-daisy).
+
+Anchorr's `/jellyfin-webhook` endpoint accepted arbitrary POST requests without verifying the sender or the structure of the payload. The handler forwarded several fields from the webhook body directly into the internal job runner pipeline, where they were later interpolated into a command string executed through a shell context. Because the values were not sanitized or escaped, a specially crafted payload could terminate the expected argument sequence and inject additional shell tokens — allowing arbitrary command execution under the privileges of the Anchorr process.
 
 - **Webhook Secret Authentication**: The `/jellyfin-webhook` endpoint now requires a shared secret sent as the `X-Webhook-Secret` HTTP header. Requests without a valid secret are rejected with `401 Unauthorized`. The secret is auto-generated on first start and displayed in the dashboard with a copy button and setup instructions
 - **Webhook Rate Limiting**: Added rate limiter (60 requests/minute per IP) to the webhook endpoint to prevent notification flooding and DoS
@@ -29,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 📚 Documentation
 
 - **Public Hosting Warning**: Added `⚠️ Security Notice` section to README warning against exposing Anchorr to the public internet and recommending VPN use for remote access
-- **Webhook Setup Guide**: Updated Jellyfin plugin setup instructions in both the dashboard and README to include the `X-Webhook-Secret` header configuration step
+- **Webhook Setup Guide**: Updated Jellyfin plugin setup instructions in both the dashboard and README to include the `X-Webhook-Secret` header configuration step and Generic Destination requirement
 
 ### 🚀 Migration Guide for Users
 
@@ -37,8 +42,9 @@ If upgrading from v1.4.0:
 
 1. Start Anchorr — a `WEBHOOK_SECRET` is auto-generated and saved on first startup
 2. Open the dashboard → **Jellyfin Notifications** section → copy the **Webhook Secret**
-3. In your Jellyfin webhook plugin, open the Discord destination, scroll to **Headers**, click **Add Header**, set the name to `X-Webhook-Secret` and paste the secret as the value
-4. Save. Notifications will resume immediately
+3. In your Jellyfin webhook plugin, **delete your existing Discord Destination** and create a new **Generic Destination** with the same Webhook URL
+4. Scroll down to the **Headers** section, click **Add Header**, set the name to `X-Webhook-Secret` and paste the secret as the value
+5. Save. Notifications will resume immediately
 
 ---
 
