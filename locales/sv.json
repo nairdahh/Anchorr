@@ -209,7 +209,7 @@
   "jellyfin_webhook": {
     "note": "Om du kör Anchorr i Docker kan du behöva ersätta localhost med din servers IP-adress.",
     "plugin_install": "Om du inte har pluginet installerat, gå till Plugins-sidan i din Jellyfin Dashboard, sök efter Webhook, installera det och starta om servern.",
-    "plugin_setup": "Efter omstarten, gå till dina Webhook-plugininställningar och Lägg till Discord-destination.",
+    "plugin_setup": "Efter omstarten, gå till dina Webhook-plugininställningar och Lägg till Generic-destination.",
     "step_server_url": "Fyll i Server-URL med din Jellyfin-servers bas-URL.",
     "step_webhook_url": "Infoga den tidigare angivna URL:en i Webhook-URL-fältet.",
     "step_status": "Status måste vara Aktiverad.",

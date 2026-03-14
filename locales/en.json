@@ -231,7 +231,7 @@
   "jellyfin_webhook": {
     "note": "If you're running Anchorr in Docker, you may need to replace localhost with your server's IP address.",
     "plugin_install": "If you don't have the plugin installed, access the Plugins page in your Jellyfin Dashboard, search for Webhook, install it and restart the server.",
-    "plugin_setup": "After the restart, access your Webhook plugin settings and Add Discord Destination.",
+    "plugin_setup": "After the restart, access your Webhook plugin settings and Add Generic Destination.",
     "step_server_url": "Complete the Server Url with your Jellyfin server's base URL.",
     "step_webhook_url": "Insert the previously specified URL in the Webhook Url field.",
     "step_status": "Status must be Enabled.",
