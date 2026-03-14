@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### ℹ️ Important
 
 - **Breaking Change — Webhook secret required**: The `/jellyfin-webhook` endpoint now requires an `X-Webhook-Secret` header on every request. Existing Jellyfin webhook configurations without this header will receive `401 Unauthorized` and stop delivering notifications. See the migration guide below.
-- **Breaking Change — Discord Destination removed**: Jellyfin's webhook plugin has removed the dedicated Discord destination type. Existing Discord Destinations will no longer deliver webhooks correctly. You need to delete your existing Discord Destination and recreate it as a **Generic Destination**.
+- **Breaking Change — Switch to Generic Destination required**: Jellyfin does not support custom HTTP headers for the **Discord Destination** type. Since Anchorr now requires an `X-Webhook-Secret` header on every request, the Discord Destination can no longer be used. You must delete your existing Discord Destination and recreate it as a **Generic Destination** — otherwise the header cannot be set and all webhook deliveries will be rejected with `401 Unauthorized`.
 
 ### 🔒 Security
 
