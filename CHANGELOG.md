@@ -7,11 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.5.5] - 2026-04-27
-
-### 🌍 Added
-
-- **French translation (`fr`)**: Anchorr is now fully translated into French, covering all bot messages and UI text.
+## [1.5.6] - 2026-06-14
 
 ### ✨ Added
 
