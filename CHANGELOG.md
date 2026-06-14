@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.5.6] - 2026-06-13
+## [1.5.6] - 2026-06-14
 
 ### ✨ Added
+
+- **Separate overview toggle for episodes**: The embed overview setting is now split into two independent options -- one for movies and series, one for episodes. Episode summaries can be disabled independently to avoid spoilers for shows you haven't caught up on. Both options are on by default. Configurable via the dashboard under "Embed Options". The previous `EMBED_SHOW_OVERVIEW` setting has been replaced; users who had it disabled will need to re-configure the new options.
+
+- **Weekly Roundup**: Optional scheduled Discord post that summarizes new Jellyfin content from the last 7 days. Disabled by default. Configurable via the dashboard (channel, weekday, hour, embed color). The roundup groups items by library and collapses episodes of the same series into one line (e.g. _"My Show — Seasons 1 & 2 (12 episodes)"_). Item titles link directly to Jellyfin. A hourly scheduler tick with a persisted `WEEKLY_ROUNDUP_LAST_POSTED_AT` timestamp makes the post idempotent across Docker restarts. Sonarr/Radarr quality upgrades are filtered out via a stable-identity first-seen map (`config/dedup-roundup-first-seen.json`) so a re-imported file does not show up as "new".
 
 - **Library seed scan**: On first boot, Anchorr now scans your entire Jellyfin library and records everything that already exists, so pre-existing content never triggers a "new item" Discord notification.
 - **Daily prune scan**: A background job runs once per day to remove records for items that have been deleted from Jellyfin, keeping internal state from growing unbounded.
@@ -17,17 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.5.5] - 2026-04-27
+## [1.5.5] - 2026-06-14
 
 ### 🌍 Added
 
 - **French translation (`fr`)**: Anchorr is now fully translated into French, covering all bot messages and UI text.
 
-### ✨ Added
+### 🐛 Fixed
 
-- **Separate overview toggle for episodes**: The embed overview setting is now split into two independent options -- one for movies and series, one for episodes. Episode summaries can be disabled independently to avoid spoilers for shows you haven't caught up on. Both options are on by default. Configurable via the dashboard under "Embed Options". The previous `EMBED_SHOW_OVERVIEW` setting has been replaced; users who had it disabled will need to re-configure the new options.
-
-- **Weekly Roundup**: Optional scheduled Discord post that summarizes new Jellyfin content from the last 7 days. Disabled by default. Configurable via the dashboard (channel, weekday, hour, embed color). The roundup groups items by library and collapses episodes of the same series into one line (e.g. _"My Show — Seasons 1 & 2 (12 episodes)"_). Item titles link directly to Jellyfin. A hourly scheduler tick with a persisted `WEEKLY_ROUNDUP_LAST_POSTED_AT` timestamp makes the post idempotent across Docker restarts. Sonarr/Radarr quality upgrades are filtered out via a stable-identity first-seen map (`config/dedup-roundup-first-seen.json`) so a re-imported file does not show up as "new".
+- **Autocomplete timeouts on movie/show search**: Per-item TMDB detail lookups during autocomplete could push the response past Discord's 3-second interaction window, causing the suggestion list to fail to appear. These per-item lookups are now skipped during autocomplete.
 
 ---
 
