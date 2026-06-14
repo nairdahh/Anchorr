@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.5] - 2026-06-14
+
+### 🌍 Added
+
+- **French translation (`fr`)**: Anchorr is now fully translated into French, covering all bot messages and UI text.
+
+### 🐛 Fixed
+
+- **Autocomplete timeouts on movie/show search**: Per-item TMDB detail lookups during autocomplete could push the response past Discord's 3-second interaction window, causing the suggestion list to fail to appear. These per-item lookups are now skipped during autocomplete.
+
+---
+
 ## [1.5.4] - 2026-04-26
 
 ### 🐛 Fixed
