@@ -569,8 +569,17 @@ export async function fetchAllLibraryItems(apiKey, baseUrl, parentId) {
         params,
         timeout: 15000,
       });
-      page = response.data?.Items || [];
+      const body = response.data;
+      if (!body || !Array.isArray(body.Items)) {
+        logger.warn(
+          `fetchAllLibraryItems: unexpected response shape from Jellyfin (parent ${parentId}, StartIndex=${startIndex}) — treating as incomplete`
+        );
+        complete = false;
+        break;
+      }
+      page = body.Items;
     } catch (err) {
+      if (!err?.isAxiosError) throw err;
       logger.warn(
         `fetchAllLibraryItems: page at StartIndex=${startIndex} (parent ${parentId}) failed (${err?.message || err}); returning ${collected.length} items collected so far (incomplete)`
       );

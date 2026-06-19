@@ -1153,13 +1153,17 @@ function startServer() {
     // poller/websocket are already listening and handle items normally
     // while this is in progress.
     if (process.env.LIBRARY_SEEDED !== "true") {
-      seedLibrary();
+      seedLibrary().catch((err) =>
+        logger.error(`librarySeeder: unexpected rejection on boot (${err?.message || err})`)
+      );
     }
   });
 
   const LIBRARY_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
   libraryPruneTimer = setInterval(() => {
-    pruneLibrary();
+    pruneLibrary().catch((err) =>
+      logger.error(`libraryPruner: unexpected rejection in prune cycle (${err?.message || err})`)
+    );
   }, LIBRARY_PRUNE_INTERVAL_MS);
 
   server.on("error", (err) => {

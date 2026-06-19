@@ -22,7 +22,9 @@ router.post("/seed/reset", authenticateToken, async (_req, res) => {
   }
   process.env.LIBRARY_SEEDED = "false";
 
-  seedLibrary(); // fire and forget — logs its own progress/result
+  seedLibrary().catch((err) =>
+    logger.error(`librarySeeder: unexpected rejection from re-seed (${err?.message || err})`)
+  );
 
   res.json({
     success: true,

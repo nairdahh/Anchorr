@@ -7,6 +7,13 @@ import {
 import { updateConfig } from "../utils/configFile.js";
 import logger from "../utils/logger.js";
 
+// Shared flag: prevents concurrent seed and prune scans from running simultaneously.
+let scanInProgress = false;
+
+export function isScanInProgress() {
+  return scanInProgress;
+}
+
 /**
  * Builds every identity key that webhook/poller dedup might check for a
  * given Jellyfin API item. For episodes, this includes the series-level
@@ -46,6 +53,11 @@ export function deriveSeedKeys(item) {
  * so the caller retries on the next process start.
  */
 export async function seedLibrary() {
+  if (scanInProgress) {
+    logger.warn("librarySeeder: scan already in progress — skipping");
+    return;
+  }
+
   const apiKey = process.env.JELLYFIN_API_KEY;
   const baseUrl = process.env.JELLYFIN_BASE_URL;
   if (!apiKey || !baseUrl) {
@@ -55,9 +67,14 @@ export async function seedLibrary() {
     return;
   }
 
+  scanInProgress = true;
   logger.info("librarySeeder: starting library seed scan...");
   try {
-    const { libraries } = await fetchLibraryMap();
+    const result = await fetchLibraryMap();
+    const libraries = result?.libraries;
+    if (!Array.isArray(libraries)) {
+      throw new Error("fetchLibraryMap returned unexpected shape — cannot seed");
+    }
     let totalKeys = 0;
 
     for (const lib of libraries) {
@@ -96,5 +113,7 @@ export async function seedLibrary() {
     logger.error(
       `librarySeeder: seed failed (${err?.message || err}) — LIBRARY_SEEDED left unset, will retry on next start`
     );
+  } finally {
+    scanInProgress = false;
   }
 }
