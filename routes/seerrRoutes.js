@@ -225,25 +225,31 @@ router.get("/seerr/auto-map-preview", authenticateToken, async (_req, res) => {
             `${baseUrl}/user/${user.id}/settings/notifications`,
             { headers: { "X-Api-Key": apiKey }, timeout: TIMEOUTS.SEERR_API }
           );
-          return { user, discordId: settingsRes.data?.discordId || null };
+          // Seerr v3.3.0+ uses discordIds (array); fall back to legacy discordId (string)
+          const raw = settingsRes.data?.discordIds ?? settingsRes.data?.discordId ?? null;
+          const discordIds = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+          return { user, discordIds };
         })
       );
 
       for (const result of results) {
-        if (result.status !== "fulfilled" || !result.value.discordId) continue;
-        const { user, discordId } = result.value;
-        if (mappedDiscordIds.has(discordId)) continue;
+        if (result.status !== "fulfilled" || result.value.discordIds.length === 0) continue;
+        const { user, discordIds } = result.value;
 
         let avatar = user.avatar || null;
         if (avatar && !avatar.startsWith("http")) {
           avatar = `${normalizeSeerrUrl(seerrUrl)}${avatar}`;
         }
-        candidates.push({
-          seerrUserId: user.id,
-          seerrDisplayName: user.displayName || user.username || `User ${user.id}`,
-          seerrAvatar: avatar,
-          discordId,
-        });
+
+        for (const discordId of discordIds) {
+          if (!/^\d{17,20}$/.test(discordId) || mappedDiscordIds.has(discordId)) continue;
+          candidates.push({
+            seerrUserId: user.id,
+            seerrDisplayName: user.displayName || user.username || `User ${user.id}`,
+            seerrAvatar: avatar,
+            discordId,
+          });
+        }
       }
     }
 
@@ -302,7 +308,10 @@ router.get("/seerr/sync-preview", authenticateToken, async (_req, res) => {
             `${baseUrl}/user/${mapping.seerrUserId}/settings/notifications`,
             { headers: { "X-Api-Key": apiKey }, timeout: TIMEOUTS.SEERR_API }
           );
-          return { mapping, currentDiscordId: settingsRes.data?.discordId || null };
+          // Seerr v3.3.0+ uses discordIds (array); fall back to legacy discordId (string)
+          const raw = settingsRes.data?.discordIds ?? settingsRes.data?.discordId ?? null;
+          const currentDiscordIds = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+          return { mapping, currentDiscordIds };
         })
       );
 
@@ -330,16 +339,16 @@ router.get("/seerr/sync-preview", authenticateToken, async (_req, res) => {
           continue;
         }
 
-        const { currentDiscordId } = result.value;
-        if (currentDiscordId !== mapping.discordUserId) {
+        const { currentDiscordIds } = result.value;
+        if (!currentDiscordIds.includes(mapping.discordUserId)) {
           stale.push({
             discordId: mapping.discordUserId,
             seerrUserId: mapping.seerrUserId,
             seerrDisplayName: mapping.seerrDisplayName || null,
             discordUsername: mapping.discordUsername || null,
             discordDisplayName: mapping.discordDisplayName || null,
-            currentSeerrDiscordId: currentDiscordId,
-            reason: currentDiscordId ? "discord_id_changed" : "discord_unlinked",
+            currentSeerrDiscordId: currentDiscordIds[0] || null,
+            reason: currentDiscordIds.length > 0 ? "discord_id_changed" : "discord_unlinked",
           });
         }
       }
