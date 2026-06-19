@@ -1,6 +1,6 @@
 import * as jellyfinApi from "../api/jellyfin.js";
 import { fetchLibraryMap, deduplicator } from "./libraryResolver.js";
-import { deriveSeedKeys, isScanInProgress } from "./librarySeeder.js";
+import { deriveSeedKeys, isScanInProgress, setScanInProgress } from "./librarySeeder.js";
 import logger from "../utils/logger.js";
 
 /**
@@ -27,6 +27,7 @@ export async function pruneLibrary() {
     return;
   }
 
+  setScanInProgress(true);
   logger.info("libraryPruner: starting daily prune scan...");
   try {
     const result = await fetchLibraryMap();
@@ -74,5 +75,7 @@ export async function pruneLibrary() {
     );
   } catch (err) {
     logger.error(`libraryPruner: prune failed (${err?.message || err})`);
+  } finally {
+    setScanInProgress(false);
   }
 }

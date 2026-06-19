@@ -473,8 +473,17 @@ export async function fetchRecentlyAdded(
           params,
           timeout: 10000,
         });
-        page = response.data?.Items || [];
+        const body = response.data;
+        if (!body || !Array.isArray(body.Items)) {
+          logger.warn(
+            `fetchRecentlyAdded: unexpected response shape from Jellyfin (StartIndex=${startIndex}) — stopping pagination`
+          );
+          stopReason = "page-error";
+          break;
+        }
+        page = body.Items;
       } catch (err) {
+        if (!err?.isAxiosError) throw err;
         // Per-page failure: keep what we have, surface a warning, stop.
         // Returning the partial set is better than throwing the whole call
         // away — the caller's downstream filters tolerate fewer items

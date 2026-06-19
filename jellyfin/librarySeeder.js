@@ -14,6 +14,10 @@ export function isScanInProgress() {
   return scanInProgress;
 }
 
+export function setScanInProgress(value) {
+  scanInProgress = value;
+}
+
 /**
  * Builds every identity key that webhook/poller dedup might check for a
  * given Jellyfin API item. For episodes, this includes the series-level
