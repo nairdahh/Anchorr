@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Daily prune scan**: A background job runs once per day to remove records for items that have been deleted from Jellyfin, keeping internal state from growing unbounded.
 - **"Re-Seed Library" button**: A new button in the Jellyfin settings section lets you manually re-run the library seed scan, e.g. after reorganizing your library.
 
+### 🐛 Fixed
+
+- **Quota error now shown to users**: When a `/request` hits a Jellyseerr quota limit, the bot now shows the specific reason (e.g. "Series Quota exceeded.") instead of a generic "An error occurred." message. Applies to the `/request` command, the request button, and the daily pick request button.
+- **Seerr v3.3.0+ user sync compatibility**: Jellyseerr v3.3.0 changed the user notification settings field from `discordId` (string) to `discordIds` (array). Auto-Map and Sync with Seerr now handle both formats correctly.
+
+### 🔒 Security
+
+- **form-data bumped to 4.0.6** (GHSA-hmw2-7cc7-3qxx): Resolves a prototype pollution vulnerability in a transitive dependency.
+
 ---
 
 ## [1.5.5] - 2026-06-14
