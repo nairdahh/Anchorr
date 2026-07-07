@@ -23,6 +23,30 @@ const getSeerrUrl = () => getSeerrApiUrl(process.env.SEERR_URL || "");
 const getSeerrApiKey = () => process.env.SEERR_API_KEY;
 const getTmdbApiKey = () => process.env.TMDB_API_KEY;
 
+// Returns a user-facing error message for a failed Seerr request.
+function getSeerrErrorMessage(err) {
+  if (err.response) {
+    const status = err.response.status;
+    const msg = err.response.data?.message || "";
+    if (/quota/i.test(msg)) {
+      return `⚠️ ${msg} You've reached your request limit — contact an admin if you think this is a mistake.`;
+    }
+    if (status === 401 || status === 403) {
+      return "⚠️ Request failed: authentication error. Check the bot's API key configuration.";
+    }
+    if (status >= 500) {
+      return "⚠️ Seerr returned a server error. Try again later.";
+    }
+    if (msg) {
+      return `⚠️ Seerr error: ${msg}`;
+    }
+  }
+  if (err.code === "ECONNREFUSED" || err.code === "ETIMEDOUT" || err.code === "ENOTFOUND") {
+    return "⚠️ Could not reach Seerr. Check that your Seerr URL is correct and reachable.";
+  }
+  return `⚠️ An error occurred: ${err.message || "unknown error"}`;
+}
+
 // ----------------- COMMON SEARCH LOGIC -----------------
 async function handleSearchOrRequest(
   interaction,
@@ -266,21 +290,7 @@ async function handleSearchOrRequest(
   } catch (err) {
     logger.error("Error in handleSearchOrRequest:", err);
 
-    let errorMessage = "⚠️ An error occurred.";
-    if (err.response) {
-      const status = err.response.status;
-      if (status === 401 || status === 403) {
-        errorMessage = "⚠️ Request failed: You might have exceeded your quota or don't have permission.";
-      } else if (status >= 500) {
-        errorMessage = "⚠️ Seerr returned a server error. Try again later.";
-      } else if (err.response.data?.message) {
-        errorMessage = `⚠️ Seerr error: ${err.response.data.message}`;
-      }
-    } else if (err.code === "ECONNREFUSED" || err.code === "ETIMEDOUT" || err.code === "ENOTFOUND") {
-      errorMessage = "⚠️ Could not reach Seerr. Check that your Seerr URL is correct and reachable.";
-    } else if (err.message) {
-      errorMessage = `⚠️ Error: ${err.message}`;
-    }
+    const errorMessage = getSeerrErrorMessage(err);
 
     if (isPrivateMode) {
       await interaction.editReply({
@@ -523,7 +533,7 @@ export function registerInteractions(client) {
             await interaction.respond(trendingChoices);
             return;
           } catch (e) {
-            logger.error("Trending autocomplete error:", e);
+            logger.error(`Trending autocomplete error (${e?.status ?? e?.code ?? "unknown"}):`, e);
             return interaction.respond([]);
           }
         }
@@ -553,7 +563,7 @@ export function registerInteractions(client) {
 
           await interaction.respond(choices);
         } catch (e) {
-          logger.error("Autocomplete error:", e);
+          logger.error(`Autocomplete error (${e?.status ?? e?.code ?? "unknown"}):`, e);
           return await interaction.respond([]);
         }
       }
@@ -762,19 +772,7 @@ export function registerInteractions(client) {
           await interaction.editReply({ embeds: [embed], components });
         } catch (err) {
           logger.error("Button request error:", err);
-          let userMessage = "⚠️ I could not send the request.";
-          if (err.response) {
-            const status = err.response.status;
-            if (status === 401 || status === 403) {
-              userMessage = "⚠️ Seerr authentication failed. Check your API key in the bot configuration.";
-            } else if (status >= 500) {
-              userMessage = "⚠️ Seerr returned a server error. Try again later.";
-            } else if (err.response.data?.message) {
-              userMessage = `⚠️ Seerr error: ${err.response.data.message}`;
-            }
-          } else if (err.code === "ECONNREFUSED" || err.code === "ETIMEDOUT" || err.code === "ENOTFOUND") {
-            userMessage = "⚠️ Could not reach Seerr. Check that your Seerr URL is correct and reachable.";
-          }
+          const userMessage = getSeerrErrorMessage(err);
           try {
             await interaction.followUp({
               content: userMessage,
@@ -1106,7 +1104,7 @@ export function registerInteractions(client) {
         } catch (err) {
           logger.error("Daily random pick request error:", err);
           await interaction.followUp({
-            content: "⚠️ Error processing request.",
+            content: getSeerrErrorMessage(err),
             flags: 64,
           });
         }
