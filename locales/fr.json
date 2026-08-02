@@ -2,7 +2,10 @@
   "_meta": {
     "language_name": "Français",
     "language_code": "fr",
-    "contributors": ["purplelines", "GitHub Copilot"],
+    "contributors": [
+      "purplelines",
+      "GitHub Copilot"
+    ],
     "completion": "100%",
     "last_updated": "2026-06-08",
     "notes": "Traduction complète et révisée par purplelines avec l'aide de GitHub Copilot. Chaque traduction a été soigneusement vérifiée."
@@ -253,7 +256,7 @@
     },
     "actions": {
       "start": "Démarrer le bot",
-      "stop": "Arrêter le bot", 
+      "stop": "Arrêter le bot",
       "restart": "Redémarrer le bot"
     },
     "messages": {
@@ -360,5 +363,13 @@
     "copy_secret": "Copier le secret",
     "webhook_secret_desc": "Votre secret de webhook est utilisé pour sécuriser les requêtes entrantes. Copiez-le ci-dessous — vous devrez l'ajouter en tant qu'en-tête HTTP personnalisé dans le plugin webhook Jellyfin:",
     "notification_testing_info": "Ces tests contournent le point de terminaison webhook et s'exécutent en interne — ils fonctionnent sans l'en-tête X-Webhook-Secret. Assurez-vous d'avoir encore copié le secret et de l'avoir ajouté à votre plugin webhook Jellyfin afin que les notifications réelles de Jellyfin soient acceptées."
+  },
+  "seerr_request_errors": {
+    "quota": "⚠️ {msg} You've reached your request limit — contact an admin if you think this is a mistake.",
+    "auth": "⚠️ Request failed: authentication error. Check the bot's API key configuration.",
+    "server_error": "⚠️ Seerr returned a server error. Try again later.",
+    "generic": "⚠️ Seerr error: {msg}",
+    "unreachable": "⚠️ Could not reach Seerr. Check that your Seerr URL is correct and reachable.",
+    "unknown": "⚠️ An error occurred: {msg}"
   }
 }

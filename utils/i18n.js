@@ -17,6 +17,7 @@ const FALLBACK_LANG = "en";
 const LANG_CODE_RE = /^[a-zA-Z]{2,3}(?:[_-][a-zA-Z0-9]{2,8})?$/;
 
 let translations = null;
+let englishFallback = null;
 let loadedLang = null;
 
 function safeLang(raw) {
@@ -54,6 +55,10 @@ function ensureLoaded() {
       logger.warn(`[i18n] Locale '${lang}' not found, using '${FALLBACK_LANG}'.`);
     }
   }
+  // Per-key fallback: a locale file that exists but is missing a specific
+  // key (e.g. added after that translation was last updated) should still
+  // resolve to English instead of leaking the raw key into user-facing text.
+  englishFallback = lang === FALLBACK_LANG ? translations : loadLocaleFile(FALLBACK_LANG);
   loadedLang = lang;
 }
 
@@ -74,12 +79,17 @@ function interpolate(str, vars) {
 export function t(key, vars) {
   ensureLoaded();
   if (!key || typeof key !== "string") return String(key ?? "");
-  const value = lookup(translations, key);
-  if (typeof value !== "string") return key;
+  let value = lookup(translations, key);
+  if (typeof value !== "string") {
+    value = lookup(englishFallback, key);
+    if (typeof value !== "string") return key;
+    logger.warn(`[i18n] Key '${key}' missing in '${loadedLang}', falling back to '${FALLBACK_LANG}'.`);
+  }
   return interpolate(value, vars);
 }
 
 export function resetI18nCache() {
   translations = null;
+  englishFallback = null;
   loadedLang = null;
 }

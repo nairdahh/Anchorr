@@ -16,6 +16,7 @@ const TICK_OFFSET_SECONDS = 5;
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 let pendingTimer = null;
+let generation = 0;
 
 function parseIntInRange(raw, fallback, min, max) {
   const n = parseInt(raw, 10);
@@ -105,6 +106,13 @@ export function start(client) {
     clearTimeout(pendingTimer);
     pendingTimer = null;
   }
+  // clearTimeout only helps if the previous tick hasn't fired yet. If a
+  // restart lands while an old tick is mid-flight (sendWeeklyRoundup does
+  // Jellyfin + Discord I/O and can take a while), the old chain's finally()
+  // would otherwise re-arm itself with the stale client after we've already
+  // set up the new one. The generation token makes any such stale chain a
+  // no-op instead of silently ticking against a destroyed client.
+  const myGeneration = ++generation;
 
   const installedAt = getInstalledAt();
   const now = new Date();
@@ -145,7 +153,9 @@ export function start(client) {
   // the next hour. setInterval(HOUR_MS) drifts off the boundary across DST
   // transitions and could push a post a full hour late.
   const scheduleNext = () => {
+    if (myGeneration !== generation) return; // superseded by a newer start()
     pendingTimer = setTimeout(() => {
+      if (myGeneration !== generation) return;
       runTick(client)
         .catch((err) =>
           logger.error(`Weekly Roundup tick crash: ${err?.message || err}`)
