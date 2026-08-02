@@ -362,6 +362,27 @@ export function loadConfigToEnv() {
     }
   }
 
+  // 5. Migrate old single EMBED_SHOW_OVERVIEW flag to the new split
+  // movies/episodes settings, so users who had it disabled (often for
+  // episode spoilers) don't silently get overviews turned back on.
+  if (
+    config.EMBED_SHOW_OVERVIEW !== undefined &&
+    config.EMBED_SHOW_OVERVIEW_MOVIES === undefined &&
+    config.EMBED_SHOW_OVERVIEW_EPISODES === undefined
+  ) {
+    config.EMBED_SHOW_OVERVIEW_MOVIES = config.EMBED_SHOW_OVERVIEW;
+    config.EMBED_SHOW_OVERVIEW_EPISODES = config.EMBED_SHOW_OVERVIEW;
+    delete config.EMBED_SHOW_OVERVIEW;
+    logger.info(
+      "🔄 Migrated EMBED_SHOW_OVERVIEW → EMBED_SHOW_OVERVIEW_MOVIES/EMBED_SHOW_OVERVIEW_EPISODES"
+    );
+    if (writeConfig(config)) {
+      logger.info("✅ Embed overview migration saved to config.json");
+    } else {
+      logger.error("❌ Failed to save embed overview migration");
+    }
+  }
+
   // --- LOAD INTO PROCESS.ENV ---
   for (const [key, value] of Object.entries(config)) {
     // Convert objects/arrays to JSON strings to avoid "[object Object]"

@@ -404,5 +404,13 @@
     "section_series": "Series",
     "field_continued": "(cont.)",
     "unknown_title": "Unknown"
+  },
+  "seerr_request_errors": {
+    "quota": "⚠️ {msg} You've reached your request limit — contact an admin if you think this is a mistake.",
+    "auth": "⚠️ Request failed: authentication error. Check the bot's API key configuration.",
+    "server_error": "⚠️ Seerr returned a server error. Try again later.",
+    "generic": "⚠️ Seerr error: {msg}",
+    "unreachable": "⚠️ Could not reach Seerr. Check that your Seerr URL is correct and reachable.",
+    "unknown": "⚠️ An error occurred: {msg}"
   }
 }

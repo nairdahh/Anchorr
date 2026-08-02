@@ -15,7 +15,7 @@ const TICK_OFFSET_SECONDS = 5;
 
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-let started = false;
+let pendingTimer = null;
 
 function parseIntInRange(raw, fallback, min, max) {
   const n = parseInt(raw, 10);
@@ -96,11 +96,15 @@ async function runTick(client, now = new Date()) {
 }
 
 export function start(client) {
-  if (started) {
-    logger.warn("Roundup scheduler start() called twice; ignoring second call");
-    return;
+  // Restarting the bot from the dashboard destroys the old Discord client
+  // and constructs a new one (see bot/botManager.js), so this must rebind
+  // to the fresh client rather than ignore the second call — otherwise the
+  // scheduler keeps ticking against a destroyed client until every tick
+  // fails and the failure circuit permanently opens for the week.
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+    pendingTimer = null;
   }
-  started = true;
 
   const installedAt = getInstalledAt();
   const now = new Date();
@@ -141,7 +145,7 @@ export function start(client) {
   // the next hour. setInterval(HOUR_MS) drifts off the boundary across DST
   // transitions and could push a post a full hour late.
   const scheduleNext = () => {
-    setTimeout(() => {
+    pendingTimer = setTimeout(() => {
       runTick(client)
         .catch((err) =>
           logger.error(`Weekly Roundup tick crash: ${err?.message || err}`)

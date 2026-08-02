@@ -367,8 +367,8 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
       // schemes are allowed, never file:/gopher:/etc.
       baseUrlOk = parsed.protocol === "http:" || parsed.protocol === "https:";
     }
-  } catch {
-    /* fall through */
+  } catch (err) {
+    logger.debug(`${logPrefix}: JELLYFIN_BASE_URL failed to parse as URL: ${err?.message}`);
   }
   if (!baseUrlOk) {
     const msg = `JELLYFIN_BASE_URL is missing or not a valid http(s) URL ("${baseUrl ?? ""}")`;

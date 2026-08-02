@@ -403,5 +403,13 @@
     "section_series": "Serier",
     "field_continued": "(forts.)",
     "unknown_title": "Okänd"
+  },
+  "seerr_request_errors": {
+    "quota": "⚠️ {msg} Du har nått din förfrågningsgräns — kontakta en admin om detta verkar fel.",
+    "auth": "⚠️ Förfrågan misslyckades: autentiseringsfel. Kontrollera botens API-nyckelkonfiguration.",
+    "server_error": "⚠️ Seerr returnerade ett serverfel. Försök igen senare.",
+    "generic": "⚠️ Seerr-fel: {msg}",
+    "unreachable": "⚠️ Kunde inte nå Seerr. Kontrollera att Seerr-URL:en är korrekt och nåbar.",
+    "unknown": "⚠️ Ett fel uppstod: {msg}"
   }
 }

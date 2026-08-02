@@ -16,6 +16,7 @@ import {
 } from "./botState.js";
 import { getUserMappings } from "../utils/configFile.js";
 import { getSeerrApiUrl } from "../utils/seerrUrl.js";
+import { t } from "../utils/i18n.js";
 import logger from "../utils/logger.js";
 
 // Convenience accessors — read process.env at call time so config reloads are respected
@@ -29,22 +30,22 @@ function getSeerrErrorMessage(err) {
     const status = err.response.status;
     const msg = err.response.data?.message || "";
     if (/quota/i.test(msg)) {
-      return `⚠️ ${msg} You've reached your request limit — contact an admin if you think this is a mistake.`;
+      return t("seerr_request_errors.quota", { msg });
     }
     if (status === 401 || status === 403) {
-      return "⚠️ Request failed: authentication error. Check the bot's API key configuration.";
+      return t("seerr_request_errors.auth");
     }
     if (status >= 500) {
-      return "⚠️ Seerr returned a server error. Try again later.";
+      return t("seerr_request_errors.server_error");
     }
     if (msg) {
-      return `⚠️ Seerr error: ${msg}`;
+      return t("seerr_request_errors.generic", { msg });
     }
   }
   if (err.code === "ECONNREFUSED" || err.code === "ETIMEDOUT" || err.code === "ENOTFOUND") {
-    return "⚠️ Could not reach Seerr. Check that your Seerr URL is correct and reachable.";
+    return t("seerr_request_errors.unreachable");
   }
-  return `⚠️ An error occurred: ${err.message || "unknown error"}`;
+  return t("seerr_request_errors.unknown", { msg: err.message || "unknown error" });
 }
 
 // ----------------- COMMON SEARCH LOGIC -----------------
