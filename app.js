@@ -10,6 +10,7 @@ import { handleJellyfinWebhook } from "./jellyfinWebhook.js";
 import { configTemplate } from "./lib/config.js";
 import { sendDailyRandomPick } from "./bot/dailyPick.js";
 import { sendWeeklyRoundupTest } from "./bot/weeklyRoundup.js";
+import { stop as stopRoundupScheduler } from "./bot/roundupScheduler.js";
 import { seedLibrary } from "./jellyfin/librarySeeder.js";
 import { pruneLibrary } from "./jellyfin/libraryPruner.js";
 
@@ -674,6 +675,7 @@ function configureWebServer() {
           "Critical Discord settings changed. Restarting bot logic..."
         );
 
+        stopRoundupScheduler();
         await botState.discordClient.destroy();
         botState.isBotRunning = false;
         botState.discordClient = null;
@@ -1160,6 +1162,17 @@ function startServer() {
   });
 
   const LIBRARY_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+  const LIBRARY_PRUNE_INITIAL_DELAY_MS = 5 * 60 * 1000;
+  // setInterval alone only fires after a full 24h of uptime — a container
+  // that restarts more often than that (e.g. on every config save) would
+  // otherwise never run a prune cycle at all. Run one shortly after boot too
+  // so seeded/pruned keys get re-asserted regardless of restart frequency.
+  setTimeout(() => {
+    pruneLibrary().catch((err) =>
+      logger.error(`libraryPruner: unexpected rejection in initial prune (${err?.message || err})`)
+    );
+  }, LIBRARY_PRUNE_INITIAL_DELAY_MS);
+
   libraryPruneTimer = setInterval(() => {
     pruneLibrary().catch((err) =>
       logger.error(`libraryPruner: unexpected rejection in prune cycle (${err?.message || err})`)

@@ -2,7 +2,10 @@
   "_meta": {
     "language_name": "Français",
     "language_code": "fr",
-    "contributors": ["purplelines", "GitHub Copilot"],
+    "contributors": [
+      "purplelines",
+      "GitHub Copilot"
+    ],
     "completion": "100%",
     "last_updated": "2026-06-08",
     "notes": "Traduction complète et révisée par purplelines avec l'aide de GitHub Copilot. Chaque traduction a été soigneusement vérifiée."
@@ -253,7 +256,7 @@
     },
     "actions": {
       "start": "Démarrer le bot",
-      "stop": "Arrêter le bot", 
+      "stop": "Arrêter le bot",
       "restart": "Redémarrer le bot"
     },
     "messages": {

@@ -15,7 +15,8 @@ const TICK_OFFSET_SECONDS = 5;
 
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-let started = false;
+let pendingTimer = null;
+let generation = 0;
 
 function parseIntInRange(raw, fallback, min, max) {
   const n = parseInt(raw, 10);
@@ -96,11 +97,22 @@ async function runTick(client, now = new Date()) {
 }
 
 export function start(client) {
-  if (started) {
-    logger.warn("Roundup scheduler start() called twice; ignoring second call");
-    return;
+  // Restarting the bot from the dashboard destroys the old Discord client
+  // and constructs a new one (see bot/botManager.js), so this must rebind
+  // to the fresh client rather than ignore the second call — otherwise the
+  // scheduler keeps ticking against a destroyed client until every tick
+  // fails and the failure circuit permanently opens for the week.
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+    pendingTimer = null;
   }
-  started = true;
+  // clearTimeout only helps if the previous tick hasn't fired yet. If a
+  // restart lands while an old tick is mid-flight (sendWeeklyRoundup does
+  // Jellyfin + Discord I/O and can take a while), the old chain's finally()
+  // would otherwise re-arm itself with the stale client after we've already
+  // set up the new one. The generation token makes any such stale chain a
+  // no-op instead of silently ticking against a destroyed client.
+  const myGeneration = ++generation;
 
   const installedAt = getInstalledAt();
   const now = new Date();
@@ -141,7 +153,9 @@ export function start(client) {
   // the next hour. setInterval(HOUR_MS) drifts off the boundary across DST
   // transitions and could push a post a full hour late.
   const scheduleNext = () => {
-    setTimeout(() => {
+    if (myGeneration !== generation) return; // superseded by a newer start()
+    pendingTimer = setTimeout(() => {
+      if (myGeneration !== generation) return;
       runTick(client)
         .catch((err) =>
           logger.error(`Weekly Roundup tick crash: ${err?.message || err}`)
@@ -150,4 +164,16 @@ export function start(client) {
     }, msUntilNextHour(new Date()));
   };
   scheduleNext();
+}
+
+// Called when the bot is stopped (not restarted) so the scheduler doesn't
+// keep ticking against a destroyed Discord client — that would fail every
+// tick, burn the failure counter, and open the circuit for the rest of the
+// week even though nothing about the roundup content actually failed.
+export function stop() {
+  generation++;
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+    pendingTimer = null;
+  }
 }

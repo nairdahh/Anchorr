@@ -473,5 +473,13 @@
     "section_series": "Serien",
     "field_continued": "(Forts.)",
     "unknown_title": "Unbekannt"
+  },
+  "seerr_request_errors": {
+    "quota": "⚠️ {msg} Du hast dein Anfragelimit erreicht — kontaktiere einen Admin, falls das ein Fehler ist.",
+    "auth": "⚠️ Anfrage fehlgeschlagen: Authentifizierungsfehler. Prüfe die API-Key-Konfiguration des Bots.",
+    "server_error": "⚠️ Seerr hat einen Serverfehler zurückgegeben. Versuche es später erneut.",
+    "generic": "⚠️ Seerr-Fehler: {msg}",
+    "unreachable": "⚠️ Seerr konnte nicht erreicht werden. Prüfe, ob die Seerr-URL korrekt und erreichbar ist.",
+    "unknown": "⚠️ Ein Fehler ist aufgetreten: {msg}"
   }
 }

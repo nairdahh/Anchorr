@@ -17,6 +17,7 @@ const FALLBACK_LANG = "en";
 const LANG_CODE_RE = /^[a-zA-Z]{2,3}(?:[_-][a-zA-Z0-9]{2,8})?$/;
 
 let translations = null;
+let englishFallback = null;
 let loadedLang = null;
 
 function safeLang(raw) {
@@ -54,6 +55,20 @@ function ensureLoaded() {
       logger.warn(`[i18n] Locale '${lang}' not found, using '${FALLBACK_LANG}'.`);
     }
   }
+  // Per-key fallback: a locale file that exists but is missing a specific
+  // key (e.g. added after that translation was last updated) should still
+  // resolve to English instead of leaking the raw key into user-facing text.
+  // Reuse `fallback` above instead of re-reading en.json a second time.
+  englishFallback = lang === FALLBACK_LANG ? translations : fallback;
+  if (lang !== FALLBACK_LANG && !englishFallback) {
+    // Unlike the "primary locale missing" case above (expected for
+    // less-maintained translations), en.json missing entirely means
+    // per-key fallback has nothing to fall back to — every miss in the
+    // active locale will now silently return the raw key.
+    logger.error(
+      `[i18n] English fallback locale ('${FALLBACK_LANG}.json') failed to load; missing keys in '${lang}' will render as raw keys.`
+    );
+  }
   loadedLang = lang;
 }
 
@@ -74,12 +89,17 @@ function interpolate(str, vars) {
 export function t(key, vars) {
   ensureLoaded();
   if (!key || typeof key !== "string") return String(key ?? "");
-  const value = lookup(translations, key);
-  if (typeof value !== "string") return key;
+  let value = lookup(translations, key);
+  if (typeof value !== "string") {
+    value = lookup(englishFallback, key);
+    if (typeof value !== "string") return key;
+    logger.warn(`[i18n] Key '${key}' missing in '${loadedLang}', falling back to '${FALLBACK_LANG}'.`);
+  }
   return interpolate(value, vars);
 }
 
 export function resetI18nCache() {
   translations = null;
+  englishFallback = null;
   loadedLang = null;
 }

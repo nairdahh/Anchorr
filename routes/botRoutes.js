@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import { createRequire } from "module";
 import { authenticateToken } from "../utils/auth.js";
 import { botState } from "../bot/botState.js";
+import { stop as stopRoundupScheduler } from "../bot/roundupScheduler.js";
 import cache from "../utils/cache.js";
 import logger from "../utils/logger.js";
 
@@ -104,6 +105,13 @@ export function createBotRoutes({ startBot, jellyfinPoller }) {
       logger.info("Jellyfin poller stopped");
     } catch (error) {
       logger.error("Error stopping Jellyfin poller:", error);
+    }
+
+    try {
+      stopRoundupScheduler();
+      logger.info("Weekly Roundup scheduler stopped");
+    } catch (error) {
+      logger.error("Error stopping Weekly Roundup scheduler:", error);
     }
 
     await botState.discordClient.destroy();
