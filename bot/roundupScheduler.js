@@ -165,3 +165,15 @@ export function start(client) {
   };
   scheduleNext();
 }
+
+// Called when the bot is stopped (not restarted) so the scheduler doesn't
+// keep ticking against a destroyed Discord client — that would fail every
+// tick, burn the failure counter, and open the circuit for the rest of the
+// week even though nothing about the roundup content actually failed.
+export function stop() {
+  generation++;
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+    pendingTimer = null;
+  }
+}

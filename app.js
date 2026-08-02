@@ -10,6 +10,7 @@ import { handleJellyfinWebhook } from "./jellyfinWebhook.js";
 import { configTemplate } from "./lib/config.js";
 import { sendDailyRandomPick } from "./bot/dailyPick.js";
 import { sendWeeklyRoundupTest } from "./bot/weeklyRoundup.js";
+import { stop as stopRoundupScheduler } from "./bot/roundupScheduler.js";
 import { seedLibrary } from "./jellyfin/librarySeeder.js";
 import { pruneLibrary } from "./jellyfin/libraryPruner.js";
 
@@ -674,6 +675,7 @@ function configureWebServer() {
           "Critical Discord settings changed. Restarting bot logic..."
         );
 
+        stopRoundupScheduler();
         await botState.discordClient.destroy();
         botState.isBotRunning = false;
         botState.discordClient = null;

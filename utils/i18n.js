@@ -58,7 +58,17 @@ function ensureLoaded() {
   // Per-key fallback: a locale file that exists but is missing a specific
   // key (e.g. added after that translation was last updated) should still
   // resolve to English instead of leaking the raw key into user-facing text.
-  englishFallback = lang === FALLBACK_LANG ? translations : loadLocaleFile(FALLBACK_LANG);
+  // Reuse `fallback` above instead of re-reading en.json a second time.
+  englishFallback = lang === FALLBACK_LANG ? translations : fallback;
+  if (lang !== FALLBACK_LANG && !englishFallback) {
+    // Unlike the "primary locale missing" case above (expected for
+    // less-maintained translations), en.json missing entirely means
+    // per-key fallback has nothing to fall back to — every miss in the
+    // active locale will now silently return the raw key.
+    logger.error(
+      `[i18n] English fallback locale ('${FALLBACK_LANG}.json') failed to load; missing keys in '${lang}' will render as raw keys.`
+    );
+  }
   loadedLang = lang;
 }
 
