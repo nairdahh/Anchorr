@@ -186,6 +186,10 @@ export function writeConfig(config) {
       mode: 0o600,
       encoding: "utf-8",
     });
+    // `mode` only applies when writeFileSync creates the file. A leftover or
+    // pre-created tmp file keeps its old mode and would carry it onto
+    // config.json via the rename, so set it explicitly.
+    fs.chmodSync(tmpPath, 0o600);
     fs.renameSync(tmpPath, CONFIG_PATH);
 
     logger.debug(`Config saved successfully to ${CONFIG_PATH}`);

@@ -26,7 +26,9 @@ function parseIntInRange(raw, fallback, min, max) {
 function msUntilNextHour(now = new Date()) {
   const next = new Date(now);
   next.setHours(now.getHours() + 1, 0, TICK_OFFSET_SECONDS, 0);
-  return next.getTime() - now.getTime();
+  // Floor guards against a clock step landing this at <= 0, which would turn
+  // the chained setTimeout into a tight loop.
+  return Math.max(1000, next.getTime() - now.getTime());
 }
 
 export function evaluateTick(now = new Date()) {

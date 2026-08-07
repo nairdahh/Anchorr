@@ -471,6 +471,7 @@
     "season_fallback": "Staffel {n}",
     "library_fallback": "Bibliothek",
     "library_names_unavailable": "Bibliotheksnamen nicht verfügbar",
+    "items_truncated": "älteste Einträge abgeschnitten",
     "section_movies": "Filme",
     "section_series": "Serien",
     "field_continued": "(Forts.)",

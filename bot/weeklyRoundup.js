@@ -49,11 +49,13 @@ async function fetchWindowItems() {
   // directly works regardless of which form was stored.
   const all = [];
   let totalRaw = 0;
+  let anyTruncated = false;
   for (const libId of configuredIds) {
     let items;
     let complete;
+    let truncated;
     try {
-      ({ items, complete } = await jellyfinApi.fetchRecentlyAdded(
+      ({ items, complete, truncated } = await jellyfinApi.fetchRecentlyAdded(
         apiKey,
         baseUrl,
         FETCH_LIMIT,
@@ -65,12 +67,18 @@ async function fetchWindowItems() {
         `Failed to fetch recent items for library ${libId}: ${err?.message}`
       );
     }
-    // Posting a digest built on a truncated fetch would silently drop items
-    // that fall out of the 7-day window before the next run. Fail instead so
-    // the scheduler retries on the next hourly tick.
+    // A failed fetch is retryable, so bail and let the scheduler try again.
     if (!complete) {
       throw new Error(
         `Incomplete item fetch for library ${libId} — Jellyfin returned a partial result, skipping this run to avoid posting a truncated roundup`
+      );
+    }
+    // Hitting the item cap is NOT retryable — a retry truncates identically.
+    // Post what we have and disclose the truncation in the embed footer.
+    if (truncated) {
+      anyTruncated = true;
+      logger.error(
+        `Weekly Roundup: library ${libId} exceeded the per-library item cap; the oldest items in this window are missing from the digest and will not appear next week either`
       );
     }
     totalRaw += items.length;
@@ -97,6 +105,7 @@ async function fetchWindowItems() {
     items: filtered,
     rawCount: totalRaw,
     allowedLibraryCount: configuredIds.length,
+    truncated: anyTruncated,
   };
 }
 
@@ -463,7 +472,7 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
 
   let embed;
   try {
-    embed = await buildRoundupEmbed(grouped, items);
+    embed = await buildRoundupEmbed(grouped, items, fetched.truncated);
   } catch (err) {
     logger.error(`${logPrefix}: failed to build embed: ${err?.message}`);
     throw err;
@@ -491,7 +500,7 @@ export async function sendWeeklyRoundupTest(client, channelId) {
   await sendWeeklyRoundup(client, channelId, new Date(), { test: true });
 }
 
-async function buildRoundupEmbed(grouped, rawItems) {
+async function buildRoundupEmbed(grouped, rawItems, truncated = false) {
   const now = new Date();
   const start = new Date(now.getTime() - WINDOW_MS);
 
@@ -545,6 +554,9 @@ async function buildRoundupEmbed(grouped, rawItems) {
   // that in the footer so Discord viewers understand why headers look alike.
   if (libraryNamesFailed) {
     footerText += " · " + t("roundup.library_names_unavailable");
+  }
+  if (truncated) {
+    footerText += " · " + t("roundup.items_truncated");
   }
   embed.setFooter({ text: footerText });
 
@@ -605,7 +617,16 @@ async function resolveLibraryNames(libraryIds) {
       map[id] = lib.Name;
     }
   }
-  return { map, failed: false };
+  // The lookup can succeed and still match nothing — e.g. the configured ids
+  // are the CollectionId form while fetchLibraries returns ItemId. Without
+  // this, every header silently reads the generic fallback with no log.
+  const unresolved = libraryIds.filter((id) => !(id in map));
+  if (unresolved.length > 0) {
+    logger.warn(
+      `Weekly Roundup: could not resolve names for library id(s) [${unresolved.join(", ")}] — using generic label`
+    );
+  }
+  return { map, failed: unresolved.length === libraryIds.length };
 }
 
 function formatDate(d) {

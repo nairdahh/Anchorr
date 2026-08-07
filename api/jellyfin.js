@@ -468,6 +468,7 @@ export async function fetchRecentlyAdded(
     let startIndex = 0;
     let stopReason = "loop-exit";
     let complete = true;
+    let truncated = false;
     while (collected.length < maxTotal) {
       const params = { ...baseParams, StartIndex: startIndex };
       let page;
@@ -515,6 +516,7 @@ export async function fetchRecentlyAdded(
         if (collected.length >= maxTotal) {
           stop = true;
           stopReason = "max-total-hit";
+          truncated = true;
           logger.warn(
             `fetchRecentlyAdded: hit maxTotal=${maxTotal} cap; older items in this window were truncated`
           );
@@ -530,9 +532,9 @@ export async function fetchRecentlyAdded(
     }
 
     logger.debug(
-      `Fetched ${collected.length} recently added items from Jellyfin (since ${minDateCreated}, paginated, stop=${stopReason}, complete=${complete})`
+      `Fetched ${collected.length} recently added items from Jellyfin (since ${minDateCreated}, paginated, stop=${stopReason}, complete=${complete}, truncated=${truncated})`
     );
-    return { items: collected, complete };
+    return { items: collected, complete, truncated };
   } catch (err) {
     logger.error(
       "Failed to fetch recently added items from Jellyfin:",
@@ -559,7 +561,9 @@ export async function fetchAllLibraryItems(apiKey, baseUrl, parentId) {
   safeBase.pathname = safeBase.pathname.replace(/\/$/, "") + "/Items";
   const url = safeBase.href;
   const baseParams = {
-    Fields: "ProviderIds,SeriesName,SeasonName,IndexNumber,ParentIndexNumber,AncestorIds",
+    // ProductionYear is requested explicitly: buildIdentityKey uses it for
+    // TMDB-less movies, so the pruner must be able to rebuild the same key.
+    Fields: "ProviderIds,SeriesName,SeasonName,IndexNumber,ParentIndexNumber,AncestorIds,ProductionYear",
     IncludeItemTypes: "Movie,Series,Season,Episode",
     Recursive: true,
     SortBy: "SortName",

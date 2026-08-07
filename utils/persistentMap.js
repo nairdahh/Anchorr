@@ -158,6 +158,7 @@ export class PersistentMap {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       const tmpPath = `${this.filePath}.tmp`;
       fs.writeFileSync(tmpPath, JSON.stringify(data), { mode: 0o600 });
+      fs.chmodSync(tmpPath, 0o600);
       fs.renameSync(tmpPath, this.filePath);
       this.dirty = false;
       if (this.consecutiveFlushFailures > 0) {

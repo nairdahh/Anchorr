@@ -401,6 +401,7 @@
     "season_fallback": "Säsong {n}",
     "library_fallback": "Bibliotek",
     "library_names_unavailable": "biblioteksnamn är inte tillgängliga",
+    "items_truncated": "äldsta posterna avkortade",
     "section_movies": "Filmer",
     "section_series": "Serier",
     "field_continued": "(forts.)",
