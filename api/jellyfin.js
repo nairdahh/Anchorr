@@ -419,6 +419,9 @@ const FETCH_RECENTLY_ADDED_MAX_TOTAL = 5000;
  * (results are DateCreated desc). Server-side filter is `MinDateLastSaved`
  * — Jellyfin silently ignores `MinDateCreated` — so callers must still
  * filter by `DateCreated` client-side.
+ *
+ * Returns { items, complete }; complete is false if a page fetch failed
+ * partway through, so callers can tell a short result from a full one.
  */
 export async function fetchRecentlyAdded(
   apiKey,
@@ -457,13 +460,14 @@ export async function fetchRecentlyAdded(
       logger.debug(
         `Fetched ${items.length} recently added items from Jellyfin`
       );
-      return items;
+      return { items, complete: true };
     }
 
     const cutoffMs = new Date(minDateCreated).getTime();
     const collected = [];
     let startIndex = 0;
     let stopReason = "loop-exit";
+    let complete = true;
     while (collected.length < maxTotal) {
       const params = { ...baseParams, StartIndex: startIndex };
       let page;
@@ -479,19 +483,17 @@ export async function fetchRecentlyAdded(
             `fetchRecentlyAdded: unexpected response shape from Jellyfin (StartIndex=${startIndex}) — stopping pagination`
           );
           stopReason = "page-error";
+          complete = false;
           break;
         }
         page = body.Items;
       } catch (err) {
         if (!err?.isAxiosError) throw err;
-        // Per-page failure: keep what we have, surface a warning, stop.
-        // Returning the partial set is better than throwing the whole call
-        // away — the caller's downstream filters tolerate fewer items
-        // gracefully (it just means a thinner roundup that week).
         logger.warn(
-          `fetchRecentlyAdded: page at StartIndex=${startIndex} failed (${err?.message || err}); returning ${collected.length} items collected so far`
+          `fetchRecentlyAdded: page at StartIndex=${startIndex} failed (${err?.message || err}); returning ${collected.length} items collected so far (incomplete)`
         );
         stopReason = "page-error";
+        complete = false;
         break;
       }
       if (page.length === 0) {
@@ -528,9 +530,9 @@ export async function fetchRecentlyAdded(
     }
 
     logger.debug(
-      `Fetched ${collected.length} recently added items from Jellyfin (since ${minDateCreated}, paginated, stop=${stopReason})`
+      `Fetched ${collected.length} recently added items from Jellyfin (since ${minDateCreated}, paginated, stop=${stopReason}, complete=${complete})`
     );
-    return collected;
+    return { items: collected, complete };
   } catch (err) {
     logger.error(
       "Failed to fetch recently added items from Jellyfin:",

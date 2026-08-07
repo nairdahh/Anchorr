@@ -226,13 +226,16 @@ export function writeConfig(config) {
  */
 export function updateConfig(updates) {
   const config = readConfig();
-  if (!config) {
-    // Refuse to write a partial config if the existing config is unreadable --
-    // that would silently wipe every setting the user configured.
-    logger.error("updateConfig: readConfig() returned null — refusing partial write to avoid config wipe");
+  // readConfig() returns null both for "no config yet" and "config is corrupt".
+  // Only the second case must refuse the write — refusing the first would stop
+  // a fresh install from ever persisting JWT_SECRET and WEBHOOK_SECRET.
+  if (!config && findExistingConfig()) {
+    logger.error(
+      "updateConfig: existing config could not be read — refusing partial write to avoid config wipe"
+    );
     return false;
   }
-  const updatedConfig = { ...config, ...updates };
+  const updatedConfig = { ...(config || {}), ...updates };
   return writeConfig(updatedConfig);
 }
 

@@ -4,6 +4,8 @@ import logger from "./logger.js";
 import { CONFIG_PATH } from "./configFile.js";
 
 const FLUSH_DEBOUNCE_MS = 2000;
+// Failures beyond this count are treated as a standing condition, not a blip.
+const PERSISTENT_FLUSH_FAILURE_THRESHOLD = 5;
 
 const registry = new Set();
 let shutdownHooksInstalled = false;
@@ -54,6 +56,7 @@ export class PersistentMap {
     this.flushTimer = null;
     this.dirty = false;
     this.consecutiveFlushFailures = 0;
+    this.loadFailed = false;
     this._load();
     registry.add(this);
     installShutdownHooks();
@@ -79,8 +82,12 @@ export class PersistentMap {
     try {
       raw = fs.readFileSync(this.filePath, "utf-8");
     } catch (err) {
-      // IO error — keep file as-is so it isn't overwritten on first flush.
-      logger.warn(`PersistentMap[${this.name}]: read failed (${err?.message || err})`);
+      // IO error — block flushing so the unread file isn't overwritten with
+      // the empty in-memory state on the first set().
+      this.loadFailed = true;
+      logger.error(
+        `PersistentMap[${this.name}]: read failed (${err?.message || err}). Dedup state is memory-only this run and will NOT be persisted; existing file left untouched. Fix the file/volume permissions and restart.`
+      );
       return;
     }
     let parsed;
@@ -131,12 +138,14 @@ export class PersistentMap {
     this.flushTimer = setTimeout(() => this.flush(), FLUSH_DEBOUNCE_MS);
   }
 
+  /** @returns {boolean} true if state is on disk (or there was nothing to write). */
   flush() {
     if (this.flushTimer) {
       clearTimeout(this.flushTimer);
       this.flushTimer = null;
     }
-    if (!this.dirty) return;
+    if (this.loadFailed) return false;
+    if (!this.dirty) return true;
     const now = Date.now();
     const data = [];
     for (const [key, entry] of this.entries) {
@@ -157,14 +166,29 @@ export class PersistentMap {
         );
         this.consecutiveFlushFailures = 0;
       }
+      return true;
     } catch (err) {
       this.dirty = true;
       this.consecutiveFlushFailures++;
-      // First failure visible at warn; subsequent ones at debug to avoid
-      // log floods (e.g. disk full + bursty writes every 2s).
+      // Rate-limited, but a persistent failure must not fade into debug —
+      // unpersisted dedup state means the whole library is re-announced
+      // after the next restart.
       const msg = `PersistentMap[${this.name}]: flush failed #${this.consecutiveFlushFailures} (${err?.message || err})`;
-      if (this.consecutiveFlushFailures === 1 || this.consecutiveFlushFailures % 20 === 0) logger.warn(msg);
-      else logger.debug(msg);
+      if (this.consecutiveFlushFailures >= PERSISTENT_FLUSH_FAILURE_THRESHOLD) {
+        if (this.consecutiveFlushFailures % 20 === 0 ||
+            this.consecutiveFlushFailures === PERSISTENT_FLUSH_FAILURE_THRESHOLD) {
+          logger.error(
+            `${msg} — dedup state is not being persisted; notifications will duplicate after restart. Check disk space and volume permissions.`
+          );
+        } else {
+          logger.debug(msg);
+        }
+      } else if (this.consecutiveFlushFailures === 1) {
+        logger.warn(msg);
+      } else {
+        logger.debug(msg);
+      }
+      return false;
     }
   }
 

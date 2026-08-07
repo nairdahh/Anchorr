@@ -69,7 +69,12 @@ export async function pruneLibrary() {
         !currentKeys.has(key)
     );
 
-    deduplicator.store.flush();
+    if (!deduplicator.store.flush()) {
+      logger.error(
+        `libraryPruner: prune ran (refreshed ${currentKeys.size} key(s), removed ${removed} stale key(s)) but the dedup store could not be written to disk — the result is memory-only and will be lost on restart`
+      );
+      return;
+    }
 
     logger.info(
       `libraryPruner: prune complete — refreshed ${currentKeys.size} key(s), removed ${removed} stale identity key(s)`

@@ -51,17 +51,26 @@ async function fetchWindowItems() {
   let totalRaw = 0;
   for (const libId of configuredIds) {
     let items;
+    let complete;
     try {
-      items = await jellyfinApi.fetchRecentlyAdded(
+      ({ items, complete } = await jellyfinApi.fetchRecentlyAdded(
         apiKey,
         baseUrl,
         FETCH_LIMIT,
         cutoff,
         libId
-      );
+      ));
     } catch (err) {
       throw new Error(
         `Failed to fetch recent items for library ${libId}: ${err?.message}`
+      );
+    }
+    // Posting a digest built on a truncated fetch would silently drop items
+    // that fall out of the 7-day window before the next run. Fail instead so
+    // the scheduler retries on the next hourly tick.
+    if (!complete) {
+      throw new Error(
+        `Incomplete item fetch for library ${libId} — Jellyfin returned a partial result, skipping this run to avoid posting a truncated roundup`
       );
     }
     totalRaw += items.length;
@@ -330,12 +339,8 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
   const isTest = options.test === true;
   const logPrefix = isTest ? "Weekly Roundup (test)" : "Weekly Roundup";
 
-  // In test mode we rethrow errors so the /api/test-weekly-roundup handler
-  // can surface them to the dashboard. In production the scheduler records
-  // failures, so we throw to let it observe them.
-  const onError = (err, msg) => {
-    throw err instanceof Error ? err : new Error(msg);
-  };
+  // Errors always propagate: the test route surfaces them to the dashboard,
+  // the scheduler records them as failures.
 
   // Preflight: a malformed JELLYFIN_BASE_URL causes buildJellyfinUrl to emit
   // an http://invalid.local/... sentinel. Catching that here means the user
@@ -365,10 +370,6 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
     fetched = await fetchWindowItems();
   } catch (err) {
     logger.error(`${logPrefix}: failed to fetch items: ${err?.message}`);
-    if (isTest) {
-      onError(err, `Failed to fetch items: ${err?.message}`);
-      return;
-    }
     throw err;
   }
 
@@ -452,10 +453,6 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
     logger.warn(
       `${logPrefix}: failed to fetch channel ${channelId}: ${err?.message}`
     );
-    if (isTest) {
-      onError(err, `Failed to fetch channel ${channelId}: ${err?.message}`);
-      return;
-    }
     throw err;
   }
   if (!channel) {
@@ -469,10 +466,6 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
     embed = await buildRoundupEmbed(grouped, items);
   } catch (err) {
     logger.error(`${logPrefix}: failed to build embed: ${err?.message}`);
-    if (isTest) {
-      onError(err, `Failed to build embed: ${err?.message}`);
-      return;
-    }
     throw err;
   }
 
@@ -490,10 +483,6 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
     );
   } catch (err) {
     logger.error(`${logPrefix}: failed to send embed: ${err?.message}`);
-    if (isTest) {
-      onError(err, `Failed to send embed: ${err?.message}`);
-      return;
-    }
     throw err;
   }
 }

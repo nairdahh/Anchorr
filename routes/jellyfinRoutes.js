@@ -13,7 +13,7 @@ const router = Router();
 // Resets the LIBRARY_SEEDED flag and re-runs the full library seed scan.
 // Fire-and-forget: the scan can take a while for large libraries, so this
 // responds immediately and the scan continues in the background.
-router.post("/seed/reset", authenticateToken, async (_req, res) => {
+router.post("/seed/reset", authenticateToken, (_req, res) => {
   if (!updateConfig({ LIBRARY_SEEDED: "false" })) {
     return res.status(500).json({
       success: false,

@@ -103,7 +103,11 @@ export async function seedLibrary() {
       );
     }
 
-    deduplicator.store.flush();
+    if (!deduplicator.store.flush()) {
+      throw new Error(
+        "dedup store could not be written to disk — not marking library as seeded"
+      );
+    }
 
     if (!updateConfig({ LIBRARY_SEEDED: "true" })) {
       throw new Error("failed to persist LIBRARY_SEEDED flag to config.json");

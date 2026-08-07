@@ -8,7 +8,6 @@ import {
   recordFailure,
 } from "./roundupState.js";
 
-const HOUR_MS = 60 * 60 * 1000;
 const ALREADY_POSTED_MIN_AGE_MS = 6 * 24 * 60 * 60 * 1000;
 const MAX_FAILURES_PER_WEEK = 3;
 const TICK_OFFSET_SECONDS = 5;
