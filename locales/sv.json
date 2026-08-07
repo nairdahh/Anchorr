@@ -128,6 +128,8 @@
     "jellyfin_api_key_help": "Ange Jellyfin API-nyckel",
     "test_endpoint": "Testa endpoint",
     "test_endpoint_help": "Kontrollera Jellyfin-endpoint",
+    "reseed_library": "Läs in biblioteket på nytt",
+    "reseed_library_help": "Skannar om hela ditt Jellyfin-bibliotek och markerar allt befintligt innehåll som \"redan känt\", så att det inte utlöser Discord-aviseringar. Använd detta om du har omorganiserat biblioteket eller om gamla objekt felaktigt annonseras som nya.",
     "jellyfin_server_id": "Jellyfin server-ID",
     "jellyfin_server_id_help": "Ange server-ID för Jellyfin",
     "notification_testing_title": "Notifieringstest",

@@ -84,27 +84,11 @@ async function fetchWindowItems() {
     `Weekly Roundup: queried ${configuredIds.length} configured libraries since ${cutoff}, got ${totalRaw} items (${filtered.length} after dedupe)`
   );
 
-  // Diagnostic: dump the raw identity fields for each episode so we can see
-  // why dedup might fail (missing IndexNumber, varying Name, multiple item
-  // ids for the same episode, ...). Debug-level — only useful when actively
-  // chasing a dedup mismatch; noise during normal operation.
-  const episodes = filtered.filter((it) => it.Type === "Episode");
-  if (episodes.length > 0) {
-    const dump = episodes
-      .slice(0, 30)
-      .map(
-        (e) =>
-          `{id:${e.Id}, series:"${e.SeriesName}", S${e.ParentIndexNumber}E${e.IndexNumber}${e.IndexNumberEnd != null ? `-${e.IndexNumberEnd}` : ""}, name:"${e.Name}", created:${e.DateCreated}}`
-      )
-      .join("\n  ");
-    logger.debug(
-      `Weekly Roundup: episode raw fields (first 30 of ${episodes.length}):\n  ${dump}`
-    );
-  }
-
-  filtered.rawCount = totalRaw;
-  filtered.allowedLibraryCount = configuredIds.length;
-  return filtered;
+  return {
+    items: filtered,
+    rawCount: totalRaw,
+    allowedLibraryCount: configuredIds.length,
+  };
 }
 
 /**
@@ -234,9 +218,9 @@ function groupItems(items) {
   // naturally and the bare-title row (-1) sorts first.
   const showOrder = new Map();
   for (const e of entriesOut) {
-    const t = e.createdAt.getTime();
-    if (!showOrder.has(e.showKey) || t > showOrder.get(e.showKey)) {
-      showOrder.set(e.showKey, t);
+    const ts = e.createdAt.getTime();
+    if (!showOrder.has(e.showKey) || ts > showOrder.get(e.showKey)) {
+      showOrder.set(e.showKey, ts);
     }
   }
   entriesOut.sort((a, b) => {
@@ -339,7 +323,7 @@ function escapeMd(s) {
   // Parens are not markdown control chars inside [label] — escaping them
   // produces literal "\(2026\)" in the rendered link. Only escape the
   // chars that Discord actually treats as markdown inside link labels.
-  return String(s).replace(/[\r\n]/g, " ").replace(/([\[\]\\*_~`])/g, "\\$1");
+  return String(s).replace(/[\r\n]/g, " ").replace(/([\[\]\\*_~`|])/g, "\\$1");
 }
 
 export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
@@ -376,9 +360,9 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
     throw new Error(msg);
   }
 
-  let items;
+  let fetched;
   try {
-    items = await fetchWindowItems();
+    fetched = await fetchWindowItems();
   } catch (err) {
     logger.error(`${logPrefix}: failed to fetch items: ${err?.message}`);
     if (isTest) {
@@ -395,12 +379,12 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
   // identity (TMDB / SeriesId+S/E) matches a prior record.
   const cutoffMs = now.getTime() - WINDOW_MS;
   const installedAt = getInstalledAt(now.getTime());
-  const beforeFilter = items.length;
+  const beforeFilter = fetched.items.length;
   let droppedPreInstall = 0;
   let droppedOldDateCreated = 0;
   let droppedNoDateCreated = 0;
   let droppedAlreadySeen = 0;
-  const fresh = items.filter((item) => {
+  const items = fetched.items.filter((item) => {
     const created = item.DateCreated ? new Date(item.DateCreated).getTime() : NaN;
     if (!Number.isFinite(created)) {
       // Safer default for a "what's new this week" digest: an item without
@@ -425,24 +409,19 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
     return true;
   });
   logger.debug(
-    `${logPrefix}: filtered ${beforeFilter} → ${fresh.length} items (no DateCreated: ${droppedNoDateCreated}, pre-install: ${droppedPreInstall}, old DateCreated: ${droppedOldDateCreated}, already-seen: ${droppedAlreadySeen})`
+    `${logPrefix}: filtered ${beforeFilter} → ${items.length} items (no DateCreated: ${droppedNoDateCreated}, pre-install: ${droppedPreInstall}, old DateCreated: ${droppedOldDateCreated}, already-seen: ${droppedAlreadySeen})`
   );
-  // Preserve the diagnostic counters from fetchWindowItems on the filtered
-  // array (filter() drops these expando properties).
-  fresh.rawCount = items.rawCount;
-  fresh.allowedLibraryCount = items.allowedLibraryCount;
-  fresh.alreadySeenCount = beforeFilter - fresh.length;
-  items = fresh;
-  if (items.alreadySeenCount > 0) {
+  const alreadySeenCount = beforeFilter - items.length;
+  if (alreadySeenCount > 0) {
     logger.info(
-      `${logPrefix}: filtered ${items.alreadySeenCount} of ${beforeFilter} items as already-seen (Sonarr/Radarr upgrade or older import)`
+      `${logPrefix}: filtered ${alreadySeenCount} of ${beforeFilter} items as already-seen (Sonarr/Radarr upgrade or older import)`
     );
   }
 
   if (items.length === 0) {
-    const rawCount = items.rawCount ?? 0;
-    const allowedCount = items.allowedLibraryCount ?? 0;
-    const alreadySeen = items.alreadySeenCount ?? 0;
+    const rawCount = fetched.rawCount;
+    const allowedCount = fetched.allowedLibraryCount;
+    const alreadySeen = alreadySeenCount;
     let diag;
     if (allowedCount === 0) {
       diag = "No notification libraries configured. Add libraries under Jellyfin notifications in the dashboard.";
@@ -454,13 +433,8 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
       diag = "Jellyfin returned no new items (Movie/Series/Season/Episode) in the past 7 days.";
     }
     if (isTest) throw new Error(diag);
-    // warn (not info): "no items" with no configured libraries or a 0-of-N
-    // mismatch is the most common silent-fail symptom users mistake for a
-    // broken feature. Surfacing it loudly in the logs lets ops debug without
-    // turning on debug logging.
-    // Misconfig (no libraries) or rawCount-but-not-in-config is a silent-fail
-    // symptom users mistake for a broken feature → warn. "Genuinely empty
-    // week" and "everything was an upgrade" are normal → info.
+    // Misconfig is a silent-fail symptom users mistake for a broken feature →
+    // warn. A genuinely empty week is normal → info.
     if (allowedCount === 0 || (rawCount > 0 && alreadySeen === 0)) {
       logger.warn(`${logPrefix}: skipping post — ${diag}`);
     } else {
@@ -597,11 +571,19 @@ function renderFieldGroup(name, entries) {
   let currentName = name;
   let value = "";
 
-  for (const entry of entries) {
+  for (const rawEntry of entries) {
+    // Discord rejects fields with an empty value, so never let an oversized
+    // entry flush an empty one.
+    const entry =
+      rawEntry.length > FIELD_VALUE_BUDGET
+        ? rawEntry.slice(0, FIELD_VALUE_BUDGET - 1) + "…"
+        : rawEntry;
     const next = (value ? "\n" : "") + entry;
     if (value.length + next.length > FIELD_VALUE_BUDGET) {
-      fields.push({ name: currentName, value });
-      currentName = name + " " + t("roundup.field_continued");
+      if (value) {
+        fields.push({ name: currentName, value });
+        currentName = name + " " + t("roundup.field_continued");
+      }
       value = entry;
     } else {
       value += next;

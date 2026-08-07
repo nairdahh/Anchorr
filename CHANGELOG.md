@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.5.6] - 2026-06-14
+## [1.5.6] - 2026-08-07
 
 ### ✨ Added
 
 - **Separate overview toggle for episodes**: The embed overview setting is now split into two independent options -- one for movies and series, one for episodes. Episode summaries can be disabled independently to avoid spoilers for shows you haven't caught up on. Both options are on by default. Configurable via the dashboard under "Embed Options". The previous `EMBED_SHOW_OVERVIEW` setting has been replaced and is migrated automatically to both new options on first start after upgrading; no action needed.
 
-- **Weekly Roundup**: Optional scheduled Discord post that summarizes new Jellyfin content from the last 7 days. Disabled by default. Configurable via the dashboard (channel, weekday, hour, embed color). The roundup groups items by library and collapses episodes of the same series into one line (e.g. _"My Show — Seasons 1 & 2 (12 episodes)"_). Item titles link directly to Jellyfin. A hourly scheduler tick with a persisted `WEEKLY_ROUNDUP_LAST_POSTED_AT` timestamp makes the post idempotent across Docker restarts. Sonarr/Radarr quality upgrades are filtered out via a stable-identity first-seen map (`config/dedup-roundup-first-seen.json`) so a re-imported file does not show up as "new".
+- **Weekly Roundup**: Optional scheduled Discord post that summarizes new Jellyfin content from the last 7 days. Disabled by default. Configurable via the dashboard (channel, weekday, hour, embed color). The roundup groups items by library and collapses episodes of the same series into one line (e.g. _"My Show — Seasons 1 & 2 (12 episodes)"_). Item titles link directly to Jellyfin. An hourly scheduler tick plus a persisted post timestamp (`config/dedup-roundup-state.json`) makes the post idempotent across Docker restarts. Sonarr/Radarr quality upgrades are filtered out via a stable-identity first-seen map (`config/dedup-roundup-first-seen.json`) so a re-imported file does not show up as "new".
+
+- **Weekly Roundup role mention**: Optionally ping a Discord role when the roundup posts. Pick the role from a dropdown in the dashboard; leave it on "No role mention" to post silently. The test button never pings the role.
 
 - **Library seed scan**: On first boot, Anchorr now scans your entire Jellyfin library and records everything that already exists, so pre-existing content never triggers a "new item" Discord notification.
 - **Daily prune scan**: A background job runs once per day to remove records for items that have been deleted from Jellyfin, keeping internal state from growing unbounded.
@@ -27,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🔒 Security
 
 - **form-data bumped to 4.0.6** (GHSA-hmw2-7cc7-3qxx): Resolves a prototype pollution vulnerability in a transitive dependency.
+- **undici pinned to ^6.26.1** (GHSA-p88m-4jfj-68fv, GHSA-vxpw-j846-p89q, GHSA-35p6-xmwp-9g52, GHSA-g8m3-5g58-fq7m): Resolves four vulnerabilities in a transitive dependency.
+- **axios bumped to 1.19.0**: Resolves high-severity CVEs in the HTTP client used for all Jellyfin, Jellyseerr, Radarr, Sonarr, TMDB and OMDb calls.
+- **body-parser pinned to ^1.20.6** and **joi bumped to 18.2.1**: Clears the remaining `npm audit` findings.
 
 ---
 

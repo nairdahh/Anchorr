@@ -30,9 +30,9 @@ export function deriveSeedKeys(item) {
   if (itemKey) keys.push(itemKey);
 
   if (item.Type === "Episode") {
-    const seriesKeyPart = item.ProviderIds?.Tmdb
-      ? `tmdb:${item.ProviderIds.Tmdb}`
-      : item.SeriesId
+    // An episode's ProviderIds.Tmdb is the *episode's* TMDB id, not the
+    // series' — using it here would build series keys that match nothing.
+    const seriesKeyPart = item.SeriesId
       ? `id:${item.SeriesId}`
       : item.SeriesName
       ? `name:${item.SeriesName}`

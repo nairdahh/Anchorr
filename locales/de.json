@@ -127,6 +127,8 @@
     "jellyfin_api_key_help": "API-Schlüssel für deinen Jellyfin-Server. Du kannst einen im Jellyfin Dashboard → Administration → API-Schlüssel erstellen. Dies ist erforderlich für das Laden von Bibliotheken und erweiterte Funktionen.",
     "test_endpoint": "Endpunkt testen",
     "test_endpoint_help": "Das erfolgreiche Testen des Endpunkts füllt automatisch das Feld Jellyfin Server-ID aus.",
+    "reseed_library": "Bibliothek neu einlesen",
+    "reseed_library_help": "Scannt deine komplette Jellyfin-Bibliothek erneut und markiert alle vorhandenen Einträge als \"bereits bekannt\", sodass sie keine Discord-Benachrichtigungen auslösen. Nutze das, wenn du deine Bibliothek umstrukturiert hast oder alte Einträge fälschlich als neu angekündigt werden.",
     "jellyfin_server_id": "Jellyfin Server-ID",
     "jellyfin_server_id_help": "Verwendet für die Weiterleitung zum korrekten Pfad deiner Jellyfin-Server-Medienseite beim Verwenden des \"Jetzt ansehen\"-Buttons. Du findest diese in deiner Jellyfin-URL, wenn du die Seite eines Films oder einer Serie aus deiner Bibliothek betrachtest.",
     "guild_id": "Server ID",

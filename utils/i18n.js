@@ -19,6 +19,7 @@ const LANG_CODE_RE = /^[a-zA-Z]{2,3}(?:[_-][a-zA-Z0-9]{2,8})?$/;
 let translations = null;
 let englishFallback = null;
 let loadedLang = null;
+const warnedMissingKeys = new Set();
 
 function safeLang(raw) {
   if (!raw || typeof raw !== "string") return FALLBACK_LANG;
@@ -93,7 +94,13 @@ export function t(key, vars) {
   if (typeof value !== "string") {
     value = lookup(englishFallback, key);
     if (typeof value !== "string") return key;
-    logger.warn(`[i18n] Key '${key}' missing in '${loadedLang}', falling back to '${FALLBACK_LANG}'.`);
+    // Warn once per key — t() runs per rendered string, so an untranslated
+    // locale would otherwise flood the log on every roundup.
+    const warnKey = `${loadedLang}:${key}`;
+    if (!warnedMissingKeys.has(warnKey)) {
+      warnedMissingKeys.add(warnKey);
+      logger.warn(`[i18n] Key '${key}' missing in '${loadedLang}', falling back to '${FALLBACK_LANG}'.`);
+    }
   }
   return interpolate(value, vars);
 }
@@ -102,4 +109,5 @@ export function resetI18nCache() {
   translations = null;
   englishFallback = null;
   loadedLang = null;
+  warnedMissingKeys.clear();
 }

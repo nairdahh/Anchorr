@@ -1075,6 +1075,7 @@ logger.info("Web server configured successfully");
 // This single `app.listen` call handles both modes.
 let server;
 let libraryPruneTimer;
+let libraryPruneInitialTimer;
 
 function startServer() {
   // Check volume configuration early
@@ -1167,7 +1168,7 @@ function startServer() {
   // that restarts more often than that (e.g. on every config save) would
   // otherwise never run a prune cycle at all. Run one shortly after boot too
   // so seeded/pruned keys get re-asserted regardless of restart frequency.
-  setTimeout(() => {
+  libraryPruneInitialTimer = setTimeout(() => {
     pruneLibrary().catch((err) =>
       logger.error(`libraryPruner: unexpected rejection in initial prune (${err?.message || err})`)
     );
@@ -1198,6 +1199,7 @@ function startServer() {
 // Keep the process alive
 process.on("SIGTERM", () => {
   clearInterval(libraryPruneTimer);
+  clearTimeout(libraryPruneInitialTimer);
   logger.info("SIGTERM signal received: closing HTTP server");
   server.close(() => {
     logger.info("HTTP server closed");
@@ -1207,6 +1209,7 @@ process.on("SIGTERM", () => {
 
 process.on("SIGINT", () => {
   clearInterval(libraryPruneTimer);
+  clearTimeout(libraryPruneInitialTimer);
   logger.info("SIGINT signal received: closing HTTP server");
   server.close(() => {
     logger.info("HTTP server closed");

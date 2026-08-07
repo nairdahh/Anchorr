@@ -60,11 +60,12 @@ export async function pruneLibrary() {
       deduplicator.store.set(key, true);
     }
 
+    // Deliberately not pruning "id:" keys: they can come from item types
+    // fetchAllLibraryItems does not enumerate, so they would be removed here
+    // and re-notified on the next poll. They expire via TTL instead.
     const removed = deduplicator.store.prune(
       (key) =>
-        (key.startsWith("movie:") ||
-          key.startsWith("series:") ||
-          key.startsWith("id:")) &&
+        (key.startsWith("movie:") || key.startsWith("series:")) &&
         !currentKeys.has(key)
     );
 
