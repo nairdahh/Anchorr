@@ -420,8 +420,11 @@ const FETCH_RECENTLY_ADDED_MAX_TOTAL = 5000;
  * — Jellyfin silently ignores `MinDateCreated` — so callers must still
  * filter by `DateCreated` client-side.
  *
- * Returns { items, complete }; complete is false if a page fetch failed
- * partway through, so callers can tell a short result from a full one.
+ * Returns { items, complete, truncated }. `complete` is false if a page fetch
+ * failed partway through — retryable. `truncated` is true if the maxTotal cap
+ * cut the window short — NOT retryable, a retry truncates identically, so
+ * callers should disclose it rather than fail. Both are absent/false on the
+ * unpaginated path (no minDateCreated), which simply caps at `limit`.
  */
 export async function fetchRecentlyAdded(
   apiKey,
@@ -439,7 +442,7 @@ export async function fetchRecentlyAdded(
       SortBy: "DateCreated",
       SortOrder: "Descending",
       Limit: limit,
-      Fields: "ProviderIds,Overview,Genres,RunTimeTicks,ParentId,DateCreated,SeriesName,SeasonName,IndexNumber,ParentIndexNumber,AncestorIds",
+      Fields: "ProviderIds,Overview,Genres,RunTimeTicks,ParentId,DateCreated,SeriesName,SeasonName,IndexNumber,ParentIndexNumber,AncestorIds,ProductionYear",
       IncludeItemTypes: "Movie,Series,Season,Episode",
       Recursive: true,
     };
@@ -460,7 +463,7 @@ export async function fetchRecentlyAdded(
       logger.debug(
         `Fetched ${items.length} recently added items from Jellyfin`
       );
-      return { items, complete: true };
+      return { items, complete: true, truncated: false };
     }
 
     const cutoffMs = new Date(minDateCreated).getTime();

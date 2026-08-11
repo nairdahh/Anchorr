@@ -107,8 +107,11 @@ async function runTick(client, now = new Date()) {
 
   const channelId = process.env.WEEKLY_ROUNDUP_CHANNEL_ID;
   try {
-    await sendWeeklyRoundup(client, channelId, now);
-    setLastPostedAt(now.getTime());
+    // Only stamp the week as done when something was actually posted —
+    // otherwise a misconfig that skips the post would block retries for six
+    // days even after the user fixes it.
+    const posted = await sendWeeklyRoundup(client, channelId, now);
+    if (posted) setLastPostedAt(now.getTime());
   } catch (err) {
     recordFailure(now.getTime());
     logger.error(
@@ -197,6 +200,7 @@ export function start(client) {
 // week even though nothing about the roundup content actually failed.
 export function stop() {
   generation++;
+  circuitOpenWarned = false;
   if (pendingTimer) {
     clearTimeout(pendingTimer);
     pendingTimer = null;

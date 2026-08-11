@@ -411,7 +411,9 @@
     "diag_all_seen_many": "Jellyfin returnerade {count} poster från den senaste veckan, men alla har setts tidigare (Sonarr/Radarr-uppgradering eller äldre import).",
     "diag_none_in_libraries": "Jellyfin returnerade {count} nya poster från den senaste veckan, men ingen finns i dina {libraries} konfigurerade aviseringsbibliotek. Kontrollera bibliotekslistan under Jellyfin-aviseringar.",
     "diag_empty_week": "Jellyfin returnerade inga nya poster (Film/Serie/Säsong/Avsnitt) under de senaste 7 dagarna.",
-    "sections_trimmed": "vissa biblioteksavsnitt utelämnade"
+    "sections_trimmed": "vissa biblioteksavsnitt utelämnade",
+    "diag_all_pre_install": "Jellyfin returnerade {count} poster, men alla lades till innan Anchorr installerades. Endast innehåll som läggs till från och med nu visas i sammanfattningen.",
+    "diag_no_date_created": "Jellyfin returnerade {count} poster, men ingen av dem har ett användbart skapandedatum, så sammanfattningen kan inte avgöra hur nya de är."
   },
   "seerr_request_errors": {
     "quota": "⚠️ {msg} Du har nått din förfrågningsgräns — kontakta en admin om detta verkar fel.",

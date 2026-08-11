@@ -421,25 +421,32 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
   logger.debug(
     `${logPrefix}: filtered ${beforeFilter} → ${items.length} items (no DateCreated: ${droppedNoDateCreated}, pre-install: ${droppedPreInstall}, old DateCreated: ${droppedOldDateCreated}, already-seen: ${droppedAlreadySeen})`
   );
-  const alreadySeenCount = beforeFilter - items.length;
-  if (alreadySeenCount > 0) {
+  if (droppedAlreadySeen > 0) {
     logger.info(
-      `${logPrefix}: filtered ${alreadySeenCount} of ${beforeFilter} items as already-seen (Sonarr/Radarr upgrade or older import)`
+      `${logPrefix}: filtered ${droppedAlreadySeen} of ${beforeFilter} items as already-seen (Sonarr/Radarr upgrade or older import)`
     );
   }
 
   if (items.length === 0) {
     const rawCount = fetched.rawCount;
     const allowedCount = fetched.allowedLibraryCount;
-    const alreadySeen = alreadySeenCount;
+    // Report the reason that actually dominated, not the total drop count —
+    // on the first run after install everything is dropped by the installedAt
+    // floor, which is expected and has nothing to do with the dedup store.
     let diag;
     if (allowedCount === 0) {
       diag = t("roundup.diag_no_libraries");
-    } else if (alreadySeen > 0) {
+    } else if (droppedPreInstall >= droppedAlreadySeen && droppedPreInstall > 0) {
+      diag = t("roundup.diag_all_pre_install", { count: droppedPreInstall });
+    } else if (droppedAlreadySeen > 0) {
       diag = t(
-        alreadySeen === 1 ? "roundup.diag_all_seen_one" : "roundup.diag_all_seen_many",
-        { count: alreadySeen }
+        droppedAlreadySeen === 1
+          ? "roundup.diag_all_seen_one"
+          : "roundup.diag_all_seen_many",
+        { count: droppedAlreadySeen }
       );
+    } else if (droppedNoDateCreated > 0) {
+      diag = t("roundup.diag_no_date_created", { count: droppedNoDateCreated });
     } else if (rawCount > 0) {
       diag = t("roundup.diag_none_in_libraries", {
         count: rawCount,
@@ -451,12 +458,12 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
     if (isTest) throw new Error(diag);
     // Misconfig is a silent-fail symptom users mistake for a broken feature →
     // warn. A genuinely empty week is normal → info.
-    if (allowedCount === 0 || (rawCount > 0 && alreadySeen === 0)) {
+    if (allowedCount === 0 || (rawCount > 0 && droppedAlreadySeen === 0 && droppedPreInstall === 0)) {
       logger.warn(`${logPrefix}: skipping post — ${diag}`);
     } else {
       logger.info(`${logPrefix}: no new items this week — skipping post`);
     }
-    return;
+    return false;
   }
 
   const grouped = groupItems(items);
@@ -500,6 +507,7 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
     logger.error(`${logPrefix}: failed to send embed: ${err?.message}`);
     throw err;
   }
+  return true;
 }
 
 export async function sendWeeklyRoundupTest(client, channelId) {
@@ -637,7 +645,10 @@ async function resolveLibraryNames(libraryIds) {
       `Weekly Roundup: could not resolve names for library id(s) [${unresolved.join(", ")}] — using generic label`
     );
   }
-  return { map, failed: unresolved.length === libraryIds.length };
+  return {
+    map,
+    failed: libraryIds.length > 0 && unresolved.length === libraryIds.length,
+  };
 }
 
 function formatDate(d) {
