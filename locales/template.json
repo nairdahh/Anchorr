@@ -404,7 +404,13 @@
     "section_movies": "Movies",
     "section_series": "Series",
     "field_continued": "(cont.)",
-    "unknown_title": "Unknown"
+    "unknown_title": "Unknown",
+    "diag_no_libraries": "",
+    "diag_all_seen_one": "",
+    "diag_all_seen_many": "",
+    "diag_none_in_libraries": "",
+    "diag_empty_week": "",
+    "sections_trimmed": ""
   },
   "seerr_request_errors": {
     "quota": "⚠️ {msg} You've reached your request limit — contact an admin if you think this is a mistake.",

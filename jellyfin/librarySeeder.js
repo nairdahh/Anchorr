@@ -19,6 +19,22 @@ export function setScanInProgress(value) {
 }
 
 /**
+ * Synchronous pre-flight for seedLibrary(). Callers that fire the scan without
+ * awaiting it (the dashboard route) use this to report a rejection instead of
+ * claiming a scan started.
+ * @returns {{ok: boolean, reason: string|null}}
+ */
+export function checkSeedPreconditions() {
+  if (scanInProgress) {
+    return { ok: false, reason: "a library scan is already running" };
+  }
+  if (!process.env.JELLYFIN_API_KEY || !process.env.JELLYFIN_BASE_URL) {
+    return { ok: false, reason: "Jellyfin URL or API key is not configured" };
+  }
+  return { ok: true, reason: null };
+}
+
+/**
  * Builds every identity key that webhook/poller dedup might check for a
  * given Jellyfin API item. For episodes, this includes the series-level
  * and season-level keys in addition to the episode-level key, so a webhook
@@ -57,19 +73,14 @@ export function deriveSeedKeys(item) {
  * so the caller retries on the next process start.
  */
 export async function seedLibrary() {
-  if (scanInProgress) {
-    logger.warn("librarySeeder: scan already in progress — skipping");
+  const pre = checkSeedPreconditions();
+  if (!pre.ok) {
+    logger.warn(`librarySeeder: ${pre.reason} — skipping library seed`);
     return;
   }
 
   const apiKey = process.env.JELLYFIN_API_KEY;
   const baseUrl = process.env.JELLYFIN_BASE_URL;
-  if (!apiKey || !baseUrl) {
-    logger.warn(
-      "librarySeeder: JELLYFIN_API_KEY/JELLYFIN_BASE_URL not configured — skipping library seed"
-    );
-    return;
-  }
 
   scanInProgress = true;
   logger.info("librarySeeder: starting library seed scan...");

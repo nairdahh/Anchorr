@@ -404,7 +404,13 @@
     "section_movies": "Movies",
     "section_series": "Series",
     "field_continued": "(cont.)",
-    "unknown_title": "Unknown"
+    "unknown_title": "Unknown",
+    "diag_no_libraries": "No notification libraries configured. Add libraries under Jellyfin notifications in the dashboard.",
+    "diag_all_seen_one": "Jellyfin returned 1 item in the past week, but it has been seen before (Sonarr/Radarr upgrade or older import).",
+    "diag_all_seen_many": "Jellyfin returned {count} items in the past week, but all of them have been seen before (Sonarr/Radarr upgrade or older import).",
+    "diag_none_in_libraries": "Jellyfin returned {count} new items in the past week, but none are in your {libraries} configured notification libraries. Check the library list in Jellyfin notifications.",
+    "diag_empty_week": "Jellyfin returned no new items (Movie/Series/Season/Episode) in the past 7 days.",
+    "sections_trimmed": "some library sections omitted"
   },
   "seerr_request_errors": {
     "quota": "⚠️ {msg} You've reached your request limit — contact an admin if you think this is a mistake.",

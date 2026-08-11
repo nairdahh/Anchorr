@@ -434,13 +434,19 @@ export async function sendWeeklyRoundup(client, channelId, now, options = {}) {
     const alreadySeen = alreadySeenCount;
     let diag;
     if (allowedCount === 0) {
-      diag = "No notification libraries configured. Add libraries under Jellyfin notifications in the dashboard.";
+      diag = t("roundup.diag_no_libraries");
     } else if (alreadySeen > 0) {
-      diag = `Jellyfin returned ${alreadySeen} item${alreadySeen === 1 ? "" : "s"} in the past week, but all of them have been seen before (Sonarr/Radarr upgrade or older import).`;
+      diag = t(
+        alreadySeen === 1 ? "roundup.diag_all_seen_one" : "roundup.diag_all_seen_many",
+        { count: alreadySeen }
+      );
     } else if (rawCount > 0) {
-      diag = `Jellyfin returned ${rawCount} new items in the past week, but none are in your ${allowedCount} configured notification libraries. Check the library list in Jellyfin notifications.`;
+      diag = t("roundup.diag_none_in_libraries", {
+        count: rawCount,
+        libraries: allowedCount,
+      });
     } else {
-      diag = "Jellyfin returned no new items (Movie/Series/Season/Episode) in the past 7 days.";
+      diag = t("roundup.diag_empty_week");
     }
     if (isTest) throw new Error(diag);
     // Misconfig is a silent-fail symptom users mistake for a broken feature →
@@ -536,9 +542,11 @@ async function buildRoundupEmbed(grouped, rawItems, truncated = false) {
     }
   }
   // Discord hard limit: 25 fields per embed
+  let fieldsTrimmed = false;
   if (allFields.length > 25) {
     logger.warn(`[weeklyRoundup] embed field count (${allFields.length}) exceeds Discord limit of 25; trimming`);
     allFields.length = 25;
+    fieldsTrimmed = true;
   }
   embed.addFields(allFields);
 
@@ -554,6 +562,9 @@ async function buildRoundupEmbed(grouped, rawItems, truncated = false) {
   // that in the footer so Discord viewers understand why headers look alike.
   if (libraryNamesFailed) {
     footerText += " · " + t("roundup.library_names_unavailable");
+  }
+  if (fieldsTrimmed) {
+    footerText += " · " + t("roundup.sections_trimmed");
   }
   if (truncated) {
     footerText += " · " + t("roundup.items_truncated");

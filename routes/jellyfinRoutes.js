@@ -5,7 +5,7 @@ import { isMaskedValue } from "../utils/configSanitize.js";
 import { TIMEOUTS } from "../lib/constants.js";
 import { libraryCache } from "../jellyfinWebhook.js";
 import logger from "../utils/logger.js";
-import { seedLibrary } from "../jellyfin/librarySeeder.js";
+import { seedLibrary, checkSeedPreconditions } from "../jellyfin/librarySeeder.js";
 import { updateConfig } from "../utils/configFile.js";
 
 const router = Router();
@@ -14,6 +14,16 @@ const router = Router();
 // Fire-and-forget: the scan can take a while for large libraries, so this
 // responds immediately and the scan continues in the background.
 router.post("/seed/reset", authenticateToken, (_req, res) => {
+  // Checked before touching config so a rejected request reports the real
+  // reason instead of confirming a scan that never starts.
+  const pre = checkSeedPreconditions();
+  if (!pre.ok) {
+    return res.status(409).json({
+      success: false,
+      message: `Cannot start re-seed: ${pre.reason}.`,
+    });
+  }
+
   if (!updateConfig({ LIBRARY_SEEDED: "false" })) {
     return res.status(500).json({
       success: false,

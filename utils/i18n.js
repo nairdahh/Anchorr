@@ -93,7 +93,18 @@ export function t(key, vars) {
   let value = lookup(translations, key);
   if (typeof value !== "string") {
     value = lookup(englishFallback, key);
-    if (typeof value !== "string") return key;
+    if (typeof value !== "string") {
+      // Missing in the active locale AND in English: the raw key is about to
+      // be rendered to a user, so this is a code bug, not a translation gap.
+      const missKey = `__missing_everywhere__:${key}`;
+      if (!warnedMissingKeys.has(missKey)) {
+        warnedMissingKeys.add(missKey);
+        logger.error(
+          `[i18n] Key '${key}' is missing in '${loadedLang}' AND in '${FALLBACK_LANG}' — the raw key will be shown to users.`
+        );
+      }
+      return key;
+    }
     // Warn once per key — t() runs per rendered string, so an untranslated
     // locale would otherwise flood the log on every roundup.
     const warnKey = `${loadedLang}:${key}`;

@@ -16,10 +16,20 @@ const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 let pendingTimer = null;
 let generation = 0;
+let circuitOpenWarned = false;
 
-function parseIntInRange(raw, fallback, min, max) {
+function parseIntInRange(raw, fallback, min, max, settingName) {
   const n = parseInt(raw, 10);
-  if (Number.isNaN(n) || n < min || n > max) return fallback;
+  if (Number.isNaN(n) || n < min || n > max) {
+    // Only complain about a value the user actually set — an unset key
+    // legitimately falls back to the default.
+    if (settingName && raw !== undefined && raw !== "") {
+      logger.warn(
+        `Weekly Roundup: ${settingName}="${raw}" is not a whole number between ${min} and ${max}; using ${fallback} instead`
+      );
+    }
+    return fallback;
+  }
   return n;
 }
 
@@ -83,6 +93,16 @@ function formatTickLog(now, decision) {
 async function runTick(client, now = new Date()) {
   const decision = evaluateTick(now);
   logger.info(formatTickLog(now, decision));
+  if (decision.reason === "circuit-open") {
+    if (!circuitOpenWarned) {
+      circuitOpenWarned = true;
+      logger.warn(
+        `Weekly Roundup: ${MAX_FAILURES_PER_WEEK} posts failed in the last 7 days — no further attempts will be made until one of those failures ages out. Check the earlier "post failed" entries for the cause.`
+      );
+    }
+  } else {
+    circuitOpenWarned = false;
+  }
   if (decision.action !== "post") return;
 
   const channelId = process.env.WEEKLY_ROUNDUP_CHANNEL_ID;
@@ -117,17 +137,21 @@ export function start(client) {
 
   const installedAt = getInstalledAt();
   const now = new Date();
+  // Named only here, not in evaluateTick — this runs once per start, so a
+  // rejected value is reported without flooding the hourly tick log.
   const targetWeekday = parseIntInRange(
     process.env.WEEKLY_ROUNDUP_WEEKDAY,
     0,
     0,
-    6
+    6,
+    "WEEKLY_ROUNDUP_WEEKDAY"
   );
   const targetHour = parseIntInRange(
     process.env.WEEKLY_ROUNDUP_HOUR,
     18,
     0,
-    23
+    23,
+    "WEEKLY_ROUNDUP_HOUR"
   );
   logger.info(
     `Roundup scheduler started: local now=${WEEKDAY_SHORT[now.getDay()]} ${now.toISOString()} hour=${now.getHours()}, target=${WEEKDAY_SHORT[targetWeekday]} ${targetHour}:00, installedAt=${new Date(installedAt).toISOString()}`
