@@ -57,11 +57,11 @@ export const configSchema = Joi.object({
   WEEKLY_ROUNDUP_ENABLED: Joi.string().valid("true", "false").optional(),
   WEEKLY_ROUNDUP_CHANNEL_ID: Joi.string().allow("").optional(),
   WEEKLY_ROUNDUP_WEEKDAY: Joi.alternatives(
-    Joi.string().pattern(/^[0-6]$/),
+    Joi.string().pattern(/^[0-6]$/).allow(""),
     Joi.number().integer().min(0).max(6)
   ).optional(),
   WEEKLY_ROUNDUP_HOUR: Joi.alternatives(
-    Joi.string().pattern(/^([0-9]|1[0-9]|2[0-3])$/),
+    Joi.string().pattern(/^([0-9]|1[0-9]|2[0-3])$/).allow(""),
     Joi.number().integer().min(0).max(23)
   ).optional(),
   WEEKLY_ROUNDUP_EMBED_COLOR: Joi.string().allow("").optional(),
