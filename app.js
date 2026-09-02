@@ -9,6 +9,10 @@ import rateLimit from "express-rate-limit";
 import { handleJellyfinWebhook } from "./jellyfinWebhook.js";
 import { configTemplate } from "./lib/config.js";
 import { sendDailyRandomPick } from "./bot/dailyPick.js";
+import { sendWeeklyRoundupTest } from "./bot/weeklyRoundup.js";
+import { stop as stopRoundupScheduler } from "./bot/roundupScheduler.js";
+import { seedLibrary } from "./jellyfin/librarySeeder.js";
+import { pruneLibrary } from "./jellyfin/libraryPruner.js";
 
 // ESM __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -671,6 +675,7 @@ function configureWebServer() {
           "Critical Discord settings changed. Restarting bot logic..."
         );
 
+        stopRoundupScheduler();
         await botState.discordClient.destroy();
         botState.isBotRunning = false;
         botState.discordClient = null;
@@ -1017,6 +1022,47 @@ function configureWebServer() {
     }
   });
 
+  app.post("/api/test-weekly-roundup", authenticateToken, async (_req, res) => {
+    try {
+      if (!botState.discordClient || !botState.discordClient.isReady()) {
+        return res.status(400).json({
+          success: false,
+          message: "Discord bot is not running. Please start the bot first.",
+        });
+      }
+
+      const channelId = process.env.WEEKLY_ROUNDUP_CHANNEL_ID;
+      if (!channelId) {
+        return res.status(400).json({
+          success: false,
+          message: "Weekly Roundup channel must be configured first.",
+        });
+      }
+
+      await sendWeeklyRoundupTest(botState.discordClient, channelId);
+
+      res.json({
+        success: true,
+        message: "Weekly roundup sent successfully! Check your Discord channel.",
+      });
+    } catch (error) {
+      logger.error("Failed to send test weekly roundup:", error);
+      // Cap message length, coerce to string, and strip any URL-shaped
+      // substrings before returning to the dashboard. axios occasionally
+      // embeds the request URL (which may carry tokens or api_key query
+      // params) in error.message; we never want that to surface in an HTTP
+      // response.
+      const raw =
+        typeof error?.message === "string" ? error.message : String(error);
+      const sanitized = raw.replace(/https?:\/\/\S+/gi, "[url]").slice(0, 500);
+      res.status(500).json({
+        success: false,
+        message:
+          sanitized || "Failed to send weekly roundup. Check logs for details.",
+      });
+    }
+  });
+
   // Health check endpoint for monitoring
 }
 
@@ -1028,6 +1074,8 @@ logger.info("Web server configured successfully");
 // --- START THE SERVER ---
 // This single `app.listen` call handles both modes.
 let server;
+let libraryPruneTimer;
+let libraryPruneInitialTimer;
 
 function startServer() {
   // Check volume configuration early
@@ -1101,7 +1149,36 @@ function startServer() {
     } catch (e) {
       logger.error("Error during auto-start check:", e?.message || e);
     }
+
+    // One-time library seed: pre-populate the dedup store with everything
+    // that already exists in Jellyfin so pre-existing content never
+    // triggers a "new item" Discord notification. Runs async — webhook/
+    // poller/websocket are already listening and handle items normally
+    // while this is in progress.
+    if (process.env.LIBRARY_SEEDED !== "true") {
+      seedLibrary().catch((err) =>
+        logger.error(`librarySeeder: unexpected rejection on boot (${err?.message || err})`)
+      );
+    }
   });
+
+  const LIBRARY_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+  const LIBRARY_PRUNE_INITIAL_DELAY_MS = 5 * 60 * 1000;
+  // setInterval alone only fires after a full 24h of uptime — a container
+  // that restarts more often than that (e.g. on every config save) would
+  // otherwise never run a prune cycle at all. Run one shortly after boot too
+  // so seeded/pruned keys get re-asserted regardless of restart frequency.
+  libraryPruneInitialTimer = setTimeout(() => {
+    pruneLibrary().catch((err) =>
+      logger.error(`libraryPruner: unexpected rejection in initial prune (${err?.message || err})`)
+    );
+  }, LIBRARY_PRUNE_INITIAL_DELAY_MS);
+
+  libraryPruneTimer = setInterval(() => {
+    pruneLibrary().catch((err) =>
+      logger.error(`libraryPruner: unexpected rejection in prune cycle (${err?.message || err})`)
+    );
+  }, LIBRARY_PRUNE_INTERVAL_MS);
 
   server.on("error", (err) => {
     if (err.code === "EADDRINUSE") {
@@ -1121,6 +1198,8 @@ function startServer() {
 
 // Keep the process alive
 process.on("SIGTERM", () => {
+  clearInterval(libraryPruneTimer);
+  clearTimeout(libraryPruneInitialTimer);
   logger.info("SIGTERM signal received: closing HTTP server");
   server.close(() => {
     logger.info("HTTP server closed");
@@ -1129,6 +1208,8 @@ process.on("SIGTERM", () => {
 });
 
 process.on("SIGINT", () => {
+  clearInterval(libraryPruneTimer);
+  clearTimeout(libraryPruneInitialTimer);
   logger.info("SIGINT signal received: closing HTTP server");
   server.close(() => {
     logger.info("HTTP server closed");

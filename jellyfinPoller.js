@@ -109,7 +109,7 @@ class JellyfinPoller {
         `📚 Collection IDs: ${libraries.map((l) => `${l.Name}=${l.CollectionId || l.ItemId}`).join(", ")}`
       );
 
-      const items = await jellyfinApi.fetchRecentlyAdded(apiKey, baseUrl, 50);
+      const { items } = await jellyfinApi.fetchRecentlyAdded(apiKey, baseUrl, 50);
 
       if (items.length === 0) {
         logger.info("No recently added items found");

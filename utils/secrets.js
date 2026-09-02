@@ -22,6 +22,7 @@ function getOrGenerateWebhookSecret() {
   } else {
     logger.error("❌ Failed to save WEBHOOK_SECRET to config");
     logger.warn("⚠️  Using in-memory WEBHOOK_SECRET - it will change on restart");
+    process.env.WEBHOOK_SECRET = newSecret;
   }
 
   return newSecret;

@@ -158,7 +158,9 @@ export function readConfig() {
     logger.debug(`Config loaded successfully from ${configPath}`);
     return config;
   } catch (error) {
-    logger.error(`Error reading config from ${configPath}:`, error);
+    logger.error(
+      `Config file at ${configPath} exists but could not be read or parsed (it may be corrupt): ${error.message}. Restore from a backup or delete the file and reconfigure via the dashboard.`
+    );
     return null;
   }
 }
@@ -177,11 +179,18 @@ export function writeConfig(config) {
       fs.mkdirSync(configDir, { recursive: true, mode: 0o777 });
     }
 
-    // Write with explicit permissions (sensitive fields are base64-encoded)
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(encodeConfig(config), null, 2), {
+    // Atomic write: write to a temp file then rename so a mid-write kill never
+    // leaves a corrupted config.json behind.
+    const tmpPath = CONFIG_PATH + ".tmp";
+    fs.writeFileSync(tmpPath, JSON.stringify(encodeConfig(config), null, 2), {
       mode: 0o600,
       encoding: "utf-8",
     });
+    // `mode` only applies when writeFileSync creates the file. A leftover or
+    // pre-created tmp file keeps its old mode and would carry it onto
+    // config.json via the rename, so set it explicitly.
+    fs.chmodSync(tmpPath, 0o600);
+    fs.renameSync(tmpPath, CONFIG_PATH);
 
     logger.debug(`Config saved successfully to ${CONFIG_PATH}`);
     return true;
@@ -220,8 +229,17 @@ export function writeConfig(config) {
  * @returns {boolean} True if update succeeded
  */
 export function updateConfig(updates) {
-  const config = readConfig() || {};
-  const updatedConfig = { ...config, ...updates };
+  const config = readConfig();
+  // readConfig() returns null both for "no config yet" and "config is corrupt".
+  // Only the second case must refuse the write — refusing the first would stop
+  // a fresh install from ever persisting JWT_SECRET and WEBHOOK_SECRET.
+  if (!config && findExistingConfig()) {
+    logger.error(
+      "updateConfig: existing config could not be read — refusing partial write to avoid config wipe"
+    );
+    return false;
+  }
+  const updatedConfig = { ...(config || {}), ...updates };
   return writeConfig(updatedConfig);
 }
 
@@ -348,6 +366,27 @@ export function loadConfigToEnv() {
       logger.info("✅ Seerr key migration saved to config.json");
     } else {
       logger.error("❌ Failed to save Seerr key migration");
+    }
+  }
+
+  // 5. Migrate old single EMBED_SHOW_OVERVIEW flag to the new split
+  // movies/episodes settings, so users who had it disabled (often for
+  // episode spoilers) don't silently get overviews turned back on.
+  if (
+    config.EMBED_SHOW_OVERVIEW !== undefined &&
+    config.EMBED_SHOW_OVERVIEW_MOVIES === undefined &&
+    config.EMBED_SHOW_OVERVIEW_EPISODES === undefined
+  ) {
+    config.EMBED_SHOW_OVERVIEW_MOVIES = config.EMBED_SHOW_OVERVIEW;
+    config.EMBED_SHOW_OVERVIEW_EPISODES = config.EMBED_SHOW_OVERVIEW;
+    delete config.EMBED_SHOW_OVERVIEW;
+    logger.info(
+      "🔄 Migrated EMBED_SHOW_OVERVIEW → EMBED_SHOW_OVERVIEW_MOVIES/EMBED_SHOW_OVERVIEW_EPISODES"
+    );
+    if (writeConfig(config)) {
+      logger.info("✅ Embed overview migration saved to config.json");
+    } else {
+      logger.error("❌ Failed to save embed overview migration");
     }
   }
 

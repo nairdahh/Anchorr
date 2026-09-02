@@ -86,6 +86,9 @@ function getOrGenerateJwtSecret() {
     logger.warn(
       "⚠️  Using in-memory JWT_SECRET - sessions will not persist across restarts"
     );
+    // Still expose it so the next dashboard save can persist it (app.js
+    // falls back to process.env when the config has no secret yet).
+    process.env.JWT_SECRET = newSecret;
   }
 
   return newSecret;

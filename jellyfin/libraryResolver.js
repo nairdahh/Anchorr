@@ -2,7 +2,12 @@ import * as jellyfinApi from "../api/jellyfin.js";
 import logger from "../utils/logger.js";
 import { PersistentMap } from "../utils/persistentMap.js";
 
-const SEEN_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — survive Sonarr/Radarr upgrade cycles
+// Also backs the library seed's permanent "already existed" markers (see
+// jellyfin/librarySeeder.js), which must outlive Sonarr/Radarr upgrade
+// cycles indefinitely, not just 7 days. Real removal for deleted items
+// happens via the daily libraryPruner.js scan, not TTL expiry — this is a
+// backstop TTL, kept in step with roundup-first-seen's.
+const SEEN_THRESHOLD_MS = 5 * 365 * 24 * 60 * 60 * 1000;
 
 /**
  * Fetches all libraries from Jellyfin and returns the library array,
@@ -60,7 +65,7 @@ export function getLibraryChannels() {
     }
     return parsed;
   } catch (e) {
-    logger.warn("Failed to parse JELLYFIN_NOTIFICATION_LIBRARIES:", e);
+    logger.warn(`Failed to parse JELLYFIN_NOTIFICATION_LIBRARIES: ${e?.message || e}`);
     return {};
   }
 }
@@ -166,7 +171,12 @@ export function buildIdentityKey(item) {
         ? `name:${item.SeriesName}`
         : null;
       if (seriesKey && seasonNum != null && episodeNum != null) {
-        return `series:${seriesKey}:s${seasonNum}e${episodeNum}`;
+        const epEnd = item.IndexNumberEnd ?? item.EpisodeNumberEnd;
+        const epSuffix =
+          epEnd != null && epEnd !== episodeNum
+            ? `e${episodeNum}-${epEnd}`
+            : `e${episodeNum}`;
+        return `series:${seriesKey}:s${seasonNum}${epSuffix}`;
       }
       return itemId ? `id:${itemId}` : null;
     }

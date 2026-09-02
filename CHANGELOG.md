@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.0] - 2026-09-02
+
+### ✨ Added
+
+- **Weekly Roundup**: Optional scheduled Discord post that summarizes new Jellyfin content from the last 7 days. Disabled by default. Configurable via the dashboard (channel, weekday, hour, embed color). The roundup groups items by library and collapses episodes of the same series into one line (e.g. _"My Show — Seasons 1 & 2 (12 episodes)"_). Item titles link directly to Jellyfin. An hourly scheduler tick plus a persisted post timestamp (`config/dedup-roundup-state.json`) makes the post idempotent across Docker restarts. Sonarr/Radarr quality upgrades are filtered out via a stable-identity first-seen map (`config/dedup-roundup-first-seen.json`) so a re-imported file does not show up as "new".
+- **Weekly Roundup role mention**: Optionally ping a Discord role when the roundup posts. Pick the role from a dropdown in the dashboard; leave it on "No role mention" to post silently. The test button never pings the role.
+- **Weekly Roundup limit disclosure**: The embed states its own limits in the footer, with separate notes for library names that could not be resolved, sections trimmed to Discord's 25-field cap, and a window cut short by the per-library item cap. Previously these cases silently produced an incomplete roundup.
+- **Library seed scan**: On first boot, Anchorr now scans your entire Jellyfin library and records everything that already exists, so pre-existing content never triggers a "new item" Discord notification.
+- **Daily prune scan**: A background job runs once per day to remove records for items that have been deleted from Jellyfin, keeping internal state from growing unbounded.
+- **"Re-Seed Library" button**: A new button in the Jellyfin settings section lets you manually re-run the library seed scan, e.g. after reorganizing your library.
+- **Separate overview toggle for episodes**: The embed overview setting is now split into two independent options, one for movies and series and one for episodes. Episode summaries can be disabled on their own to avoid spoilers for shows you haven't caught up on. Both options are on by default and configurable via the dashboard under "Embed Options". The previous `EMBED_SHOW_OVERVIEW` setting has been replaced and is migrated automatically to both new options on first start after upgrading; no action needed.
+
+### 🐛 Fixed
+
+- **Quota error now shown to users**: When a `/request` hits a Jellyseerr quota limit, the bot now shows the specific reason (e.g. "Series Quota exceeded.") instead of a generic "An error occurred." message. Applies to the `/request` command, the request button, and the daily pick request button.
+- **Seerr v3.3.0+ user sync compatibility**: Jellyseerr v3.3.0 changed the user notification settings field from `discordId` (string) to `discordIds` (array). Auto-Map and Sync with Seerr now handle both formats correctly.
+
+### 🛡️ Config & State Persistence
+
+- **Atomic config writes**: `config.json` is now written to a temp file and renamed into place, so a crash or a full disk during a save can no longer leave a truncated config behind. The temp file gets its permissions set before the rename, so a leftover `.tmp` cannot carry loose permissions onto the real file.
+- **No silent config replacement**: `updateConfig` refuses to write when an existing `config.json` is present but unreadable, instead of overwriting it with a partial config built from defaults.
+- **Failed state flushes are no longer treated as success**: `PersistentMap` now reports whether state actually reached disk. A failed flush no longer lets the library seeder mark the library as seeded, which would otherwise skip the seed on the next boot and re-announce the entire library to Discord.
+- **Unreadable dedup files are no longer overwritten**: If a `config/dedup-*.json` file cannot be read at startup, flushing is blocked instead of replacing the file with empty in-memory state.
+
+### 🔒 Security
+
+- **form-data bumped to 4.0.6** (GHSA-hmw2-7cc7-3qxx): Resolves a prototype pollution vulnerability in a transitive dependency.
+- **undici pinned to ^6.26.1** (GHSA-p88m-4jfj-68fv, GHSA-vxpw-j846-p89q, GHSA-35p6-xmwp-9g52, GHSA-g8m3-5g58-fq7m): Resolves four vulnerabilities in a transitive dependency.
+- **axios bumped to 1.19.0**: Resolves high-severity CVEs in the HTTP client used for all Jellyfin, Jellyseerr, Radarr, Sonarr, TMDB and OMDb calls.
+- **body-parser pinned to ^1.20.6** and **joi bumped to 18.2.1**: Clears the remaining `npm audit` findings.
+
+### 📝 Known Issues
+
+- **Season-level dedup key**: `buildIdentityKey()` uses an item's own TMDB id as the series identity for seasons and episodes. Episode dedup is unaffected in practice, since episode TMDB ids are unique. Only season-granularity suppression is affected. Tracked in [#126](../../issues/126) and scheduled for 1.6.1, because the fix changes the key format and needs a startup migration.
+
+---
+
 ## [1.5.5] - 2026-06-14
 
 ### 🌍 Added

@@ -1,6 +1,6 @@
 {
   "name": "anchorr",
-  "version": "1.5.5",
+  "version": "1.6.0",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
@@ -29,6 +29,8 @@
     "ws": "^8.18.0"
   },
   "overrides": {
-    "follow-redirects": "^1.16.0"
+    "follow-redirects": "^1.16.0",
+    "undici": "^6.26.1",
+    "body-parser": "^1.20.6"
   }
 }
